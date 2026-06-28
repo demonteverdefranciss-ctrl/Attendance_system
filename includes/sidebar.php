@@ -13,16 +13,16 @@ $baseUrl = '/attendance_system/';
                 <li class="nav-item">
                     <a class="nav-link text-white" href="<?= $baseUrl ?>admin/dashboard.php"><i class="fa-solid fa-gauge-high me-2"></i>Dashboard</a>
                 </li>
-                <li class="nav-item"><a class="nav-link text-white" href="#"><i class="fa-solid fa-chalkboard-user me-2"></i>Manage Teachers</a></li>
-                <li class="nav-item"><a class="nav-link text-white" href="#"><i class="fa-solid fa-users me-2"></i>Manage Students</a></li>
-                <li class="nav-item"><a class="nav-link text-white" href="#"><i class="fa-solid fa-user-group me-2"></i>Manage Parents</a></li>
+                <li class="nav-item"><a class="nav-link text-white" href="<?= $baseUrl ?>admin/teachers/index.php"><i class="fa-solid fa-chalkboard-user me-2"></i>Manage Teachers</a></li>
+                <li class="nav-item"><a class="nav-link text-white" href="<?= $baseUrl ?>admin/students/index.php"><i class="fa-solid fa-users me-2"></i>Manage Students</a></li>
+                <li class="nav-item"><a class="nav-link text-white" href="<?= $baseUrl ?>admin/parents/index.php"><i class="fa-solid fa-user-group me-2"></i>Manage Parents</a></li>
                 <li class="nav-item"><a class="nav-link text-white" href="#"><i class="fa-solid fa-chart-line me-2"></i>Analytics</a></li>
                 <li class="nav-item"><a class="nav-link text-white" href="#"><i class="fa-solid fa-bell me-2"></i>Notifications</a></li>
             <?php elseif ($role === 'teacher'): ?>
                 <li class="nav-item"><a class="nav-link text-white" href="<?= $baseUrl ?>teacher/dashboard.php"><i class="fa-solid fa-gauge-high me-2"></i>Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link text-white" href="#"><i class="fa-solid fa-users me-2"></i>Students</a></li>
-                <li class="nav-item"><a class="nav-link text-white" href="#"><i class="fa-solid fa-clipboard-check me-2"></i>Attendance</a></li>
-                <li class="nav-item"><a class="nav-link text-white" href="#"><i class="fa-solid fa-chart-column me-2"></i>Reports</a></li>
+                <li class="nav-item"><a class="nav-link text-white" href="<?= $baseUrl ?>teacher/students.php"><i class="fa-solid fa-users me-2"></i>Students</a></li>
+                <li class="nav-item"><a class="nav-link text-white" href="<?= $baseUrl ?>teacher/mark_attendance.php"><i class="fa-solid fa-clipboard-check me-2"></i>Mark Attendance</a></li>
+                <li class="nav-item"><a class="nav-link text-white" href="<?= $baseUrl ?>teacher/reports.php"><i class="fa-solid fa-chart-column me-2"></i>Reports</a></li>
             <?php elseif ($role === 'parent'): ?>
                 <li class="nav-item"><a class="nav-link text-white" href="<?= $baseUrl ?>parent/dashboard.php"><i class="fa-solid fa-gauge-high me-2"></i>Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link text-white" href="#"><i class="fa-solid fa-child me-2"></i>Child Attendance</a></li>

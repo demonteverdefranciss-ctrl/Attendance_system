@@ -17,15 +17,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name === '') {
         $message = 'Student name is required.';
     } else {
-        $stmt = $conn->prepare('INSERT INTO student (student_name, section, parent_name) VALUES (?, ?, ?)');
-        $stmt->bind_param('sss', $name, $section, $parentName);
-        $stmt->execute();
+        $stmt = $pdo->prepare('INSERT INTO student (student_name, section, parent_name) VALUES (?, ?, ?)');
+        $stmt->execute([$name, $section, $parentName]);
         $message = 'Student added successfully.';
     }
 }
 
-$result = $conn->query('SELECT student_id, student_name, section, parent_name, created_at FROM student ORDER BY student_id DESC');
-$students = $result->fetch_all(MYSQLI_ASSOC);
+$result = $pdo->query('SELECT student_id, student_name, section, parent_name, created_at FROM student ORDER BY student_id DESC');
+$students = $result->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">

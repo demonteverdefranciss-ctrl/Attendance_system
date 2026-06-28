@@ -16,15 +16,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name === '') {
         $message = 'Teacher name is required.';
     } else {
-        $stmt = $conn->prepare('INSERT INTO teacher (teacher_name, subject) VALUES (?, ?)');
-        $stmt->bind_param('ss', $name, $subject);
-        $stmt->execute();
+        $stmt = $pdo->prepare('INSERT INTO teacher (teacher_name, subject) VALUES (?, ?)');
+        $stmt->execute([$name, $subject]);
         $message = 'Teacher added successfully.';
     }
 }
 
-$result = $conn->query('SELECT teacher_id, teacher_name, subject, created_at FROM teacher ORDER BY teacher_id DESC');
-$teachers = $result->fetch_all(MYSQLI_ASSOC);
+$result = $pdo->query('SELECT teacher_id, teacher_name, subject, created_at FROM teacher ORDER BY teacher_id DESC');
+$teachers = $result->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">

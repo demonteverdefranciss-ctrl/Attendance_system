@@ -19,20 +19,27 @@ include '../includes/navbar.php';
                 <div class="col-md-6">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
-                            <h5 class="card-title">Today's Attendance</h5>
-                            <p class="text-muted mb-0">View and update pupil attendance for the current session.</p>
+                            <h5 class="card-title"><i class="fa-solid fa-clipboard me-2 text-primary"></i>Mark Attendance</h5>
+                            <p class="text-muted mb-3">Record daily student attendance</p>
+                            <a href="mark_attendance.php" class="btn btn-primary btn-sm">Go to Attendance</a>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body">
-                            <h5 class="card-title">Quick Actions</h5>
-                            <ul class="mb-0 ps-3">
-                                <li>View student list</li>
-                                <li>Mark attendance</li>
-                                <li>Review attendance reports</li>
-                            </ul>
+                            <h5 class="card-title"><i class="fa-solid fa-chart-bar me-2 text-success"></i>View Reports</h5>
+                            <p class="text-muted mb-3">Review attendance history and statistics</p>
+                            <a href="reports.php" class="btn btn-success btn-sm">View Reports</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="fa-solid fa-users me-2 text-info"></i>Student List</h5>
+                            <p class="text-muted mb-3">View all registered students</p>
+                            <a href="students.php" class="btn btn-info btn-sm">View Students</a>
                         </div>
                     </div>
                 </div>

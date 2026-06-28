@@ -16,15 +16,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name === '') {
         $message = 'Parent name is required.';
     } else {
-        $stmt = $conn->prepare('INSERT INTO parent (parent_name, contact) VALUES (?, ?)');
-        $stmt->bind_param('ss', $name, $contact);
-        $stmt->execute();
+        $stmt = $pdo->prepare('INSERT INTO parent (parent_name, contact) VALUES (?, ?)');
+        $stmt->execute([$name, $contact]);
         $message = 'Parent added successfully.';
     }
 }
 
-$result = $conn->query('SELECT parent_id, parent_name, contact, created_at FROM parent ORDER BY parent_id DESC');
-$parents = $result->fetch_all(MYSQLI_ASSOC);
+$result = $pdo->query('SELECT parent_id, parent_name, contact, created_at FROM parent ORDER BY parent_id DESC');
+$parents = $result->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
