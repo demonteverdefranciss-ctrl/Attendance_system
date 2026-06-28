@@ -1,0 +1,26 @@
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%);
+}
+
+.sidebar {
+    min-height: 100vh;
+}
+
+.nav-link:hover {
+    background: rgba(255,255,255,0.12);
+    border-radius: 8px;
+}
+
+.card {
+    border-radius: 16px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border: none;
+}
+
+.btn-outline-secondary {
+    border-radius: 999px;
+}
