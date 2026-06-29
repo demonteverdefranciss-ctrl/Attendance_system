@@ -5,7 +5,7 @@ export default function AuthenticatedLayout({ title, children }) {
 
     const logout = (e) => {
         e.preventDefault();
-        router.post('/logout');
+        router.post(route('logout'));
     };
 
     return (

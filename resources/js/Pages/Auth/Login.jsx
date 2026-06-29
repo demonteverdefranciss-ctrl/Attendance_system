@@ -9,7 +9,7 @@ export default function Login({ status }) {
 
     const submit = (e) => {
         e.preventDefault();
-        post('/login', { onFinish: () => reset('password') });
+        post(route('login'), { onFinish: () => reset('password') });
     };
 
     return (
