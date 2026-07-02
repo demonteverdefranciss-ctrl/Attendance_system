@@ -7,10 +7,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-install pdo_mysql mbstring zip bcmath \
     && rm -rf /var/lib/apt/lists/*
 
-# mod_php requires exactly one MPM (prefork). Disable others to avoid
+# mod_php requires exactly one MPM (prefork). Forcefully remove the event/worker
+# module links (a2dismod is unreliable here) to avoid
 # "AH00534: apache2: Configuration error: More than one MPM loaded."
-RUN a2dismod mpm_event mpm_worker 2>/dev/null || true; \
-    a2enmod mpm_prefork rewrite
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.* \
+    && ln -sf /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load \
+    && ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf \
+    && a2enmod rewrite
 
 # --- Node.js 20 (build front-end assets) ---
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
