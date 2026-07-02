@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 const nav = [
     { label: 'Dashboard', route: 'teacher.dashboard' },
     { label: 'Mark Attendance', route: 'teacher.attendance.index' },
+    { label: 'Reports', route: 'reports.index' },
 ];
 
 export default function TeacherLayout({ title, actions, children }) {

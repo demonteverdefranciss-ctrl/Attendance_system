@@ -1,8 +1,28 @@
 import { Head, Link } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import { StatCard } from '@/Layouts/AuthenticatedLayout';
+import { Doughnut, Line, ChartCard, noAspect } from '@/Components/Charts';
 
-export default function TeacherDashboard({ stats }) {
+export default function TeacherDashboard({ stats, summary, trend, range }) {
+    const statusData = {
+        labels: ['Present', 'Late', 'Absent', 'Excused'],
+        datasets: [{
+            data: [summary.present, summary.late, summary.absent, summary.excused],
+            backgroundColor: ['#16a34a', '#f59e0b', '#dc2626', '#3b82f6'],
+        }],
+    };
+    const trendData = {
+        labels: trend.map((t) => t.day),
+        datasets: [{
+            label: 'Attendance rate %',
+            data: trend.map((t) => t.rate),
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,0.15)',
+            tension: 0.3,
+            fill: true,
+        }],
+    };
+
     return (
         <TeacherLayout
             title="Teacher Dashboard"
@@ -14,9 +34,22 @@ export default function TeacherDashboard({ stats }) {
         >
             <Head title="Teacher Dashboard" />
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard label="My Sections" value={stats.sections} />
                 <StatCard label="My Students" value={stats.students} />
+                <StatCard label="Attendance Rate" value={`${summary.rate}%`} />
+                <StatCard label="Absent (30d)" value={summary.absent} />
+            </div>
+
+            <p className="mb-3 text-sm text-gray-500">Attendance overview · {range.from} to {range.to}</p>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <ChartCard title="Status breakdown (last 30 days)">
+                    <Doughnut data={statusData} options={noAspect} />
+                </ChartCard>
+                <ChartCard title="Daily attendance rate (last 14 days)">
+                    <Line data={trendData} options={{ ...noAspect, scales: { y: { min: 0, max: 100 } } }} />
+                </ChartCard>
             </div>
         </TeacherLayout>
     );

@@ -7,6 +7,7 @@ const nav = [
     { label: 'Parents / Guardians', route: 'admin.guardians.index' },
     { label: 'Sections', route: 'admin.sections.index' },
     { label: 'Schedules', route: 'admin.schedules.index' },
+    { label: 'Reports', route: 'reports.index' },
 ];
 
 export default function AdminLayout({ title, actions, children }) {

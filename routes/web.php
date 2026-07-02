@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\TeacherController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Teacher\AttendanceController as TeacherAttendanceController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
@@ -47,5 +48,12 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:parent')->prefix('parent')->name('parent.')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'parent'])->name('dashboard');
+    });
+
+    // Reports & exports (admin sees all sections; teacher sees only their own).
+    Route::middleware('role:admin,teacher')->group(function () {
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/export/csv', [ReportController::class, 'csv'])->name('reports.csv');
+        Route::get('reports/export/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
     });
 });
