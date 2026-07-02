@@ -5,8 +5,12 @@ FROM php:8.2-apache
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git curl unzip ca-certificates gnupg libzip-dev libonig-dev \
     && docker-php-ext-install pdo_mysql mbstring zip bcmath \
-    && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/*
+
+# mod_php requires exactly one MPM (prefork). Disable others to avoid
+# "AH00534: apache2: Configuration error: More than one MPM loaded."
+RUN a2dismod mpm_event mpm_worker 2>/dev/null || true; \
+    a2enmod mpm_prefork rewrite
 
 # --- Node.js 20 (build front-end assets) ---
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
