@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 
 export default function Login({ status }) {
+    const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         username: '',
         password: '',
@@ -58,14 +60,23 @@ export default function Login({ status }) {
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                                     Password
                                 </label>
-                                <input
-                                    id="password"
-                                    type="password"
-                                    value={data.password}
-                                    autoComplete="current-password"
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                />
+                                <div className="mt-1 flex rounded-lg border border-gray-300 bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                                    <input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={data.password}
+                                        autoComplete="current-password"
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        className="block w-full rounded-l-lg border-0 focus:ring-0"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword((prev) => !prev)}
+                                        className="rounded-r-lg px-3 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                                    >
+                                        {showPassword ? 'Hide' : 'Show'}
+                                    </button>
+                                </div>
                                 {errors.password && (
                                     <p className="mt-1 text-sm text-red-600">{errors.password}</p>
                                 )}
