@@ -50,6 +50,10 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:parent')->prefix('parent')->name('parent.')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'parent'])->name('dashboard');
+        Route::post('notifications/{notification}/read', [DashboardController::class, 'markParentNotificationRead'])
+            ->name('notifications.read');
+        Route::post('notifications/preferences', [DashboardController::class, 'updateParentNotificationPreference'])
+            ->name('notifications.preferences');
     });
 
     // Reports & exports (admin sees all sections; teacher sees only their own).

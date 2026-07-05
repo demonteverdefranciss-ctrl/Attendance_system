@@ -11,6 +11,10 @@ use Carbon\Carbon;
 
 class AttendanceService
 {
+    public function __construct(private NotificationService $notifications)
+    {
+    }
+
     /**
      * Get (or create) the attendance session for a section on a date.
      * A schedule distinguishes AM/PM windows; ad-hoc sessions pass null.
@@ -59,12 +63,7 @@ class AttendanceService
             ->pluck('id');
 
         foreach ($unmarked as $studentId) {
-            AttendanceRecord::create([
-                'session_id' => $session->id,
-                'student_id' => $studentId,
-                'status' => 'absent',
-                'method' => 'manual',
-            ]);
+            $this->mark($session, (int) $studentId, 'absent', ['method' => 'manual']);
         }
 
         $session->update(['status' => 'closed', 'closed_at' => now()]);
@@ -85,6 +84,8 @@ class AttendanceService
             'student_id' => $studentId,
         ]);
         $isNew = ! $record->exists;
+        $beforeStatus = $record->status;
+        $beforeTimeIn = $record->time_in;
 
         $record->status = $status;
 
@@ -116,6 +117,7 @@ class AttendanceService
         }
 
         $record->save();
+        $this->dispatchAttendanceNotificationIfNeeded($record, $isNew, $beforeStatus, $beforeTimeIn);
 
         return $record;
     }
@@ -170,5 +172,31 @@ class AttendanceService
         }
 
         return 'present';
+    }
+
+    private function dispatchAttendanceNotificationIfNeeded(
+        AttendanceRecord $record,
+        bool $isNew,
+        ?string $beforeStatus,
+        mixed $beforeTimeIn
+    ): void {
+        $shouldNotify = match ($record->status) {
+            'present', 'late' => $isNew
+                || $beforeStatus !== $record->status
+                || ($beforeTimeIn === null && $record->time_in !== null),
+            'absent' => $isNew || $beforeStatus !== 'absent',
+            default => false,
+        };
+
+        if (! $shouldNotify) {
+            return;
+        }
+
+        $student = Student::find($record->student_id);
+        if (! $student) {
+            return;
+        }
+
+        $this->notifications->queueAttendanceEvent($student, $record);
     }
 }

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Notification;
 use App\Services\AnalyticsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -75,9 +77,67 @@ class DashboardController extends Controller
             ? DB::table('student_guardian')->where('guardian_id', $guardian->id)->count()
             : 0;
 
+        $notifications = $guardian
+            ? Notification::where('guardian_id', $guardian->id)
+                ->latest('id')
+                ->limit(30)
+                ->get()
+                ->map(fn ($n) => [
+                    'id' => $n->id,
+                    'type' => $n->type,
+                    'title' => $n->title,
+                    'body' => $n->body,
+                    'status' => $n->status,
+                    'sent_at' => $n->sent_at?->toDateTimeString(),
+                    'read_at' => $n->read_at?->toDateTimeString(),
+                ])
+                ->values()
+            : collect();
+
+        $unreadCount = $guardian
+            ? Notification::where('guardian_id', $guardian->id)->whereNull('read_at')->count()
+            : 0;
+
         return Inertia::render('Parent/Dashboard', [
             'stats' => ['children' => $children],
+            'notifications' => $notifications,
+            'unreadCount' => $unreadCount,
+            'notifyPref' => $guardian?->notify_pref ?? 'push',
         ]);
+    }
+
+    public function markParentNotificationRead(Request $request, Notification $notification): RedirectResponse
+    {
+        $guardian = $request->user()->guardian;
+
+        if (! $guardian || $notification->guardian_id !== $guardian->id) {
+            abort(403);
+        }
+
+        if (! $notification->read_at) {
+            $notification->update([
+                'status' => 'read',
+                'read_at' => now(),
+            ]);
+        }
+
+        return redirect()->route('parent.dashboard')->with('success', 'Notification marked as read.');
+    }
+
+    public function updateParentNotificationPreference(Request $request): RedirectResponse
+    {
+        $guardian = $request->user()->guardian;
+        if (! $guardian) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'notify_pref' => ['required', 'in:push,none'],
+        ]);
+
+        $guardian->update(['notify_pref' => $data['notify_pref']]);
+
+        return redirect()->route('parent.dashboard')->with('success', 'Notification preference updated.');
     }
 
     /**
