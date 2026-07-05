@@ -20,6 +20,7 @@ class AttendanceController extends ApiController
     /**
      * Ingest a recognition event from the camera node (device-authenticated).
      * Idempotent via client_uuid so offline buffers can re-send safely.
+     * Auto-detects arrival (time_in) vs departure (time_out).
      */
     public function recognitions(Request $request): JsonResponse
     {
@@ -42,16 +43,41 @@ class AttendanceController extends ApiController
             return $this->fail('Student is not assigned to a section.', 'NO_SECTION', 422);
         }
 
-        $session = $this->attendance->currentOpenSession($student->section_id);
+        $capturedAt = isset($data['captured_at']) ? Carbon::parse($data['captured_at']) : now();
+        $camera = $request->attributes->get('camera');
+        $capturedDate = $capturedAt->toDateString();
 
+        $pendingTimeOut = AttendanceRecord::where('student_id', $student->id)
+            ->whereIn('status', ['present', 'late'])
+            ->whereNull('time_out')
+            ->whereHas('session', function ($q) use ($student, $capturedDate) {
+                $q->whereDate('session_date', $capturedDate)
+                    ->where('section_id', $student->section_id);
+            })
+            ->latest('id')
+            ->first();
+
+        if ($pendingTimeOut) {
+            try {
+                $record = $this->attendance->recordTimeOut(
+                    $pendingTimeOut->session,
+                    $student->id,
+                    $capturedAt,
+                    ['client_uuid' => $data['client_uuid'], 'marked_by' => null]
+                );
+            } catch (\InvalidArgumentException $e) {
+                return $this->fail($e->getMessage(), 'INVALID_TIMEOUT', 422);
+            }
+
+            return $this->ok($this->recordPayload($record), 201);
+        }
+
+        $session = $this->attendance->currentOpenSession($student->section_id);
         if (! $session) {
             return $this->fail('No active attendance session for this section.', 'NO_SESSION', 422);
         }
 
-        $capturedAt = isset($data['captured_at']) ? Carbon::parse($data['captured_at']) : now();
         $status = $this->attendance->statusForArrival($session->schedule, $capturedAt);
-        $camera = $request->attributes->get('camera');
-
         $record = $this->attendance->mark($session, $student->id, $status, [
             'method' => 'face',
             'confidence' => $data['confidence'] ?? null,
@@ -138,6 +164,7 @@ class AttendanceController extends ApiController
             'session_id' => $r->session_id,
             'status' => $r->status,
             'time_in' => $r->time_in?->toDateTimeString(),
+            'time_out' => $r->time_out?->toDateTimeString(),
             'method' => $r->method,
             'confidence' => $r->confidence,
         ];

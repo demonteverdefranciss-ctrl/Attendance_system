@@ -103,6 +103,7 @@ class AnalyticsService
                 'student' => $r->student ? "{$r->student->last_name}, {$r->student->first_name}" : '—',
                 'status' => $r->status,
                 'time_in' => $r->time_in?->format('H:i'),
+                'time_out' => $r->time_out?->format('H:i'),
                 'method' => $r->method,
             ]);
     }

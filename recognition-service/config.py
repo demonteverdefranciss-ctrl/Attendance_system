@@ -8,6 +8,7 @@ load_dotenv()
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost/attendance_system/public/api/v1")
 CAMERA_ID = os.getenv("CAMERA_ID", "1")
 DEVICE_KEY = os.getenv("DEVICE_KEY", "demo-device-key-12345")
+EVENT_TYPE_HINT = os.getenv("EVENT_TYPE_HINT", "").strip().lower() or None
 
 VIDEO_SOURCE = os.getenv("VIDEO_SOURCE", "0")
 

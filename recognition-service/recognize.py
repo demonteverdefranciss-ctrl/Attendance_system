@@ -27,9 +27,19 @@ def record(student_id, distance):
             confidence=confidence,
             captured_at=datetime.now().astimezone().isoformat(),
             client_uuid=str(uuid.uuid4()),
+            event_type=config.EVENT_TYPE_HINT,
         )
         if resp.status_code in (200, 201):
-            print(f"[OK]  student {student_id} recorded (conf={confidence:.2f})")
+            mode = "recorded"
+            try:
+                payload = resp.json().get("data", {})
+                if payload.get("time_out"):
+                    mode = "time-out"
+                elif payload.get("time_in"):
+                    mode = "time-in"
+            except Exception:
+                pass
+            print(f"[OK]  student {student_id} {mode} (conf={confidence:.2f})")
         else:
             print(f"[WARN] student {student_id}: HTTP {resp.status_code} {resp.text[:200]}")
     except Exception as exc:  # network/offline — Phase 6b adds a local buffer

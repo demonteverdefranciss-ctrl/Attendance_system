@@ -30,7 +30,7 @@
     <table>
         <thead>
             <tr>
-                <th>Date</th><th>Section</th><th>Student</th><th>Status</th><th>Time In</th><th>Method</th>
+                <th>Date</th><th>Section</th><th>Student</th><th>Status</th><th>Time In</th><th>Time Out</th><th>Method</th>
             </tr>
         </thead>
         <tbody>
@@ -41,10 +41,11 @@
                     <td>{{ $r['student'] }}</td>
                     <td class="status">{{ $r['status'] }}</td>
                     <td>{{ $r['time_in'] ?? '—' }}</td>
+                    <td>{{ $r['time_out'] ?? '—' }}</td>
                     <td class="status">{{ $r['method'] }}</td>
                 </tr>
             @empty
-                <tr><td colspan="6" style="text-align:center;color:#888;">No records for this period.</td></tr>
+                <tr><td colspan="7" style="text-align:center;color:#888;">No records for this period.</td></tr>
             @endforelse
         </tbody>
     </table>

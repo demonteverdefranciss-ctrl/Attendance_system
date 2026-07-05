@@ -37,9 +37,9 @@ class ReportController extends Controller
 
         return ResponseFactory::streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Date', 'Section', 'Student', 'Status', 'Time In', 'Method']);
+            fputcsv($out, ['Date', 'Section', 'Student', 'Status', 'Time In', 'Time Out', 'Method']);
             foreach ($rows as $r) {
-                fputcsv($out, [$r['date'], $r['section'], $r['student'], $r['status'], $r['time_in'], $r['method']]);
+                fputcsv($out, [$r['date'], $r['section'], $r['student'], $r['status'], $r['time_in'], $r['time_out'], $r['method']]);
             }
             fclose($out);
         }, "attendance_{$from}_to_{$to}.csv", ['Content-Type' => 'text/csv']);

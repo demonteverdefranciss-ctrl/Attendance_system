@@ -12,6 +12,7 @@ class AttendanceRecord extends Model
         'student_id',
         'status',
         'time_in',
+        'time_out',
         'method',
         'confidence',
         'camera_id',
@@ -23,6 +24,7 @@ class AttendanceRecord extends Model
     {
         return [
             'time_in' => 'datetime',
+            'time_out' => 'datetime',
             'confidence' => 'float',
         ];
     }

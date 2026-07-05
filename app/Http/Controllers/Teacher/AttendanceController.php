@@ -8,7 +8,6 @@ use App\Models\Section;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\AttendanceService;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -83,7 +82,14 @@ class AttendanceController extends Controller
             ->get(['id', 'first_name', 'last_name']);
 
         $records = $session->records()
-            ->pluck('status', 'student_id');
+            ->get(['student_id', 'status', 'time_in', 'time_out'])
+            ->mapWithKeys(fn ($r) => [
+                $r->student_id => [
+                    'status' => $r->status,
+                    'time_in' => $r->time_in?->toDateTimeString(),
+                    'time_out' => $r->time_out?->toDateTimeString(),
+                ],
+            ]);
 
         return Inertia::render('Teacher/Attendance/Mark', [
             'session' => $session,
@@ -128,6 +134,32 @@ class AttendanceController extends Controller
 
         return redirect()->route('teacher.attendance.index')
             ->with('success', 'Session closed. Unmarked students were recorded absent.');
+    }
+
+    public function recordTimeOut(Request $request, AttendanceSession $session, Student $student): RedirectResponse
+    {
+        $this->authorizeSession($session);
+
+        if ($session->status === 'closed') {
+            return redirect()->route('teacher.attendance.show', $session->id)
+                ->with('error', 'Cannot record time-out on a closed session.');
+        }
+
+        if ($student->section_id !== $session->section_id) {
+            abort(403);
+        }
+
+        try {
+            $this->attendance->recordTimeOut($session, $student->id, now(), [
+                'marked_by' => $request->user()->id,
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('teacher.attendance.show', $session->id)
+                ->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('teacher.attendance.show', $session->id)
+            ->with('success', 'Time-out recorded.');
     }
 
     /**

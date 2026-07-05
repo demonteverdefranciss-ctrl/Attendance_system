@@ -75,14 +75,14 @@ export default function ReportsIndex({ sections, filters, summary, records }) {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            {['Date', 'Section', 'Student', 'Status', 'Time In', 'Method'].map((h) => (
+                            {['Date', 'Section', 'Student', 'Status', 'Time In', 'Time Out', 'Method'].map((h) => (
                                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {records.length === 0 && (
-                            <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">No records for this period.</td></tr>
+                            <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No records for this period.</td></tr>
                         )}
                         {records.map((r, i) => (
                             <tr key={i} className="hover:bg-gray-50">
@@ -91,6 +91,7 @@ export default function ReportsIndex({ sections, filters, summary, records }) {
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.student}</td>
                                 <td className={`px-4 py-2 text-sm font-medium capitalize ${STATUS_COLORS[r.status] || 'text-gray-700'}`}>{r.status}</td>
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.time_in ?? '—'}</td>
+                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_out ?? '—'}</td>
                                 <td className="px-4 py-2 text-sm capitalize text-gray-500">{r.method}</td>
                             </tr>
                         ))}

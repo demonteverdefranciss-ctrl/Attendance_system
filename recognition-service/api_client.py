@@ -6,7 +6,7 @@ import requests
 import config
 
 
-def post_recognition(student_id, confidence=None, captured_at=None, client_uuid=None, timeout=10):
+def post_recognition(student_id, confidence=None, captured_at=None, client_uuid=None, event_type=None, timeout=10):
     """
     POST a recognition event to the backend (device-authenticated).
 
@@ -27,6 +27,8 @@ def post_recognition(student_id, confidence=None, captured_at=None, client_uuid=
         payload["confidence"] = round(float(confidence), 4)
     if captured_at is not None:
         payload["captured_at"] = captured_at
+    if event_type in ("in", "out"):
+        payload["event_type"] = event_type
 
     return requests.post(url, json=payload, headers=headers, timeout=timeout)
 

@@ -43,6 +43,8 @@ Route::middleware('auth')->group(function () {
         Route::post('attendance/open', [TeacherAttendanceController::class, 'open'])->name('attendance.open');
         Route::get('attendance/{session}', [TeacherAttendanceController::class, 'show'])->name('attendance.show');
         Route::post('attendance/{session}', [TeacherAttendanceController::class, 'store'])->name('attendance.store');
+        Route::post('attendance/{session}/students/{student}/time-out', [TeacherAttendanceController::class, 'recordTimeOut'])
+            ->name('attendance.time-out');
         Route::post('attendance/{session}/close', [TeacherAttendanceController::class, 'close'])->name('attendance.close');
     });
 

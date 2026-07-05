@@ -80,23 +80,84 @@ class AttendanceService
     {
         $setsTime = in_array($status, ['present', 'late'], true);
 
-        $values = [
-            'status' => $status,
-            'time_in' => $opts['time_in'] ?? ($setsTime ? now() : null),
-            'method' => $opts['method'] ?? 'manual',
-            'confidence' => $opts['confidence'] ?? null,
-            'camera_id' => $opts['camera_id'] ?? null,
-            'marked_by' => $opts['marked_by'] ?? null,
-        ];
+        $record = AttendanceRecord::firstOrNew([
+            'session_id' => $session->id,
+            'student_id' => $studentId,
+        ]);
+        $isNew = ! $record->exists;
 
-        if (! empty($opts['client_uuid'])) {
-            $values['client_uuid'] = $opts['client_uuid'];
+        $record->status = $status;
+
+        if (array_key_exists('time_in', $opts)) {
+            $record->time_in = $opts['time_in'];
+        } elseif ($setsTime && ! $record->time_in) {
+            $record->time_in = now();
+        } elseif (! $setsTime) {
+            $record->time_in = null;
+            $record->time_out = null;
         }
 
-        return AttendanceRecord::updateOrCreate(
-            ['session_id' => $session->id, 'student_id' => $studentId],
-            $values,
-        );
+        $record->method = $opts['method'] ?? ($record->method ?? 'manual');
+
+        if (array_key_exists('confidence', $opts) || $isNew) {
+            $record->confidence = $opts['confidence'] ?? null;
+        }
+
+        if (array_key_exists('camera_id', $opts) || $isNew) {
+            $record->camera_id = $opts['camera_id'] ?? null;
+        }
+
+        if (array_key_exists('marked_by', $opts) || $isNew) {
+            $record->marked_by = $opts['marked_by'] ?? null;
+        }
+
+        if (! empty($opts['client_uuid'])) {
+            $record->client_uuid = $opts['client_uuid'];
+        }
+
+        $record->save();
+
+        return $record;
+    }
+
+    /**
+     * Set a student's time-out in an existing session record.
+     *
+     * @param  array<string, mixed>  $opts  marked_by, client_uuid
+     */
+    public function recordTimeOut(AttendanceSession $session, int $studentId, ?Carbon $timeOut = null, array $opts = []): AttendanceRecord
+    {
+        $record = AttendanceRecord::where('session_id', $session->id)
+            ->where('student_id', $studentId)
+            ->first();
+
+        if (! $record || ! in_array($record->status, ['present', 'late'], true)) {
+            throw new \InvalidArgumentException('Cannot record time-out without a present/late attendance record.');
+        }
+
+        $timeOut = $timeOut ?? now();
+
+        if ($record->time_in && $timeOut->lt($record->time_in)) {
+            throw new \InvalidArgumentException('Time-out cannot be earlier than time-in.');
+        }
+
+        if ($record->time_out) {
+            return $record;
+        }
+
+        $record->time_out = $timeOut;
+
+        if (array_key_exists('marked_by', $opts)) {
+            $record->marked_by = $opts['marked_by'];
+        }
+
+        if (! empty($opts['client_uuid'])) {
+            $record->client_uuid = $opts['client_uuid'];
+        }
+
+        $record->save();
+
+        return $record;
     }
 
     /**

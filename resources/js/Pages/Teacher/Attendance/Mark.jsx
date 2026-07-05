@@ -12,7 +12,7 @@ const COLORS = {
 export default function Mark({ session, students, records }) {
     const initial = {};
     students.forEach((s) => {
-        initial[s.id] = records[s.id] ?? '';
+        initial[s.id] = records[s.id]?.status ?? '';
     });
 
     const { data, setData, post, processing } = useForm({ records: initial });
@@ -36,6 +36,16 @@ export default function Mark({ session, students, records }) {
         if (confirm('Close this session? Unmarked students will be recorded absent.')) {
             router.post(route('teacher.attendance.close', session.id));
         }
+    };
+
+    const recordTimeOutNow = (studentId) => {
+        router.post(route('teacher.attendance.time-out', [session.id, studentId]), {}, { preserveScroll: true });
+    };
+
+    const displayTime = (value) => {
+        if (!value) return '—';
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
     const closed = session.status === 'closed';
@@ -70,6 +80,9 @@ export default function Mark({ session, students, records }) {
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Student</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Time In</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Time Out</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -95,6 +108,21 @@ export default function Mark({ session, students, records }) {
                                                 );
                                             })}
                                         </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-700">{displayTime(records[s.id]?.time_in)}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-700">{displayTime(records[s.id]?.time_out)}</td>
+                                    <td className="px-4 py-3">
+                                        {!closed && ['present', 'late'].includes(data.records[s.id]) && !records[s.id]?.time_out ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => recordTimeOutNow(s.id)}
+                                                className="rounded-lg bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                                            >
+                                                Record time-out now
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs text-gray-400">—</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

@@ -45,6 +45,7 @@ class StudentController extends ApiController
                 'date' => $r->session?->session_date?->toDateString(),
                 'status' => $r->status,
                 'time_in' => $r->time_in?->toDateTimeString(),
+                'time_out' => $r->time_out?->toDateTimeString(),
                 'method' => $r->method,
             ]);
 
