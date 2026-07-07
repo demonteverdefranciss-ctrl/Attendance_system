@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Head, useForm } from '@inertiajs/react';
-import logoUrl from '../../../images/branding/bigaa-logo.png';
-import backgroundUrl from '../../../images/branding/login-background.png';
+import { Head, useForm, usePage } from '@inertiajs/react';
 
 export default function Login({ status }) {
+    const { assetBase } = usePage().props;
+    const logoUrl = `${assetBase}/branding/bigaa-logo.png`;
+    const backgroundUrl = `${assetBase}/branding/login-background.png`;
+
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         username: '',

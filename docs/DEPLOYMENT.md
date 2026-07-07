@@ -43,8 +43,9 @@ Then add these variables:
 | `DB_PASSWORD` | `${{MySQL.MYSQLPASSWORD}}` |
 | `SESSION_SECURE_COOKIE` | `true` |
 
-> Do **NOT** set `ASSET_URL` in production — leaving it empty makes assets load
-> from `/build` at the domain root (correct when not in a subdirectory).
+> **Critical:** Do **NOT** set `ASSET_URL` in Railway production variables.
+> If it exists, delete it and redeploy — it breaks login branding and built assets.
+> Only use `ASSET_URL=/attendance_system/public` in your **local** `.env`.
 > The `${{MySQL.*}}` syntax references the MySQL service's variables.
 
 ### 4. Get a public URL

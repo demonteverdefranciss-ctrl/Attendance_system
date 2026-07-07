@@ -34,7 +34,7 @@ WORKDIR /var/www/html
 COPY . .
 RUN composer install --no-dev --optimize-autoloader --no-interaction \
     && npm ci \
-    && npm run build \
+    && ASSET_URL= npm run build \
     && npm prune --omit=dev \
     && chown -R www-data:www-data storage bootstrap/cache
 
