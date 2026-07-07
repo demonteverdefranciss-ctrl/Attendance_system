@@ -47,7 +47,17 @@ Parent**. Repo: `demonteverdefranciss-ctrl/Attendance_system` (branch `main`).
 
 ## Test logins (seeded — CHANGE IN PROD)
 
-`admin/Admin@123`, `teacher01/Teacher@123`, `parent01/Parent@123`. Recognition device key: `demo-device-key-12345`.
+| Role | Username | Password | CRUD / access |
+|------|----------|----------|----------------|
+| Admin | `crud_admin` | `Crud@123` | Full CRUD: teachers, students, parents, sections, schedules |
+| Teacher | `crud_teacher` | `Crud@123` | Attendance + enrollment request approval |
+| Parent | `crud_parent` | `Crud@123` | View children, notifications, enrollment requests |
+
+Legacy accounts: `admin/Admin@123`, `teacher01/Teacher@123`, `parent01/Parent@123`.
+
+Refresh demo accounts anytime: `php artisan accounts:seed-demo`
+
+> Students are records only (no login). Manage them under **Admin → Students**.
 
 ## Deployment state (Railway)
 

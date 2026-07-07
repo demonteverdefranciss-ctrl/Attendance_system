@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
+import logoUrl from '../../../images/branding/bigaa-logo.png';
+import backgroundUrl from '../../../images/branding/login-background.png';
 
 export default function Login({ status }) {
-    const { branding } = usePage().props;
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         username: '',
@@ -21,7 +22,7 @@ export default function Login({ status }) {
 
             <div
                 className="relative min-h-screen flex items-center justify-center p-6 bg-cover bg-center bg-no-repeat"
-                style={{ backgroundImage: `url('${branding.loginBackground}')` }}
+                style={{ backgroundImage: `url('${backgroundUrl}')` }}
             >
                 <div className="absolute inset-0 bg-gradient-to-br from-white/90 via-blue-50/85 to-blue-900/40" />
 
@@ -29,7 +30,7 @@ export default function Login({ status }) {
                     <div className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-blue-100">
                         <div className="bg-gradient-to-r from-blue-700 to-blue-600 px-8 py-5 text-center text-white">
                             <img
-                                src={branding.logo}
+                                src={logoUrl}
                                 alt="Bigaa Elementary School"
                                 className="mx-auto mb-3 h-24 w-24 rounded-full bg-white p-1 shadow-md ring-4 ring-white/30 object-contain"
                             />

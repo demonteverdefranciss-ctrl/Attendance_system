@@ -99,5 +99,7 @@ class DatabaseSeeder extends Seeder
             'api_key_hash' => Hash::make('demo-device-key-12345'), 'is_active' => true,
             'created_at' => $now, 'updated_at' => $now,
         ]);
+
+        $this->call(DemoAccountsSeeder::class);
     }
 }
