@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ChildEnrollmentRequest;
 use App\Models\Notification;
+use App\Models\Student;
+use App\Models\Teacher;
 use App\Services\AnalyticsService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -97,12 +100,31 @@ class DashboardController extends Controller
         $unreadCount = $guardian
             ? Notification::where('guardian_id', $guardian->id)->whereNull('read_at')->count()
             : 0;
+        $enrollmentRequests = $guardian
+            ? ChildEnrollmentRequest::where('guardian_id', $guardian->id)
+                ->with('student:id,first_name,last_name,lrn')
+                ->latest('id')
+                ->limit(20)
+                ->get()
+                ->map(fn ($r) => [
+                    'id' => $r->id,
+                    'lrn' => $r->lrn,
+                    'student' => $r->student ? $r->student->full_name : null,
+                    'relationship' => $r->relationship,
+                    'status' => $r->status,
+                    'notes' => $r->notes,
+                    'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
+                    'created_at' => $r->created_at?->toDateTimeString(),
+                ])
+                ->values()
+            : collect();
 
         return Inertia::render('Parent/Dashboard', [
             'stats' => ['children' => $children],
             'notifications' => $notifications,
             'unreadCount' => $unreadCount,
             'notifyPref' => $guardian?->notify_pref ?? 'push',
+            'enrollmentRequests' => $enrollmentRequests,
         ]);
     }
 
@@ -140,6 +162,145 @@ class DashboardController extends Controller
         return redirect()->route('parent.dashboard')->with('success', 'Notification preference updated.');
     }
 
+    public function createEnrollmentRequest(Request $request): RedirectResponse
+    {
+        $guardian = $request->user()->guardian;
+        if (! $guardian) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'lrn' => ['required', 'string', 'max:20'],
+            'relationship' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $student = Student::where('lrn', $data['lrn'])->first();
+        if (! $student) {
+            return redirect()->route('parent.dashboard')
+                ->with('error', 'No student found for the provided LRN.');
+        }
+
+        if ($guardian->students()->where('students.id', $student->id)->exists()) {
+            return redirect()->route('parent.dashboard')
+                ->with('error', 'This child is already linked to your parent account.');
+        }
+
+        $pendingExists = ChildEnrollmentRequest::where('guardian_id', $guardian->id)
+            ->where('student_id', $student->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($pendingExists) {
+            return redirect()->route('parent.dashboard')
+                ->with('error', 'An enrollment request for this child is already pending.');
+        }
+
+        ChildEnrollmentRequest::create([
+            'guardian_id' => $guardian->id,
+            'student_id' => $student->id,
+            'lrn' => $student->lrn,
+            'relationship' => $data['relationship'] ?? null,
+            'status' => 'pending',
+        ]);
+
+        return redirect()->route('parent.dashboard')
+            ->with('success', 'Enrollment request submitted and pending teacher verification.');
+    }
+
+    public function teacherEnrollmentRequests(Request $request): Response
+    {
+        $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
+        $sectionIds = $teacher->sections()->pluck('id')->all();
+
+        $items = ChildEnrollmentRequest::with([
+            'guardian:id,first_name,last_name,phone',
+            'student:id,first_name,last_name,lrn,section_id',
+            'student.section:id,name,grade_level',
+        ])
+            ->whereHas('student', fn ($q) => $q->whereIn('section_id', $sectionIds))
+            ->where('status', 'pending')
+            ->latest('id')
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'student' => $r->student?->full_name,
+                'lrn' => $r->lrn,
+                'section' => $r->student?->section ? "{$r->student->section->grade_level} - {$r->student->section->name}" : '—',
+                'guardian' => $r->guardian?->full_name,
+                'guardian_phone' => $r->guardian?->phone,
+                'relationship' => $r->relationship,
+                'created_at' => $r->created_at?->toDateTimeString(),
+            ]);
+
+        return Inertia::render('Teacher/EnrollmentRequests/Index', [
+            'requests' => $items,
+        ]);
+    }
+
+    public function approveEnrollmentRequest(Request $request, ChildEnrollmentRequest $enrollmentRequest): RedirectResponse
+    {
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
+        $this->authorizeEnrollmentRequest($teacher, $enrollmentRequest);
+
+        if ($enrollmentRequest->status !== 'pending') {
+            return redirect()->route('teacher.enrollment-requests.index')
+                ->with('error', 'This request has already been reviewed.');
+        }
+
+        $student = $enrollmentRequest->student;
+        $guardian = $enrollmentRequest->guardian;
+        if (! $student || ! $guardian) {
+            return redirect()->route('teacher.enrollment-requests.index')
+                ->with('error', 'Request is missing student/guardian details.');
+        }
+
+        $student->guardians()->syncWithoutDetaching([
+            $guardian->id => [
+                'relationship' => $enrollmentRequest->relationship,
+                'is_primary' => false,
+            ],
+        ]);
+
+        $enrollmentRequest->update([
+            'status' => 'approved',
+            'teacher_id' => $teacher->id,
+            'reviewed_at' => now(),
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        return redirect()->route('teacher.enrollment-requests.index')
+            ->with('success', 'Enrollment request approved.');
+    }
+
+    public function rejectEnrollmentRequest(Request $request, ChildEnrollmentRequest $enrollmentRequest): RedirectResponse
+    {
+        $data = $request->validate([
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
+        $this->authorizeEnrollmentRequest($teacher, $enrollmentRequest);
+
+        if ($enrollmentRequest->status !== 'pending') {
+            return redirect()->route('teacher.enrollment-requests.index')
+                ->with('error', 'This request has already been reviewed.');
+        }
+
+        $enrollmentRequest->update([
+            'status' => 'rejected',
+            'teacher_id' => $teacher->id,
+            'reviewed_at' => now(),
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        return redirect()->route('teacher.enrollment-requests.index')
+            ->with('success', 'Enrollment request rejected.');
+    }
+
     /**
      * @return array{0:string,1:string,2:string}  [from, to, trendFrom]
      */
@@ -150,5 +311,13 @@ class DashboardController extends Controller
             now()->toDateString(),
             now()->subDays(13)->toDateString(),
         ];
+    }
+
+    private function authorizeEnrollmentRequest(Teacher $teacher, ChildEnrollmentRequest $request): void
+    {
+        $sectionIds = $teacher->sections()->pluck('id')->all();
+        $studentSectionId = $request->student?->section_id;
+
+        abort_unless($studentSectionId && in_array($studentSectionId, $sectionIds, true), 403);
     }
 }

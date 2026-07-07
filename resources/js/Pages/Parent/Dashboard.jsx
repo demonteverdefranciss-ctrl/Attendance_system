@@ -2,8 +2,16 @@ import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout, { StatCard } from '@/Layouts/AuthenticatedLayout';
 import { useState } from 'react';
 
-export default function ParentDashboard({ stats, notifications = [], unreadCount = 0, notifyPref = 'push' }) {
+export default function ParentDashboard({
+    stats,
+    notifications = [],
+    unreadCount = 0,
+    notifyPref = 'push',
+    enrollmentRequests = [],
+}) {
     const [preference, setPreference] = useState(notifyPref);
+    const [lrn, setLrn] = useState('');
+    const [relationship, setRelationship] = useState('');
 
     const markRead = (id) => {
         router.post(route('parent.notifications.read', id), {}, { preserveScroll: true });
@@ -14,6 +22,21 @@ export default function ParentDashboard({ stats, notifications = [], unreadCount
             route('parent.notifications.preferences'),
             { notify_pref: preference },
             { preserveScroll: true }
+        );
+    };
+
+    const submitEnrollmentRequest = (e) => {
+        e.preventDefault();
+        router.post(
+            route('parent.enrollment-requests.store'),
+            { lrn, relationship },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setLrn('');
+                    setRelationship('');
+                },
+            }
         );
     };
 
@@ -38,6 +61,74 @@ export default function ParentDashboard({ stats, notifications = [], unreadCount
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <StatCard label="My Children" value={stats.children} />
                 <StatCard label="Unread Notifications" value={unreadCount} />
+            </div>
+
+            <div className="mt-6 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+                <h2 className="text-base font-semibold text-gray-900">Enroll Child</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                    Submit the child LRN for teacher verification before linking to your account.
+                </p>
+                <form onSubmit={submitEnrollmentRequest} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <input
+                        type="text"
+                        value={lrn}
+                        onChange={(e) => setLrn(e.target.value)}
+                        placeholder="Student LRN"
+                        className="rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        required
+                    />
+                    <input
+                        type="text"
+                        value={relationship}
+                        onChange={(e) => setRelationship(e.target.value)}
+                        placeholder="Relationship (e.g. mother)"
+                        className="rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                    <button
+                        type="submit"
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                        Submit for verification
+                    </button>
+                </form>
+            </div>
+
+            <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+                <div className="border-b border-gray-100 px-4 py-3">
+                    <h2 className="text-base font-semibold text-gray-900">Enrollment Requests</h2>
+                    <p className="text-xs text-gray-500">Track approval status of your child-link requests</p>
+                </div>
+                <div className="divide-y divide-gray-100">
+                    {enrollmentRequests.length === 0 && (
+                        <div className="px-4 py-8 text-center text-sm text-gray-400">
+                            No enrollment requests yet.
+                        </div>
+                    )}
+                    {enrollmentRequests.map((r) => (
+                        <div key={r.id} className="px-4 py-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-semibold text-gray-900">
+                                    {r.student || `LRN ${r.lrn}`}
+                                </h3>
+                                <span className={`rounded-full px-2 py-0.5 text-xs capitalize ${
+                                    r.status === 'approved'
+                                        ? 'bg-green-100 text-green-700'
+                                        : r.status === 'rejected'
+                                            ? 'bg-red-100 text-red-700'
+                                            : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                    {r.status}
+                                </span>
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">
+                                LRN: {r.lrn} · Relationship: {r.relationship || '—'} · Requested: {formatDateTime(r.created_at)}
+                            </p>
+                            {r.notes ? (
+                                <p className="mt-1 text-xs text-gray-600">Teacher note: {r.notes}</p>
+                            ) : null}
+                        </div>
+                    ))}
+                </div>
             </div>
 
             <div className="mt-6 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">

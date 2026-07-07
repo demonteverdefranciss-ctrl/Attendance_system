@@ -38,6 +38,11 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:teacher')->prefix('teacher')->name('teacher.')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'teacher'])->name('dashboard');
+        Route::get('enrollment-requests', [DashboardController::class, 'teacherEnrollmentRequests'])->name('enrollment-requests.index');
+        Route::post('enrollment-requests/{enrollmentRequest}/approve', [DashboardController::class, 'approveEnrollmentRequest'])
+            ->name('enrollment-requests.approve');
+        Route::post('enrollment-requests/{enrollmentRequest}/reject', [DashboardController::class, 'rejectEnrollmentRequest'])
+            ->name('enrollment-requests.reject');
 
         Route::get('attendance', [TeacherAttendanceController::class, 'index'])->name('attendance.index');
         Route::post('attendance/open', [TeacherAttendanceController::class, 'open'])->name('attendance.open');
@@ -50,6 +55,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:parent')->prefix('parent')->name('parent.')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'parent'])->name('dashboard');
+        Route::post('enrollment-requests', [DashboardController::class, 'createEnrollmentRequest'])->name('enrollment-requests.store');
         Route::post('notifications/{notification}/read', [DashboardController::class, 'markParentNotificationRead'])
             ->name('notifications.read');
         Route::post('notifications/preferences', [DashboardController::class, 'updateParentNotificationPreference'])
