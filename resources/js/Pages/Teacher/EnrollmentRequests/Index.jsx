@@ -7,7 +7,19 @@ export default function EnrollmentRequestsIndex({ requests }) {
             ? 'teacher.enrollment-requests.approve'
             : 'teacher.enrollment-requests.reject';
 
-        router.post(route(routeName, id), {}, { preserveScroll: true });
+        const notePrompt = action === 'approve'
+            ? 'Optional note for the parent (leave blank to skip):'
+            : 'Optional rejection reason for the parent (leave blank to skip):';
+        const notesInput = window.prompt(notePrompt, '');
+        if (notesInput === null) return;
+
+        const notes = notesInput.trim();
+        if (notes.length > 500) {
+            window.alert('Note is too long. Please keep it within 500 characters.');
+            return;
+        }
+
+        router.post(route(routeName, id), { notes }, { preserveScroll: true });
     };
 
     const fmt = (value) => {
