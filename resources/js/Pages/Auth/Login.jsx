@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 export default function Login({ status }) {
     const { assetBase } = usePage().props;
@@ -115,6 +115,13 @@ export default function Login({ status }) {
                                     {processing ? 'Signing in…' : 'Sign In'}
                                 </button>
                             </form>
+
+                            <p className="mt-5 text-center text-sm text-gray-600">
+                                New parent?{' '}
+                                <Link href={route('register.parent')} className="font-semibold text-blue-700 hover:underline">
+                                    Register here
+                                </Link>
+                            </p>
                         </div>
                     </div>
 

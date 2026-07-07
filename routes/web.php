@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\TeacherController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\ParentRegistrationController;
 use App\Http\Controllers\Teacher\AttendanceController as TeacherAttendanceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
@@ -18,6 +19,11 @@ Route::get('/', fn () => redirect()->route('dashboard'));
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    Route::get('register/parent', [ParentRegistrationController::class, 'create'])->name('register.parent');
+    Route::post('register/parent', [ParentRegistrationController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('register.parent.store');
 });
 
 // Authenticated routes.
