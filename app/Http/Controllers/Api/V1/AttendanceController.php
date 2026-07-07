@@ -63,7 +63,12 @@ class AttendanceController extends ApiController
                     $pendingTimeOut->session,
                     $student->id,
                     $capturedAt,
-                    ['client_uuid' => $data['client_uuid'], 'marked_by' => null]
+                    [
+                        'client_uuid' => $data['client_uuid'],
+                        'marked_by' => null,
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
+                    ]
                 );
             } catch (\InvalidArgumentException $e) {
                 return $this->fail($e->getMessage(), 'INVALID_TIMEOUT', 422);
@@ -84,6 +89,8 @@ class AttendanceController extends ApiController
             'camera_id' => $camera?->id,
             'time_in' => $capturedAt,
             'client_uuid' => $data['client_uuid'],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
 
         return $this->ok($this->recordPayload($record), 201);

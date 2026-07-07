@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\SectionController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\TeacherController;
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Teacher\AttendanceController as TeacherAttendanceController;
 use App\Http\Controllers\DashboardController;
@@ -34,6 +35,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('sections', SectionController::class)->except('show');
         Route::resource('students', StudentController::class)->except('show');
         Route::resource('schedules', ScheduleController::class)->except('show');
+        Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     });
 
     Route::middleware('role:teacher')->prefix('teacher')->name('teacher.')->group(function () {

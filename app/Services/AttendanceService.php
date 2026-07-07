@@ -11,7 +11,10 @@ use Carbon\Carbon;
 
 class AttendanceService
 {
-    public function __construct(private NotificationService $notifications)
+    public function __construct(
+        private NotificationService $notifications,
+        private AuditService $audit
+    )
     {
     }
 
@@ -118,6 +121,23 @@ class AttendanceService
 
         $record->save();
         $this->dispatchAttendanceNotificationIfNeeded($record, $isNew, $beforeStatus, $beforeTimeIn);
+        $this->audit->log(
+            action: 'attendance_marked',
+            userId: $opts['marked_by'] ?? null,
+            entity: $record,
+            oldValues: [
+                'status' => $beforeStatus,
+                'time_in' => $beforeTimeIn?->toDateTimeString(),
+            ],
+            newValues: [
+                'status' => $record->status,
+                'time_in' => $record->time_in?->toDateTimeString(),
+                'time_out' => $record->time_out?->toDateTimeString(),
+                'method' => $record->method,
+            ],
+            ipAddress: $opts['ip_address'] ?? null,
+            userAgent: $opts['user_agent'] ?? null
+        );
 
         return $record;
     }
@@ -147,6 +167,7 @@ class AttendanceService
             return $record;
         }
 
+        $beforeTimeOut = $record->time_out;
         $record->time_out = $timeOut;
 
         if (array_key_exists('marked_by', $opts)) {
@@ -158,6 +179,19 @@ class AttendanceService
         }
 
         $record->save();
+        $this->audit->log(
+            action: 'attendance_time_out_recorded',
+            userId: $opts['marked_by'] ?? null,
+            entity: $record,
+            oldValues: [
+                'time_out' => $beforeTimeOut?->toDateTimeString(),
+            ],
+            newValues: [
+                'time_out' => $record->time_out?->toDateTimeString(),
+            ],
+            ipAddress: $opts['ip_address'] ?? null,
+            userAgent: $opts['user_agent'] ?? null
+        );
 
         return $record;
     }

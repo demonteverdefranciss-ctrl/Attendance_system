@@ -118,6 +118,8 @@ class AttendanceController extends Controller
             if (in_array((int) $studentId, $validStudentIds, true)) {
                 $this->attendance->mark($session, (int) $studentId, $status, [
                     'marked_by' => $request->user()->id,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
                 ]);
             }
         }
@@ -152,6 +154,8 @@ class AttendanceController extends Controller
         try {
             $this->attendance->recordTimeOut($session, $student->id, now(), [
                 'marked_by' => $request->user()->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
             ]);
         } catch (\InvalidArgumentException $e) {
             return redirect()->route('teacher.attendance.show', $session->id)

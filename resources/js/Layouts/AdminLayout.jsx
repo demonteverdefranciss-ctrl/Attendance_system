@@ -7,6 +7,7 @@ const nav = [
     { label: 'Parents / Guardians', route: 'admin.guardians.index' },
     { label: 'Sections', route: 'admin.sections.index' },
     { label: 'Schedules', route: 'admin.schedules.index' },
+    { label: 'Audit Logs', route: 'admin.audit-logs.index' },
     { label: 'Reports', route: 'reports.index' },
 ];
 

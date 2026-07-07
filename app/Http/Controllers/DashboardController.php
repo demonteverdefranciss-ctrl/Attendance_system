@@ -7,6 +7,7 @@ use App\Models\Notification;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\AnalyticsService;
+use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +17,10 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __construct(private AnalyticsService $analytics)
+    public function __construct(
+        private AnalyticsService $analytics,
+        private AuditService $audit
+    )
     {
     }
 
@@ -195,13 +199,26 @@ class DashboardController extends Controller
                 ->with('error', 'An enrollment request for this child is already pending.');
         }
 
-        ChildEnrollmentRequest::create([
+        $enrollmentRequest = ChildEnrollmentRequest::create([
             'guardian_id' => $guardian->id,
             'student_id' => $student->id,
             'lrn' => $student->lrn,
             'relationship' => $data['relationship'] ?? null,
             'status' => 'pending',
         ]);
+        $this->audit->log(
+            action: 'child_enrollment_requested',
+            userId: $request->user()->id,
+            entity: $enrollmentRequest,
+            newValues: [
+                'student_id' => $student->id,
+                'lrn' => $student->lrn,
+                'relationship' => $data['relationship'] ?? null,
+                'status' => 'pending',
+            ],
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent()
+        );
 
         return redirect()->route('parent.dashboard')
             ->with('success', 'Enrollment request submitted and pending teacher verification.');
@@ -271,6 +288,19 @@ class DashboardController extends Controller
             'reviewed_at' => now(),
             'notes' => $data['notes'] ?? null,
         ]);
+        $this->audit->log(
+            action: 'child_enrollment_approved',
+            userId: $request->user()->id,
+            entity: $enrollmentRequest,
+            oldValues: ['status' => 'pending'],
+            newValues: [
+                'status' => 'approved',
+                'teacher_id' => $teacher->id,
+                'notes' => $data['notes'] ?? null,
+            ],
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent()
+        );
 
         return redirect()->route('teacher.enrollment-requests.index')
             ->with('success', 'Enrollment request approved.');
@@ -296,6 +326,19 @@ class DashboardController extends Controller
             'reviewed_at' => now(),
             'notes' => $data['notes'] ?? null,
         ]);
+        $this->audit->log(
+            action: 'child_enrollment_rejected',
+            userId: $request->user()->id,
+            entity: $enrollmentRequest,
+            oldValues: ['status' => 'pending'],
+            newValues: [
+                'status' => 'rejected',
+                'teacher_id' => $teacher->id,
+                'notes' => $data['notes'] ?? null,
+            ],
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent()
+        );
 
         return redirect()->route('teacher.enrollment-requests.index')
             ->with('success', 'Enrollment request rejected.');
