@@ -12,3 +12,6 @@ Artisan::command('inspire', function () {
 //   * * * * *  php artisan schedule:run   (cron on the server)
 // or `php artisan schedule:work` locally during development.
 Schedule::command('attendance:manage-sessions')->everyMinute();
+
+// Purge biometric data without consent or past retention (RA 10173). Weekly on Sunday 02:00.
+Schedule::command('biometric:purge-stale')->weeklyOn(0, '02:00');

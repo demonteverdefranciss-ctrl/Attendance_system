@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Guardian;
 use App\Models\Section;
 use App\Models\Student;
+use App\Services\BiometricPrivacyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,6 +15,10 @@ use Inertia\Response;
 
 class StudentController extends Controller
 {
+    public function __construct(private BiometricPrivacyService $biometricPrivacy)
+    {
+    }
+
     public function index(): Response
     {
         $students = Student::with('section:id,name')
@@ -57,8 +62,14 @@ class StudentController extends Controller
     {
         $data = $this->validateData($request, $student);
 
+        $hadConsent = $student->consent_biometric;
+
         $student->update($this->studentAttributes($data));
         $student->guardians()->sync($this->guardianPivot($data));
+
+        if ($hadConsent && ! $student->consent_biometric) {
+            $this->biometricPrivacy->purgeForStudent($student->fresh());
+        }
 
         return redirect()->route('admin.students.index')->with('success', 'Student updated successfully.');
     }

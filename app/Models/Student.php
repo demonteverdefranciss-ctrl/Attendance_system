@@ -45,6 +45,11 @@ class Student extends Model
         return $this->hasMany(AttendanceRecord::class);
     }
 
+    public function faceData(): HasMany
+    {
+        return $this->hasMany(FaceData::class);
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");

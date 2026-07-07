@@ -39,6 +39,14 @@ class AttendanceController extends ApiController
 
         $student = Student::find($data['student_id']);
 
+        if (! $student->is_active) {
+            return $this->fail('Student account is inactive.', 'STUDENT_INACTIVE', 422);
+        }
+
+        if (! $student->consent_biometric) {
+            return $this->fail('Biometric consent is not recorded for this student.', 'NO_BIOMETRIC_CONSENT', 422);
+        }
+
         if (! $student->section_id) {
             return $this->fail('Student is not assigned to a section.', 'NO_SECTION', 422);
         }

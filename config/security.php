@@ -12,4 +12,8 @@ return [
             'preload' => env('SECURITY_HSTS_PRELOAD', false),
         ],
     ],
+
+    'biometric' => [
+        'retention_days' => env('BIOMETRIC_RETENTION_DAYS', 365),
+    ],
 ];
