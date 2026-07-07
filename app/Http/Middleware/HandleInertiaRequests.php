@@ -45,6 +45,10 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
+            'branding' => [
+                'logo' => asset('branding/bigaa-logo.png'),
+                'loginBackground' => asset('branding/login-background.png'),
+            ],
         ];
     }
 }

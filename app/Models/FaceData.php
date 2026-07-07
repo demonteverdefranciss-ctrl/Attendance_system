@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\EncryptedEmbedding;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -21,6 +22,7 @@ class FaceData extends Model
     protected function casts(): array
     {
         return [
+            'embedding' => EncryptedEmbedding::class,
             'is_active' => 'boolean',
         ];
     }

@@ -58,6 +58,7 @@ This checklist documents privacy controls implemented in the system for capstone
 |-----------|-------------------|
 | Run retention purge manually | `php artisan biometric:purge-stale` |
 | Preview purge impact | `php artisan biometric:purge-stale --dry-run` |
+| Encrypt existing plaintext embeddings | `php artisan biometric:encrypt-embeddings --dry-run` |
 | Review audit entries | Admin → **Audit Logs** |
 | Set retention period | Railway/env: `BIOMETRIC_RETENTION_DAYS=365` |
 | Enable HSTS (production HTTPS) | `SECURITY_HSTS_ENABLED=true` |
@@ -68,7 +69,7 @@ This checklist documents privacy controls implemented in the system for capstone
 
 | Item | Status | Notes |
 |------|:------:|-------|
-| Encrypt embeddings at rest | Planned | `face_data.embedding` currently stored as binary; consider Laravel encryption cast |
+| Encrypt embeddings at rest | Done | `EncryptedEmbedding` cast on `face_data.embedding`; `biometric:encrypt-embeddings` command |
 | Recognition node local dataset purge | Manual | `recognition-service/dataset/<student_id>/` — purge when consent revoked on school node |
 | Formal privacy impact assessment (PIA) | Planned | For defense documentation |
 | ISO 25010 security evaluation | Planned | Phase 12 |

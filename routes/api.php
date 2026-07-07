@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\ParentController;
 use App\Http\Controllers\Api\V1\StudentController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,5 +32,12 @@ Route::prefix('v1')->group(function () {
         Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead']);
 
         Route::get('analytics/student/{student}', [AnalyticsController::class, 'studentSummary']);
+
+        Route::prefix('parent')->group(function () {
+            Route::get('dashboard', [ParentController::class, 'dashboard']);
+            Route::get('enrollment-requests', [ParentController::class, 'enrollmentRequests']);
+            Route::post('enrollment-requests', [ParentController::class, 'storeEnrollmentRequest']);
+            Route::post('notification-preference', [ParentController::class, 'updateNotificationPreference']);
+        });
     });
 });
