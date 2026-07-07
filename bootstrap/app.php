@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Behind a PaaS/load-balancer (Railway, Render) so HTTPS + host are detected correctly.
         $middleware->trustProxies(at: '*');
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
 
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
