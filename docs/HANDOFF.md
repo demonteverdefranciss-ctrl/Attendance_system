@@ -40,6 +40,14 @@ Parent**. Repo: `demonteverdefranciss-ctrl/Attendance_system` (branch `main`).
 4. Attendance: `AttendanceService`, auto sessions, teacher marking, **time-out recording**.
 5. REST API (Sanctum): auth, students, attendance (device ingest + idempotency), notifications, analytics, **parent mobile endpoints**.
 6a. Python `recognition-service/` (LBPH): enroll/train/recognize pipeline verified.
+    - **Tapo C220 IP camera** integrated via RTSP (`VIDEO_SOURCE` in `recognition-service/.env`).
+    - **Session-gated capture:** `recognize.py` polls `GET /api/v1/attendance/sessions/open`
+      (device-authenticated) and only runs the camera while a session is open
+      (`SESSION_POLL_SECONDS`, 0 = always on).
+    - **Web camera preview:** `stream_server.py` serves MJPEG on `STREAM_PORT` (one shared
+      RTSP connection with recognition); Laravel proxies it at `/camera/stream`
+      (`CAMERA_STREAM_URL` in `.env`, local site only) and shows it on the teacher Mark page.
+    - **Live updates:** teacher Mark page auto-refreshes records every 5 s while a session is open.
 7. Parent Notifications (FCM): `NotificationService`, queued jobs, parent dashboard controls.
 8. Analytics + reports: Chart.js dashboards, CSV + PDF exports.
 9. Security (partial): audit logs + admin viewer, security headers, biometric consent/purge/encryption, RA 10173 checklist.
@@ -72,6 +80,9 @@ Refresh demo accounts anytime: `php artisan accounts:seed-demo`
 - Local subdirectory needs `ASSET_URL=/attendance_system/public`; production leaves it unset.
 - Qualify `attendance_records.status` in SQL joins (sessions also have `status`).
 - Recognition ingest is idempotent via `client_uuid`.
+- The Tapo camera allows only a couple of RTSP clients — never open a second
+  `VideoCapture` while `recognize.py` runs (the MJPEG preview reuses its frames).
+- Live camera preview in the browser works only on the local site (camera is LAN-only).
 - Flutter API base URL: see `mobile/README.md`.
 
 ## REMAINING WORK

@@ -25,6 +25,21 @@
 
 ---
 
+## Phase 6a — Facial Recognition (LBPH) ✅ — camera integration update (2026-07-08)
+
+**Delivered:**
+- Tapo C220 IP camera connected over RTSP; enroll/train/recognize verified end to end against production (Railway)
+- **Session-gated camera:** recognition node polls a device-authenticated endpoint
+  (`GET /api/v1/attendance/sessions/open`) and runs the camera only while a
+  teacher has an open attendance session (privacy: biometric processing limited
+  to the attendance window)
+- **Browser camera preview:** MJPEG stream server + Laravel `/camera/stream` proxy,
+  embedded on the teacher Mark Attendance page (local site)
+- **Realtime dashboard:** Mark Attendance page auto-refreshes every 5 s while a
+  session is open, so camera recognitions appear without manual reload
+
+---
+
 ## Phase 9 — Audit Logs & Security Hardening ⏳
 
 **Delivered:**
@@ -59,4 +74,4 @@
 
 ---
 
-_Last updated: 2026-07-07 — Phases 0–8 complete; 9–10 in progress._
+_Last updated: 2026-07-08 — Phases 0–8 complete; 9–10 in progress; Tapo camera + session-gated recognition + realtime attendance live._

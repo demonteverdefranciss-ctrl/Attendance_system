@@ -19,7 +19,7 @@ Pamantasan ng Cabuyao — College of Computing Studies
 *Status: **Partially achieved → advancing.*** Admin and teacher web dashboards are complete; Python recognition service is functional; **Flutter parent app scaffold** (`mobile/`) consumes the REST API for login, attendance viewing, and notifications.
 
 **Objective 3 — Automated attendance tracking (time-in/out, status, absenteeism, reports, real-time parent notifications).**  
-*Status: **Substantially achieved.*** Time-in and **time-out** recording, status classification, duplicate prevention, report exports, and parent notifications are implemented.
+*Status: **Substantially achieved.*** Time-in and **time-out** recording, status classification, duplicate prevention, report exports, and parent notifications are implemented. The teacher attendance page updates in near-realtime (5 s auto-refresh) while a session is open, and the camera activates only during open sessions.
 
 **Objective 4 — Secure management of attendance and facial data (RA 10173).**  
 *Status: **Substantially achieved.*** Audit logging, security headers, biometric consent enforcement, retention purge, **encrypted embeddings at rest**, and compliance checklist documented.
@@ -35,7 +35,7 @@ Pamantasan ng Cabuyao — College of Computing Studies
 2. Admin CRUD (students, teachers, guardians, sections, schedules)  
 3. Attendance management with auto sessions, time-out, teacher UI  
 4. REST API (Sanctum) + device-authenticated recognition ingest  
-5. Python LBPH recognition service (prototype)  
+5. Python LBPH recognition service with Tapo C220 IP camera (RTSP), session-gated capture, and browser camera preview  
 6. Analytics dashboards + CSV/PDF reports  
 7. Parent notifications (FCM) + parent dashboard  
 8. Parent–child enrollment request workflow with teacher verification  
