@@ -1,12 +1,11 @@
 """
 MJPEG HTTP preview for the Tapo / RTSP source (browser-friendly).
 
-Browsers cannot play RTSP directly. This server reads the same VIDEO_SOURCE as
-recognize.py and exposes multipart JPEG frames at /stream.
-
-Usage:
-  python stream_server.py
-  # or set STREAM_PORT in .env and run recognize.py (starts stream in background)
+Browsers cannot play RTSP directly. This server exposes multipart JPEG frames
+at /stream. Frames come from either:
+  * its own capture loop (standalone: python stream_server.py), or
+  * publish_frame(...) calls from recognize.py (shared single RTSP connection,
+    so the camera is not opened twice).
 """
 import os
 import threading
@@ -23,6 +22,17 @@ _latest_jpeg = None
 _capture_thread = None
 
 
+def publish_frame(frame):
+    """Publish a BGR frame to the MJPEG stream (used by recognize.py)."""
+    ok, jpeg = cv2.imencode(".jpg", for_display(frame), [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+    if not ok:
+        return
+
+    global _latest_jpeg
+    with _buffer_lock:
+        _latest_jpeg = jpeg.tobytes()
+
+
 def _capture_loop():
     cap = cv2.VideoCapture(config.resolved_video_source())
     if not cap.isOpened():
@@ -34,14 +44,7 @@ def _capture_loop():
         if not ok:
             time.sleep(0.1)
             continue
-
-        ok, jpeg = cv2.imencode(".jpg", for_display(frame), [int(cv2.IMWRITE_JPEG_QUALITY), 80])
-        if not ok:
-            continue
-
-        global _latest_jpeg
-        with _buffer_lock:
-            _latest_jpeg = jpeg.tobytes()
+        publish_frame(frame)
 
 
 def start_capture():
@@ -84,8 +87,10 @@ class MJPEGHandler(BaseHTTPRequestHandler):
             return
 
 
-def run_server(host="0.0.0.0", port=5050):
-    start_capture()
+def run_server(host="0.0.0.0", port=5050, capture=True):
+    """Serve MJPEG. capture=False when another loop publishes frames instead."""
+    if capture:
+        start_capture()
     server = ThreadingHTTPServer((host, port), MJPEGHandler)
     print(f"Camera web preview: http://127.0.0.1:{port}/stream")
     server.serve_forever()

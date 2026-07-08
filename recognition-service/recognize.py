@@ -48,14 +48,23 @@ def record(student_id, distance):
         print(f"[ERR] student {student_id}: {exc}")
 
 
+publish_frame = None  # set when the web preview is enabled
+
+
 def maybe_start_stream_server():
+    """Serve the MJPEG web preview using OUR frames (one shared RTSP connection)."""
     port = os.getenv("STREAM_PORT", "").strip()
     if not port:
         return
 
-    from stream_server import run_server
+    global publish_frame
+    from stream_server import publish_frame as _publish, run_server
 
-    threading.Thread(target=lambda: run_server(port=int(port)), daemon=True).start()
+    publish_frame = _publish
+    threading.Thread(
+        target=lambda: run_server(port=int(port), capture=False),
+        daemon=True,
+    ).start()
 
 
 def session_is_open():
@@ -129,6 +138,9 @@ def main():
             cap = None
             time.sleep(2)
             continue
+
+        if publish_frame is not None:
+            publish_frame(frame)
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = cascade.detectMultiScale(gray, 1.1, 5, minSize=(80, 80))
