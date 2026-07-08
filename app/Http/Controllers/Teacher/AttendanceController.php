@@ -38,7 +38,9 @@ class AttendanceController extends Controller
                 'records as present_count' => fn ($q) => $q->whereIn('status', ['present', 'late']),
                 'records as absent_count' => fn ($q) => $q->where('status', 'absent'),
             ])
+            ->orderByDesc('opened_at')
             ->get()
+            ->unique('section_id')
             ->keyBy('section_id');
 
         $rows = $sections->map(fn ($section) => [

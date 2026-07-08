@@ -24,17 +24,26 @@ class AttendanceService
      */
     public function openSession(Section $section, Carbon $date, ?Schedule $schedule = null): AttendanceSession
     {
-        return AttendanceSession::firstOrCreate(
-            [
-                'section_id' => $section->id,
-                'session_date' => $date->toDateString(),
-                'schedule_id' => $schedule?->id,
-            ],
-            [
-                'status' => 'open',
-                'opened_at' => now(),
-            ],
-        );
+        // Allow re-opening for testing: if a session was closed earlier today,
+        // create a fresh one rather than reusing the closed record.
+        $existingOpen = AttendanceSession::where('section_id', $section->id)
+            ->whereDate('session_date', $date->toDateString())
+            ->where('schedule_id', $schedule?->id)
+            ->where('status', 'open')
+            ->latest('opened_at')
+            ->first();
+
+        if ($existingOpen) {
+            return $existingOpen;
+        }
+
+        return AttendanceSession::create([
+            'section_id' => $section->id,
+            'session_date' => $date->toDateString(),
+            'schedule_id' => $schedule?->id,
+            'status' => 'open',
+            'opened_at' => now(),
+        ]);
     }
 
     /**

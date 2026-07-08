@@ -56,6 +56,11 @@ export default function AttendanceIndex({ rows, today }) {
                                             Close session
                                         </button>
                                     )}
+                                    {session.status === 'closed' && (
+                                        <button onClick={() => openSession(section.id)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                                            Re-open Attendance
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         ) : (
