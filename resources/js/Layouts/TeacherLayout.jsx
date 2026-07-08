@@ -4,6 +4,7 @@ const nav = [
     { label: 'Dashboard', route: 'teacher.dashboard' },
     { label: 'Mark Attendance', route: 'teacher.attendance.index' },
     { label: 'Enrollment Requests', route: 'teacher.enrollment-requests.index' },
+    { label: 'Biometric Photos', route: 'teacher.biometric-photos.index' },
     { label: 'Reports', route: 'reports.index' },
 ];
 

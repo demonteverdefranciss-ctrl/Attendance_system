@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BiometricPhotoSubmission;
 use App\Models\ChildEnrollmentRequest;
+use App\Models\Guardian;
 use App\Models\Notification;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -79,10 +81,7 @@ class DashboardController extends Controller
 
     public function parent(): Response
     {
-        $guardian = DB::table('guardians')->where('user_id', Auth::id())->first();
-        $children = $guardian
-            ? DB::table('student_guardian')->where('guardian_id', $guardian->id)->count()
-            : 0;
+        $guardian = Guardian::where('user_id', Auth::id())->first();
 
         $notifications = $guardian
             ? Notification::where('guardian_id', $guardian->id)
@@ -123,8 +122,38 @@ class DashboardController extends Controller
                 ->values()
             : collect();
 
+        $children = $guardian
+            ? $guardian->students()
+                ->with('section:id,name,grade_level')
+                ->orderBy('last_name')
+                ->get()
+                ->map(function ($student) {
+                    $latestSubmission = BiometricPhotoSubmission::where('student_id', $student->id)
+                        ->latest('id')
+                        ->first();
+
+                    return [
+                        'id' => $student->id,
+                        'name' => $student->full_name,
+                        'lrn' => $student->lrn,
+                        'section' => $student->section
+                            ? "{$student->section->grade_level} - {$student->section->name}"
+                            : '—',
+                        'consent_biometric' => $student->consent_biometric,
+                        'biometric_submission' => $latestSubmission ? [
+                            'status' => $latestSubmission->status,
+                            'created_at' => $latestSubmission->created_at?->toDateTimeString(),
+                            'reviewed_at' => $latestSubmission->reviewed_at?->toDateTimeString(),
+                            'notes' => $latestSubmission->notes,
+                        ] : null,
+                    ];
+                })
+                ->values()
+            : collect();
+
         return Inertia::render('Parent/Dashboard', [
-            'stats' => ['children' => $children],
+            'stats' => ['children' => $children->count()],
+            'children' => $children,
             'notifications' => $notifications,
             'unreadCount' => $unreadCount,
             'notifyPref' => $guardian?->notify_pref ?? 'push',

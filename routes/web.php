@@ -8,7 +8,9 @@ use App\Http\Controllers\Admin\TeacherController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ParentRegistrationController;
+use App\Http\Controllers\Parent\BiometricPhotoController as ParentBiometricPhotoController;
 use App\Http\Controllers\Teacher\AttendanceController as TeacherAttendanceController;
+use App\Http\Controllers\Teacher\BiometricPhotoController as TeacherBiometricPhotoController;
 use App\Http\Controllers\CameraStreamController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
@@ -53,6 +55,14 @@ Route::middleware('auth')->group(function () {
         Route::post('enrollment-requests/{enrollmentRequest}/reject', [DashboardController::class, 'rejectEnrollmentRequest'])
             ->name('enrollment-requests.reject');
 
+        Route::get('biometric-photos', [TeacherBiometricPhotoController::class, 'index'])->name('biometric-photos.index');
+        Route::post('biometric-photos/{submission}/approve', [TeacherBiometricPhotoController::class, 'approve'])
+            ->name('biometric-photos.approve');
+        Route::post('biometric-photos/{submission}/reject', [TeacherBiometricPhotoController::class, 'reject'])
+            ->name('biometric-photos.reject');
+        Route::get('biometric-photos/files/{photo}', [TeacherBiometricPhotoController::class, 'file'])
+            ->name('biometric-photos.file');
+
         Route::get('attendance', [TeacherAttendanceController::class, 'index'])->name('attendance.index');
         Route::post('attendance/open', [TeacherAttendanceController::class, 'open'])->name('attendance.open');
         Route::get('attendance/{session}', [TeacherAttendanceController::class, 'show'])->name('attendance.show');
@@ -65,6 +75,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:parent')->prefix('parent')->name('parent.')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'parent'])->name('dashboard');
         Route::post('enrollment-requests', [DashboardController::class, 'createEnrollmentRequest'])->name('enrollment-requests.store');
+        Route::post('biometric-photos', [ParentBiometricPhotoController::class, 'store'])->name('biometric-photos.store');
         Route::post('notifications/{notification}/read', [DashboardController::class, 'markParentNotificationRead'])
             ->name('notifications.read');
         Route::post('notifications/preferences', [DashboardController::class, 'updateParentNotificationPreference'])

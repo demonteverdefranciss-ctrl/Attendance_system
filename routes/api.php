@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\BiometricPhotoController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -16,6 +17,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware('device')->group(function () {
         Route::post('attendance/recognitions', [AttendanceController::class, 'recognitions']);
         Route::get('attendance/sessions/open', [AttendanceController::class, 'openSessionsForDevice']);
+        Route::get('biometric/approved', [BiometricPhotoController::class, 'approved']);
+        Route::get('biometric/photos/{photo}/file', [BiometricPhotoController::class, 'file']);
+        Route::post('biometric/submissions/{submission}/synced', [BiometricPhotoController::class, 'markSynced']);
     });
 
     // Token-authenticated (Flutter app users)

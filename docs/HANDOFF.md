@@ -48,6 +48,8 @@ Parent**. Repo: `demonteverdefranciss-ctrl/Attendance_system` (branch `main`).
       RTSP connection with recognition); Laravel proxies it at `/camera/stream`
       (`CAMERA_STREAM_URL` in `.env`, local site only) and shows it on the teacher Mark page.
     - **Live updates:** teacher Mark page auto-refreshes records every 5 s while a session is open.
+    - **Parent photo enrollment:** parents upload 1–3 face photos + RA 10173 consent;
+      teachers approve under **Biometric Photos**; school PC runs `python sync_enrollment.py`.
 7. Parent Notifications (FCM): `NotificationService`, queued jobs, parent dashboard controls.
 8. Analytics + reports: Chart.js dashboards, CSV + PDF exports.
 9. Security (partial): audit logs + admin viewer, security headers, biometric consent/purge/encryption, RA 10173 checklist.
