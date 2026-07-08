@@ -112,7 +112,10 @@ class DashboardController extends Controller
                 ->map(fn ($r) => [
                     'id' => $r->id,
                     'lrn' => $r->lrn,
-                    'student' => $r->student ? $r->student->full_name : null,
+                    'student' => $r->full_name ?: null,
+                    'first_name' => $r->first_name,
+                    'last_name' => $r->last_name,
+                    'grade_level' => $r->grade_level,
                     'relationship' => $r->relationship,
                     'status' => $r->status,
                     'notes' => $r->notes,
@@ -204,34 +207,38 @@ class DashboardController extends Controller
 
         $data = $request->validate([
             'lrn' => ['required', 'string', 'max:20'],
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'gender' => ['nullable', 'in:male,female'],
+            'grade_level' => ['nullable', 'string', 'max:50'],
             'relationship' => ['nullable', 'string', 'max:50'],
         ]);
 
         $student = Student::where('lrn', $data['lrn'])->first();
-        if (! $student) {
-            return redirect()->route('parent.dashboard')
-                ->with('error', 'No student found for the provided LRN.');
-        }
 
-        if ($guardian->students()->where('students.id', $student->id)->exists()) {
+        if ($student && $guardian->students()->where('students.id', $student->id)->exists()) {
             return redirect()->route('parent.dashboard')
                 ->with('error', 'This child is already linked to your parent account.');
         }
 
         $pendingExists = ChildEnrollmentRequest::where('guardian_id', $guardian->id)
-            ->where('student_id', $student->id)
+            ->where('lrn', $data['lrn'])
             ->where('status', 'pending')
             ->exists();
 
         if ($pendingExists) {
             return redirect()->route('parent.dashboard')
-                ->with('error', 'An enrollment request for this child is already pending.');
+                ->with('error', 'An enrollment request for this LRN is already pending.');
         }
 
         $enrollmentRequest = ChildEnrollmentRequest::create([
             'guardian_id' => $guardian->id,
-            'student_id' => $student->id,
-            'lrn' => $student->lrn,
+            'student_id' => $student?->id,
+            'lrn' => $data['lrn'],
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'gender' => $data['gender'] ?? null,
+            'grade_level' => $data['grade_level'] ?? null,
             'relationship' => $data['relationship'] ?? null,
             'status' => 'pending',
         ]);
@@ -240,8 +247,10 @@ class DashboardController extends Controller
             userId: $request->user()->id,
             entity: $enrollmentRequest,
             newValues: [
-                'student_id' => $student->id,
-                'lrn' => $student->lrn,
+                'student_id' => $student?->id,
+                'lrn' => $data['lrn'],
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
                 'relationship' => $data['relationship'] ?? null,
                 'status' => 'pending',
             ],
@@ -250,28 +259,45 @@ class DashboardController extends Controller
         );
 
         return redirect()->route('parent.dashboard')
-            ->with('success', 'Enrollment request submitted and pending teacher verification.');
+            ->with('success', 'Child details submitted. A teacher will verify and link your child.');
     }
 
     public function teacherEnrollmentRequests(Request $request): Response
     {
         $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
         $sectionIds = $teacher->sections()->pluck('id')->all();
+        $sections = $teacher->sections()
+            ->orderBy('name')
+            ->get(['id', 'name', 'grade_level'])
+            ->map(fn ($s) => [
+                'id' => $s->id,
+                'label' => "{$s->grade_level} - {$s->name}",
+            ]);
 
         $items = ChildEnrollmentRequest::with([
             'guardian:id,first_name,last_name,phone',
             'student:id,first_name,last_name,lrn,section_id',
             'student.section:id,name,grade_level',
         ])
-            ->whereHas('student', fn ($q) => $q->whereIn('section_id', $sectionIds))
             ->where('status', 'pending')
+            ->where(function ($q) use ($sectionIds) {
+                $q->whereNull('student_id')
+                    ->orWhereHas('student', fn ($s) => $s->whereIn('section_id', $sectionIds));
+            })
             ->latest('id')
             ->get()
             ->map(fn ($r) => [
                 'id' => $r->id,
-                'student' => $r->student?->full_name,
+                'student' => $r->full_name,
                 'lrn' => $r->lrn,
-                'section' => $r->student?->section ? "{$r->student->section->grade_level} - {$r->student->section->name}" : '—',
+                'first_name' => $r->first_name,
+                'last_name' => $r->last_name,
+                'gender' => $r->gender,
+                'grade_level' => $r->grade_level,
+                'is_new_student' => $r->student_id === null,
+                'section' => $r->student?->section
+                    ? "{$r->student->section->grade_level} - {$r->student->section->name}"
+                    : ($r->grade_level ? "Requested: {$r->grade_level}" : '—'),
                 'guardian' => $r->guardian?->full_name,
                 'guardian_phone' => $r->guardian?->phone,
                 'relationship' => $r->relationship,
@@ -280,6 +306,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Teacher/EnrollmentRequests/Index', [
             'requests' => $items,
+            'sections' => $sections,
         ]);
     }
 
@@ -287,6 +314,7 @@ class DashboardController extends Controller
     {
         $data = $request->validate([
             'notes' => ['nullable', 'string', 'max:500'],
+            'section_id' => ['nullable', 'integer', 'exists:sections,id'],
         ]);
 
         $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
@@ -297,11 +325,41 @@ class DashboardController extends Controller
                 ->with('error', 'This request has already been reviewed.');
         }
 
-        $student = $enrollmentRequest->student;
         $guardian = $enrollmentRequest->guardian;
-        if (! $student || ! $guardian) {
+        if (! $guardian) {
             return redirect()->route('teacher.enrollment-requests.index')
-                ->with('error', 'Request is missing student/guardian details.');
+                ->with('error', 'Request is missing guardian details.');
+        }
+
+        $student = $enrollmentRequest->student;
+
+        if (! $student) {
+            if (empty($data['section_id'])) {
+                return redirect()->route('teacher.enrollment-requests.index')
+                    ->with('error', 'Select a section before approving a new student.');
+            }
+
+            abort_unless(
+                $teacher->sections()->where('sections.id', $data['section_id'])->exists(),
+                403
+            );
+
+            if (Student::where('lrn', $enrollmentRequest->lrn)->exists()) {
+                return redirect()->route('teacher.enrollment-requests.index')
+                    ->with('error', 'A student with this LRN already exists.');
+            }
+
+            $student = Student::create([
+                'section_id' => $data['section_id'],
+                'lrn' => $enrollmentRequest->lrn,
+                'first_name' => $enrollmentRequest->first_name,
+                'last_name' => $enrollmentRequest->last_name,
+                'gender' => $enrollmentRequest->gender,
+                'consent_biometric' => false,
+                'is_active' => true,
+            ]);
+
+            $enrollmentRequest->update(['student_id' => $student->id]);
         }
 
         $student->guardians()->syncWithoutDetaching([
@@ -387,6 +445,10 @@ class DashboardController extends Controller
 
     private function authorizeEnrollmentRequest(Teacher $teacher, ChildEnrollmentRequest $request): void
     {
+        if ($request->student_id === null) {
+            return;
+        }
+
         $sectionIds = $teacher->sections()->pluck('id')->all();
         $studentSectionId = $request->student?->section_id;
 

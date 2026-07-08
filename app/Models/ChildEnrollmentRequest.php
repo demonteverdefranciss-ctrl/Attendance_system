@@ -11,6 +11,10 @@ class ChildEnrollmentRequest extends Model
         'guardian_id',
         'student_id',
         'lrn',
+        'first_name',
+        'last_name',
+        'gender',
+        'grade_level',
         'relationship',
         'status',
         'teacher_id',
@@ -38,5 +42,14 @@ class ChildEnrollmentRequest extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class);
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        if ($this->student) {
+            return $this->student->full_name;
+        }
+
+        return trim("{$this->first_name} {$this->last_name}");
     }
 }

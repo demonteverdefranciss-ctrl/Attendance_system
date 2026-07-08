@@ -42,7 +42,10 @@ class ParentController extends ApiController
             ->map(fn ($r) => [
                 'id' => $r->id,
                 'lrn' => $r->lrn,
-                'student' => $r->student?->full_name,
+                'student' => $r->full_name,
+                'first_name' => $r->first_name,
+                'last_name' => $r->last_name,
+                'grade_level' => $r->grade_level,
                 'relationship' => $r->relationship,
                 'status' => $r->status,
                 'notes' => $r->notes,
@@ -59,31 +62,36 @@ class ParentController extends ApiController
 
         $data = $request->validate([
             'lrn' => ['required', 'string', 'max:20'],
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'gender' => ['nullable', 'in:male,female'],
+            'grade_level' => ['nullable', 'string', 'max:50'],
             'relationship' => ['nullable', 'string', 'max:50'],
         ]);
 
         $student = Student::where('lrn', $data['lrn'])->first();
-        if (! $student) {
-            return $this->fail('No student found for the provided LRN.', 'STUDENT_NOT_FOUND', 422);
-        }
 
-        if ($guardian->students()->whereKey($student->id)->exists()) {
+        if ($student && $guardian->students()->whereKey($student->id)->exists()) {
             return $this->fail('This child is already linked to your account.', 'ALREADY_LINKED', 422);
         }
 
         $pendingExists = ChildEnrollmentRequest::where('guardian_id', $guardian->id)
-            ->where('student_id', $student->id)
+            ->where('lrn', $data['lrn'])
             ->where('status', 'pending')
             ->exists();
 
         if ($pendingExists) {
-            return $this->fail('An enrollment request for this child is already pending.', 'PENDING_EXISTS', 422);
+            return $this->fail('An enrollment request for this LRN is already pending.', 'PENDING_EXISTS', 422);
         }
 
         $enrollmentRequest = ChildEnrollmentRequest::create([
             'guardian_id' => $guardian->id,
-            'student_id' => $student->id,
-            'lrn' => $student->lrn,
+            'student_id' => $student?->id,
+            'lrn' => $data['lrn'],
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'gender' => $data['gender'] ?? null,
+            'grade_level' => $data['grade_level'] ?? null,
             'relationship' => $data['relationship'] ?? null,
             'status' => 'pending',
         ]);
@@ -93,8 +101,10 @@ class ParentController extends ApiController
             userId: $request->user()->id,
             entity: $enrollmentRequest,
             newValues: [
-                'student_id' => $student->id,
-                'lrn' => $student->lrn,
+                'student_id' => $student?->id,
+                'lrn' => $data['lrn'],
+                'first_name' => $data['first_name'],
+                'last_name' => $data['last_name'],
                 'relationship' => $data['relationship'] ?? null,
                 'status' => 'pending',
             ],
