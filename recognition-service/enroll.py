@@ -11,6 +11,7 @@ import os
 import cv2
 
 import config
+from preview import for_display
 
 _cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
@@ -34,6 +35,9 @@ def from_webcam(student_dir, target):
         return 0
 
     count = 0
+    if config.SHOW_WINDOW:
+        cv2.namedWindow("Enroll", cv2.WINDOW_NORMAL)
+
     print(f"Capturing {target} samples. Look at the camera; press q to stop early.")
     while count < target:
         ok, frame = cap.read()
@@ -46,7 +50,7 @@ def from_webcam(student_dir, target):
             count += 1
         if config.SHOW_WINDOW:
             cv2.putText(frame, f"{count}/{target}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow("Enroll", frame)
+            cv2.imshow("Enroll", for_display(frame))
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
     cap.release()

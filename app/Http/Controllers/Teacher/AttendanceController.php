@@ -95,6 +95,7 @@ class AttendanceController extends Controller
             'session' => $session,
             'students' => $students,
             'records' => $records,
+            'cameraStreamUrl' => config('camera.stream_url') ? route('camera.stream') : null,
         ]);
     }
 

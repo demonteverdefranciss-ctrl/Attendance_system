@@ -9,6 +9,7 @@ Validation safeguards before recording:
 The backend additionally enforces an open session + unique(session, student).
 """
 import os
+import threading
 import time
 import uuid
 from datetime import datetime
@@ -16,7 +17,8 @@ from datetime import datetime
 import cv2
 
 import config
-from api_client import lbph_distance_to_confidence, post_recognition
+from api_client import get_open_sessions, lbph_distance_to_confidence, post_recognition
+from preview import for_display
 
 
 def record(student_id, distance):
@@ -46,28 +48,87 @@ def record(student_id, distance):
         print(f"[ERR] student {student_id}: {exc}")
 
 
+def maybe_start_stream_server():
+    port = os.getenv("STREAM_PORT", "").strip()
+    if not port:
+        return
+
+    from stream_server import run_server
+
+    threading.Thread(target=lambda: run_server(port=int(port)), daemon=True).start()
+
+
+def session_is_open():
+    """Ask the backend whether any attendance session is open today."""
+    try:
+        resp = get_open_sessions()
+        if resp.status_code == 200:
+            return bool(resp.json().get("data", {}).get("open"))
+        print(f"[WARN] session check: HTTP {resp.status_code} {resp.text[:120]}")
+    except Exception as exc:
+        print(f"[WARN] session check failed: {exc}")
+    return False
+
+
 def main():
     if not os.path.exists(config.MODEL_PATH):
         print("No trained model. Run enroll.py then train.py first.")
         return
 
+    maybe_start_stream_server()
+
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     recognizer.read(config.MODEL_PATH)
     cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
-    cap = cv2.VideoCapture(config.resolved_video_source())
-    if not cap.isOpened():
-        print("ERROR: cannot open video source", config.VIDEO_SOURCE)
-        return
+    session_gated = config.SESSION_POLL_SECONDS > 0
 
+    cap = None
     consecutive = {}   # student_id -> consecutive confident frames
     last_posted = {}   # student_id -> epoch seconds
+    session_open = not session_gated
+    last_session_check = 0.0
 
-    print("Recognizing. Press q to quit.")
+    if session_gated:
+        print(f"Session-gated mode: camera runs only while a session is open "
+              f"(checking every {config.SESSION_POLL_SECONDS}s). Press Ctrl+C to quit.")
+    else:
+        print("Recognizing. Press q to quit.")
+
     while True:
+        # Re-check the backend periodically so the camera follows open/close.
+        if session_gated and time.time() - last_session_check >= config.SESSION_POLL_SECONDS:
+            session_open = session_is_open()
+            last_session_check = time.time()
+
+        if not session_open:
+            if cap is not None:
+                cap.release()
+                cap = None
+                cv2.destroyAllWindows()
+                consecutive.clear()
+                print("Session closed - camera released. Waiting for the next session...")
+            time.sleep(1)
+            continue
+
+        if cap is None:
+            print("Open session found - starting camera...")
+            cap = cv2.VideoCapture(config.resolved_video_source())
+            if not cap.isOpened():
+                print("ERROR: cannot open video source", config.VIDEO_SOURCE)
+                cap = None
+                time.sleep(5)
+                continue
+            if config.SHOW_WINDOW:
+                cv2.namedWindow("Recognize", cv2.WINDOW_NORMAL)
+
         ok, frame = cap.read()
         if not ok:
-            break
+            print("[WARN] lost the video stream - reconnecting...")
+            cap.release()
+            cap = None
+            time.sleep(2)
+            continue
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = cascade.detectMultiScale(gray, 1.1, 5, minSize=(80, 80))
@@ -98,11 +159,12 @@ def main():
                 consecutive[sid] = 0
 
         if config.SHOW_WINDOW:
-            cv2.imshow("Recognize", frame)
+            cv2.imshow("Recognize", for_display(frame))
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 
-    cap.release()
+    if cap is not None:
+        cap.release()
     cv2.destroyAllWindows()
 
 

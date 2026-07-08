@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ParentRegistrationController;
 use App\Http\Controllers\Teacher\AttendanceController as TeacherAttendanceController;
+use App\Http\Controllers\CameraStreamController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
@@ -69,6 +70,11 @@ Route::middleware('auth')->group(function () {
         Route::post('notifications/preferences', [DashboardController::class, 'updateParentNotificationPreference'])
             ->name('notifications.preferences');
     });
+
+    // Live camera preview (proxies local MJPEG from recognition-service).
+    Route::middleware('role:admin,teacher')
+        ->get('camera/stream', CameraStreamController::class)
+        ->name('camera.stream');
 
     // Reports & exports (admin sees all sections; teacher sees only their own).
     Route::middleware('role:admin,teacher')->group(function () {

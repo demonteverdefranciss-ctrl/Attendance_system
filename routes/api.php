@@ -13,7 +13,10 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/login', [AuthController::class, 'login']);
 
     // Device-to-server (recognition node): X-Camera-Id + X-Device-Key
-    Route::middleware('device')->post('attendance/recognitions', [AttendanceController::class, 'recognitions']);
+    Route::middleware('device')->group(function () {
+        Route::post('attendance/recognitions', [AttendanceController::class, 'recognitions']);
+        Route::get('attendance/sessions/open', [AttendanceController::class, 'openSessionsForDevice']);
+    });
 
     // Token-authenticated (Flutter app users)
     Route::middleware('auth:sanctum')->group(function () {

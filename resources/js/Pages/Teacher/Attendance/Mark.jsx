@@ -1,5 +1,9 @@
+import { useEffect } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import CameraPreview from '@/Components/CameraPreview';
 import TeacherLayout from '@/Layouts/TeacherLayout';
+
+const LIVE_REFRESH_MS = 5000;
 
 const STATUSES = ['present', 'late', 'absent', 'excused'];
 const COLORS = {
@@ -9,13 +13,40 @@ const COLORS = {
     excused: 'bg-blue-500',
 };
 
-export default function Mark({ session, students, records }) {
+export default function Mark({ session, students, records, cameraStreamUrl }) {
     const initial = {};
     students.forEach((s) => {
         initial[s.id] = records[s.id]?.status ?? '';
     });
 
     const { data, setData, post, processing } = useForm({ records: initial });
+
+    // Live updates: while the session is open, re-fetch records so face
+    // recognitions from the camera appear without a manual refresh.
+    useEffect(() => {
+        if (session.status === 'closed') return;
+        const timer = setInterval(() => {
+            router.reload({ only: ['records', 'session'] });
+        }, LIVE_REFRESH_MS);
+        return () => clearInterval(timer);
+    }, [session.status]);
+
+    // Fill in statuses arriving from the camera, but never overwrite a
+    // teacher's unsaved manual selection.
+    useEffect(() => {
+        setData((prev) => {
+            const merged = { ...prev.records };
+            let changed = false;
+            students.forEach((s) => {
+                const incoming = records[s.id]?.status;
+                if (incoming && !merged[s.id]) {
+                    merged[s.id] = incoming;
+                    changed = true;
+                }
+            });
+            return changed ? { ...prev, records: merged } : prev;
+        });
+    }, [records]);
 
     const setStatus = (id, status) => {
         setData('records', { ...data.records, [id]: status });
@@ -65,12 +96,22 @@ export default function Mark({ session, students, records }) {
                 <p className="text-sm text-gray-500">
                     Session {session.session_date} ·{' '}
                     <span className={closed ? 'text-gray-500' : 'text-green-600'}>{session.status}</span>
+                    {!closed && (
+                        <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
+                            live updates
+                        </span>
+                    )}
                 </p>
                 {!closed && (
                     <button onClick={() => markAll('present')} className="text-sm text-blue-600 hover:underline">
                         Mark all present
                     </button>
                 )}
+            </div>
+
+            <div className="mb-6">
+                <CameraPreview streamUrl={cameraStreamUrl} />
             </div>
 
             <form onSubmit={submit}>

@@ -33,6 +33,17 @@ def post_recognition(student_id, confidence=None, captured_at=None, client_uuid=
     return requests.post(url, json=payload, headers=headers, timeout=timeout)
 
 
+def get_open_sessions(timeout=10):
+    """GET whether any attendance session is open today (device-authenticated)."""
+    url = f"{config.API_BASE_URL}/attendance/sessions/open"
+    headers = {
+        "X-Camera-Id": str(config.CAMERA_ID),
+        "X-Device-Key": config.DEVICE_KEY,
+        "Accept": "application/json",
+    }
+    return requests.get(url, headers=headers, timeout=timeout)
+
+
 def lbph_distance_to_confidence(distance):
     """Map an LBPH distance (0 = identical, grows worse) to a 0..1 score."""
     return max(0.0, min(1.0, 1.0 - distance / 100.0))

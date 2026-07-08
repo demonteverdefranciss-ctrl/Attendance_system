@@ -105,6 +105,22 @@ class AttendanceController extends ApiController
     }
 
     /**
+     * Whether any attendance session is open today (device-authenticated).
+     * The recognition node polls this to turn the camera on/off with sessions.
+     */
+    public function openSessionsForDevice(): JsonResponse
+    {
+        $count = AttendanceSession::where('status', 'open')
+            ->whereDate('session_date', now()->toDateString())
+            ->count();
+
+        return $this->ok([
+            'open' => $count > 0,
+            'count' => $count,
+        ]);
+    }
+
+    /**
      * Open sessions today (teacher → own sections, admin → all).
      */
     public function activeSessions(Request $request): JsonResponse
