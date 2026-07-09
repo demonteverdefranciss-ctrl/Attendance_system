@@ -53,22 +53,22 @@ class AttendanceController extends ApiController
 
         $capturedAt = isset($data['captured_at']) ? Carbon::parse($data['captured_at']) : now();
         $camera = $request->attributes->get('camera');
-        $capturedDate = $capturedAt->toDateString();
 
-        $pendingTimeOut = AttendanceRecord::where('student_id', $student->id)
-            ->whereIn('status', ['present', 'late'])
-            ->whereNull('time_out')
-            ->whereHas('session', function ($q) use ($student, $capturedDate) {
-                $q->whereDate('session_date', $capturedDate)
-                    ->where('section_id', $student->section_id);
-            })
-            ->latest('id')
+        $session = $this->attendance->currentOpenSession($student->section_id);
+        if (! $session) {
+            return $this->fail('No active attendance session for this section.', 'NO_SESSION', 422);
+        }
+
+        // Time-in vs time-out only within the *current open* session so a re-opened
+        // session after close does not inherit a stale arrival from an earlier one.
+        $record = AttendanceRecord::where('session_id', $session->id)
+            ->where('student_id', $student->id)
             ->first();
 
-        if ($pendingTimeOut) {
+        if ($record && in_array($record->status, ['present', 'late'], true) && ! $record->time_out) {
             try {
                 $record = $this->attendance->recordTimeOut(
-                    $pendingTimeOut->session,
+                    $session,
                     $student->id,
                     $capturedAt,
                     [
@@ -83,11 +83,6 @@ class AttendanceController extends ApiController
             }
 
             return $this->ok($this->recordPayload($record), 201);
-        }
-
-        $session = $this->attendance->currentOpenSession($student->section_id);
-        if (! $session) {
-            return $this->fail('No active attendance session for this section.', 'NO_SESSION', 422);
         }
 
         $status = $this->attendance->statusForArrival($session->schedule, $capturedAt);

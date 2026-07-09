@@ -20,6 +20,8 @@ import config
 from api_client import get_open_sessions, lbph_distance_to_confidence, post_recognition
 from preview import for_display
 
+LOCK_FILE = os.path.join(config.BASE_DIR, ".recognize.lock")
+
 
 def record(student_id, distance):
     confidence = lbph_distance_to_confidence(distance)
@@ -79,9 +81,31 @@ def session_is_open():
     return False
 
 
+def acquire_lock():
+    if os.path.exists(LOCK_FILE):
+        print("ERROR: recognition is already running.")
+        print("Stop the other copy first (Ctrl+C in its terminal), or delete:")
+        print(LOCK_FILE)
+        return False
+
+    with open(LOCK_FILE, "w", encoding="utf-8") as fh:
+        fh.write(str(os.getpid()))
+    return True
+
+
+def release_lock():
+    try:
+        os.remove(LOCK_FILE)
+    except OSError:
+        pass
+
+
 def main():
     if not os.path.exists(config.MODEL_PATH):
         print("No trained model. Run enroll.py then train.py first.")
+        return
+
+    if not acquire_lock():
         return
 
     maybe_start_stream_server()
@@ -95,8 +119,8 @@ def main():
     cap = None
     consecutive = {}   # student_id -> consecutive confident frames
     last_posted = {}   # student_id -> epoch seconds
-    session_open = not session_gated
-    last_session_check = 0.0
+    session_open = session_is_open() if session_gated else True
+    last_session_check = time.time()
 
     if session_gated:
         print(f"Session-gated mode: camera runs only while a session is open "
@@ -116,6 +140,9 @@ def main():
                 cap = None
                 cv2.destroyAllWindows()
                 consecutive.clear()
+                if publish_frame is not None:
+                    from stream_server import clear_frame
+                    clear_frame()
                 print("Session closed - camera released. Waiting for the next session...")
             time.sleep(1)
             continue
@@ -178,7 +205,13 @@ def main():
     if cap is not None:
         cap.release()
     cv2.destroyAllWindows()
+    release_lock()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nStopped.")
+    finally:
+        release_lock()

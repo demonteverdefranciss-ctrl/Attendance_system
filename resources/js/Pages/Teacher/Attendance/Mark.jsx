@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import CameraPreview from '@/Components/CameraPreview';
+import RecognitionStatus, { fetchRecognitionStatus, startRecognition } from '@/Components/RecognitionStatus';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
 const LIVE_REFRESH_MS = 5000;
@@ -13,7 +14,9 @@ const COLORS = {
     excused: 'bg-blue-500',
 };
 
-export default function Mark({ session, students, records, cameraStreamUrl }) {
+export default function Mark({ session, students, records, cameraStreamUrl, recognition }) {
+    const [recognitionStatus, setRecognitionStatus] = useState(recognition?.status ?? 'unavailable');
+    const [startingRecognition, setStartingRecognition] = useState(false);
     const initial = {};
     students.forEach((s) => {
         initial[s.id] = records[s.id]?.status ?? '';
@@ -48,6 +51,33 @@ export default function Mark({ session, students, records, cameraStreamUrl }) {
         });
     }, [records]);
 
+    useEffect(() => {
+        if (!recognition?.enabled || session.status === 'closed') return;
+
+        const poll = async () => {
+            try {
+                const data = await fetchRecognitionStatus();
+                setRecognitionStatus(data.status);
+            } catch {
+                // ignore transient network errors
+            }
+        };
+
+        poll();
+        const timer = setInterval(poll, 10000);
+        return () => clearInterval(timer);
+    }, [recognition?.enabled, session.status]);
+
+    const handleStartRecognition = async () => {
+        setStartingRecognition(true);
+        try {
+            const data = await startRecognition();
+            setRecognitionStatus(data.status);
+        } finally {
+            setStartingRecognition(false);
+        }
+    };
+
     const setStatus = (id, status) => {
         setData('records', { ...data.records, [id]: status });
     };
@@ -61,6 +91,10 @@ export default function Mark({ session, students, records, cameraStreamUrl }) {
     const submit = (e) => {
         e.preventDefault();
         post(route('teacher.attendance.store', session.id), { preserveScroll: true });
+    };
+
+    const reopenSession = () => {
+        router.post(route('teacher.attendance.open'), { section_id: session.section.id });
     };
 
     const closeSession = () => {
@@ -79,6 +113,11 @@ export default function Mark({ session, students, records, cameraStreamUrl }) {
         return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
+    const sessionDate = (() => {
+        const d = new Date(session.session_date);
+        return Number.isNaN(d.getTime()) ? session.session_date : d.toLocaleDateString();
+    })();
+
     const closed = session.status === 'closed';
 
     return (
@@ -94,7 +133,7 @@ export default function Mark({ session, students, records, cameraStreamUrl }) {
 
             <div className="mb-4 flex items-center justify-between">
                 <p className="text-sm text-gray-500">
-                    Session {session.session_date} ·{' '}
+                    Session {sessionDate} ·{' '}
                     <span className={closed ? 'text-gray-500' : 'text-green-600'}>{session.status}</span>
                     {!closed && (
                         <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
@@ -110,8 +149,31 @@ export default function Mark({ session, students, records, cameraStreamUrl }) {
                 )}
             </div>
 
-            <div className="mb-6">
-                <CameraPreview streamUrl={cameraStreamUrl} />
+            {closed && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+                    <span>This session is closed. The camera will not run until you open a new session.</span>
+                    <button
+                        type="button"
+                        onClick={reopenSession}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                        Re-open Attendance
+                    </button>
+                </div>
+            )}
+
+            <div className="mb-6 space-y-3">
+                <RecognitionStatus
+                    enabled={recognition?.enabled}
+                    status={recognitionStatus}
+                    onStart={handleStartRecognition}
+                    starting={startingRecognition}
+                />
+                <CameraPreview
+                    streamUrl={cameraStreamUrl}
+                    recognitionEnabled={recognition?.enabled}
+                    sessionOpen={!closed}
+                />
             </div>
 
             <form onSubmit={submit}>
@@ -178,6 +240,17 @@ export default function Mark({ session, students, records, cameraStreamUrl }) {
                         </button>
                         <button type="button" onClick={closeSession} className="rounded-lg bg-gray-100 px-4 py-2 font-medium text-gray-700 hover:bg-gray-200">
                             Close session
+                        </button>
+                    </div>
+                )}
+                {closed && (
+                    <div className="mt-4">
+                        <button
+                            type="button"
+                            onClick={reopenSession}
+                            className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+                        >
+                            Re-open Attendance
                         </button>
                     </div>
                 )}

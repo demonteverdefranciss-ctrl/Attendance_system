@@ -8,6 +8,7 @@ use App\Models\Section;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\AttendanceService;
+use App\Services\RecognitionProcessService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,8 +16,10 @@ use Inertia\Response;
 
 class AttendanceController extends Controller
 {
-    public function __construct(private AttendanceService $attendance)
-    {
+    public function __construct(
+        private AttendanceService $attendance,
+        private RecognitionProcessService $recognition,
+    ) {
     }
 
     /**
@@ -51,6 +54,7 @@ class AttendanceController extends Controller
         return Inertia::render('Teacher/Attendance/Index', [
             'rows' => $rows,
             'today' => $today,
+            'recognition' => $this->recognition->snapshot(),
         ]);
     }
 
@@ -66,7 +70,17 @@ class AttendanceController extends Controller
         $section = Section::findOrFail($sectionId);
         $session = $this->attendance->openSession($section, now());
 
-        return redirect()->route('teacher.attendance.show', $session->id);
+        $recognitionStarted = $this->recognition->ensureRunning();
+
+        return redirect()->route('teacher.attendance.show', $session->id)
+            ->with(
+                $recognitionStarted || ! $this->recognition->isEnabled()
+                    ? 'success'
+                    : 'warning',
+                $recognitionStarted || ! $this->recognition->isEnabled()
+                    ? 'Attendance session opened.'
+                    : 'Session opened, but face recognition could not be started automatically. Use Start recognition on the mark page.'
+            );
     }
 
     /**
@@ -98,6 +112,7 @@ class AttendanceController extends Controller
             'students' => $students,
             'records' => $records,
             'cameraStreamUrl' => config('camera.stream_url') ? route('camera.stream') : null,
+            'recognition' => $this->recognition->snapshot(),
         ]);
     }
 

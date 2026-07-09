@@ -22,6 +22,13 @@ _latest_jpeg = None
 _capture_thread = None
 
 
+def clear_frame():
+    """Drop the cached preview frame (e.g. when the session closes)."""
+    global _latest_jpeg
+    with _buffer_lock:
+        _latest_jpeg = None
+
+
 def publish_frame(frame):
     """Publish a BGR frame to the MJPEG stream (used by recognize.py)."""
     ok, jpeg = cv2.imencode(".jpg", for_display(frame), [int(cv2.IMWRITE_JPEG_QUALITY), 80])

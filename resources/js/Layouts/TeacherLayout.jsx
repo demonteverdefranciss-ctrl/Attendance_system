@@ -62,6 +62,9 @@ export default function TeacherLayout({ title, actions, children }) {
                         {flash?.error && (
                             <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{flash.error}</div>
                         )}
+                        {flash?.warning && (
+                            <div className="mb-4 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800">{flash.warning}</div>
+                        )}
 
                         <div className="mb-6 flex items-center justify-between">
                             {title && <h1 className="text-2xl font-bold text-gray-900">{title}</h1>}

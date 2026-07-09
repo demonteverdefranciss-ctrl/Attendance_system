@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\ParentRegistrationController;
 use App\Http\Controllers\Parent\BiometricPhotoController as ParentBiometricPhotoController;
 use App\Http\Controllers\Teacher\AttendanceController as TeacherAttendanceController;
 use App\Http\Controllers\Teacher\BiometricPhotoController as TeacherBiometricPhotoController;
+use App\Http\Controllers\Teacher\RecognitionController as TeacherRecognitionController;
 use App\Http\Controllers\CameraStreamController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
@@ -70,6 +71,9 @@ Route::middleware('auth')->group(function () {
         Route::post('attendance/{session}/students/{student}/time-out', [TeacherAttendanceController::class, 'recordTimeOut'])
             ->name('attendance.time-out');
         Route::post('attendance/{session}/close', [TeacherAttendanceController::class, 'close'])->name('attendance.close');
+
+        Route::get('recognition/status', [TeacherRecognitionController::class, 'status'])->name('recognition.status');
+        Route::post('recognition/start', [TeacherRecognitionController::class, 'start'])->name('recognition.start');
     });
 
     Route::middleware('role:parent')->prefix('parent')->name('parent.')->group(function () {

@@ -1,16 +1,24 @@
 import { useState } from 'react';
 
-export default function CameraPreview({ streamUrl }) {
+export default function CameraPreview({ streamUrl, recognitionEnabled = false, sessionOpen = true }) {
     const [error, setError] = useState(false);
 
     if (!streamUrl) {
         return (
             <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-500 ring-1 ring-gray-200">
-                Live camera preview is not configured. On the school PC, run{' '}
-                <code className="rounded bg-gray-100 px-1">python stream_server.py</code> in{' '}
-                <code className="rounded bg-gray-100 px-1">recognition-service</code> and set{' '}
-                <code className="rounded bg-gray-100 px-1">CAMERA_STREAM_URL</code> in the Laravel{' '}
-                <code className="rounded bg-gray-100 px-1">.env</code>.
+                Live camera preview is not configured on this server.
+                {recognitionEnabled
+                    ? ' Open an attendance session on the school PC to start face recognition automatically.'
+                    : ' Set CAMERA_STREAM_URL in the Laravel .env on the school PC.'}
+            </div>
+        );
+    }
+
+    if (!sessionOpen) {
+        return (
+            <div className="rounded-xl bg-gray-50 p-4 text-sm text-gray-500 ring-1 ring-gray-200">
+                Camera is off while the session is <strong>closed</strong>. Re-open attendance to start the live
+                camera and face recognition.
             </div>
         );
     }
@@ -25,9 +33,8 @@ export default function CameraPreview({ streamUrl }) {
             </div>
             {error ? (
                 <div className="p-6 text-center text-sm text-gray-300">
-                    Cannot load the camera stream. Make sure{' '}
-                    <code className="rounded bg-gray-800 px-1">stream_server.py</code> is running on the
-                    school PC and you are using the local site (not Railway).
+                    Cannot load the camera stream. Make sure face recognition is running on the school PC
+                    (open an attendance session or click Start recognition).
                 </div>
             ) : (
                 <img
