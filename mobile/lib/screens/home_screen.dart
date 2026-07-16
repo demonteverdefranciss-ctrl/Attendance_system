@@ -7,10 +7,16 @@ import 'enrollment_screen.dart';
 import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.api, required this.session});
+  const HomeScreen({
+    super.key,
+    required this.api,
+    required this.session,
+    required this.onLogout,
+  });
 
   final ApiClient api;
   final SessionService session;
+  final VoidCallback onLogout;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -61,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _logout() async {
     await widget.session.logout();
     if (!mounted) return;
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    widget.onLogout();
   }
 
   @override

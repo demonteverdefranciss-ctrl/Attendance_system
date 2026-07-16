@@ -24,8 +24,7 @@ class AttendanceService
      */
     public function openSession(Section $section, Carbon $date, ?Schedule $schedule = null): AttendanceSession
     {
-        // Allow re-opening for testing: if a session was closed earlier today,
-        // create a fresh one rather than reusing the closed record.
+        // Prefer the currently open session for this section/date/schedule.
         $existingOpen = AttendanceSession::where('section_id', $section->id)
             ->whereDate('session_date', $date->toDateString())
             ->where('schedule_id', $schedule?->id)
@@ -36,6 +35,13 @@ class AttendanceService
         if ($existingOpen) {
             return $existingOpen;
         }
+
+        // Close any other open sessions for this section today (e.g. leftover
+        // schedule + ad-hoc) so Close/Re-open and the camera stay in sync.
+        AttendanceSession::where('section_id', $section->id)
+            ->whereDate('session_date', $date->toDateString())
+            ->where('status', 'open')
+            ->update(['status' => 'closed', 'closed_at' => now()]);
 
         return AttendanceSession::create([
             'section_id' => $section->id,
@@ -168,8 +174,9 @@ class AttendanceService
 
         $timeOut = $timeOut ?? now();
 
+        // Face-camera clocks / timezones can briefly skew earlier than time_in.
         if ($record->time_in && $timeOut->lt($record->time_in)) {
-            throw new \InvalidArgumentException('Time-out cannot be earlier than time-in.');
+            $timeOut = $record->time_in->copy()->addSecond();
         }
 
         if ($record->time_out) {

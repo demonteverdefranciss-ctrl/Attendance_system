@@ -74,4 +74,17 @@
 
 ---
 
-_Last updated: 2026-07-08 — Phases 0–8 complete; 9–10 in progress; Tapo camera + session-gated recognition + realtime attendance live._
+## Planned analytics enhancements (noted 2026-07-16)
+
+Existing: summary counts, daily trend, per-section rates, student API summary, CSV/PDF reports.
+
+**Priority next:**
+1. At-risk students table (attendance rate &lt; 80%)
+2. Per-student attendance page with trend chart
+3. Face vs manual marking method chart on reports
+
+**Backlog:** chronic absenteeism, late ranking, perfect attendance, monthly comparison, time-in heatmap, stay duration, recognition reliability metrics, biometric coverage, parent weekly summary / streaks.
+
+---
+
+_Last updated: 2026-07-16 — analytics enhancement backlog noted; recognition live on Tapo + Railway._

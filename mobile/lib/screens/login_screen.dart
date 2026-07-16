@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
 import '../services/session_service.dart';
-import 'home_screen.dart';
-
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.api, required this.session});
+  const LoginScreen({
+    super.key,
+    required this.api,
+    required this.session,
+    required this.onLogin,
+  });
 
   final ApiClient api;
   final SessionService session;
+  final VoidCallback onLogin;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -42,11 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await widget.session.login(_username.text.trim(), _password.text);
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(api: widget.api, session: widget.session),
-        ),
-      );
+      widget.onLogin();
     } on ApiException catch (e) {
       setState(() {
         _error = e.message;

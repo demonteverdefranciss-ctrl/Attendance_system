@@ -17,6 +17,10 @@ MIN_CONSEC_FRAMES = int(os.getenv("MIN_CONSEC_FRAMES", "5"))
 COOLDOWN_SECONDS = int(os.getenv("COOLDOWN_SECONDS", "300"))
 SAMPLES_PER_STUDENT = int(os.getenv("SAMPLES_PER_STUDENT", "20"))
 SHOW_WINDOW = os.getenv("SHOW_WINDOW", "1") == "1"
+PROCESS_MAX_WIDTH = int(os.getenv("PROCESS_MAX_WIDTH", "960"))
+MIN_FACE_SIZE = int(os.getenv("MIN_FACE_SIZE", "56"))
+# Drop this many queued RTSP frames so we process the newest (reduces lag).
+FRAME_SKIP = int(os.getenv("FRAME_SKIP", "2"))
 # Poll the backend for open sessions every N seconds; the camera only runs
 # while a session is open. Set to 0 to keep the camera always on.
 SESSION_POLL_SECONDS = int(os.getenv("SESSION_POLL_SECONDS", "15"))

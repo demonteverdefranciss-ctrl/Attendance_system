@@ -43,8 +43,12 @@ class AttendanceController extends Controller
             ])
             ->orderByDesc('opened_at')
             ->get()
-            ->unique('section_id')
-            ->keyBy('section_id');
+            ->groupBy('section_id')
+            ->map(function ($group) {
+                // Prefer an open session so Close/Re-open matches what the camera uses.
+                return $group->firstWhere('status', 'open')
+                    ?? $group->sortByDesc('opened_at')->first();
+            });
 
         $rows = $sections->map(fn ($section) => [
             'section' => $section,

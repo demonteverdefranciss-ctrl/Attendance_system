@@ -24,30 +24,64 @@ LOCK_FILE = os.path.join(config.BASE_DIR, ".recognize.lock")
 
 
 def record(student_id, distance):
+    """Post attendance in a background thread so RTSP reading stays live."""
     confidence = lbph_distance_to_confidence(distance)
+    captured_at = datetime.now().astimezone().isoformat()
+    client_uuid = str(uuid.uuid4())
+
+    def _post():
+        try:
+            resp = post_recognition(
+                student_id,
+                confidence=confidence,
+                captured_at=captured_at,
+                client_uuid=client_uuid,
+                event_type=config.EVENT_TYPE_HINT,
+            )
+            if resp.status_code in (200, 201):
+                mode = "recorded"
+                try:
+                    payload = resp.json().get("data", {})
+                    if payload.get("time_out"):
+                        mode = "time-out"
+                    elif payload.get("time_in"):
+                        mode = "time-in"
+                except Exception:
+                    pass
+                print(f"[OK]  student {student_id} {mode} (conf={confidence:.2f})")
+            else:
+                print(f"[WARN] student {student_id}: HTTP {resp.status_code} {resp.text[:200]}")
+        except Exception as exc:  # network/offline — Phase 6b adds a local buffer
+            print(f"[ERR] student {student_id}: {exc}")
+
+    threading.Thread(target=_post, daemon=True).start()
+
+
+def open_video_capture():
+    """Open RTSP/webcam with a small buffer for lower latency."""
+    # Prefer TCP + low-delay decode for IP cameras (ignored for webcam indexes).
+    os.environ.setdefault(
+        "OPENCV_FFMPEG_CAPTURE_OPTIONS",
+        "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;0",
+    )
+    cap = cv2.VideoCapture(config.resolved_video_source(), cv2.CAP_FFMPEG)
+    if not cap.isOpened():
+        cap = cv2.VideoCapture(config.resolved_video_source())
     try:
-        resp = post_recognition(
-            student_id,
-            confidence=confidence,
-            captured_at=datetime.now().astimezone().isoformat(),
-            client_uuid=str(uuid.uuid4()),
-            event_type=config.EVENT_TYPE_HINT,
-        )
-        if resp.status_code in (200, 201):
-            mode = "recorded"
-            try:
-                payload = resp.json().get("data", {})
-                if payload.get("time_out"):
-                    mode = "time-out"
-                elif payload.get("time_in"):
-                    mode = "time-in"
-            except Exception:
-                pass
-            print(f"[OK]  student {student_id} {mode} (conf={confidence:.2f})")
-        else:
-            print(f"[WARN] student {student_id}: HTTP {resp.status_code} {resp.text[:200]}")
-    except Exception as exc:  # network/offline — Phase 6b adds a local buffer
-        print(f"[ERR] student {student_id}: {exc}")
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    except Exception:
+        pass
+    return cap
+
+
+def read_latest_frame(cap):
+    """Discard queued frames and return the newest one."""
+    ok, frame = False, None
+    skips = max(0, config.FRAME_SKIP)
+    for _ in range(skips):
+        cap.grab()
+    ok, frame = cap.read()
+    return ok, frame
 
 
 publish_frame = None  # set when the web preview is enabled
@@ -69,16 +103,32 @@ def maybe_start_stream_server():
     ).start()
 
 
-def session_is_open():
-    """Ask the backend whether any attendance session is open today."""
+def session_is_open(previous=True):
+    """Ask the backend whether any attendance session is open today.
+
+    On network/API errors, keep the previous state so Railway timeouts do not
+    drop the live camera feed.
+    """
     try:
         resp = get_open_sessions()
         if resp.status_code == 200:
             return bool(resp.json().get("data", {}).get("open"))
         print(f"[WARN] session check: HTTP {resp.status_code} {resp.text[:120]}")
     except Exception as exc:
-        print(f"[WARN] session check failed: {exc}")
-    return False
+        print(f"[WARN] session check failed (keeping previous state): {exc}")
+    return previous
+
+
+def check_session_async(state):
+    """Refresh session_open in the background so the RTSP loop never blocks."""
+    def _check():
+        state["session_open"] = session_is_open(previous=state["session_open"])
+        state["checking"] = False
+
+    if state.get("checking"):
+        return
+    state["checking"] = True
+    threading.Thread(target=_check, daemon=True).start()
 
 
 def acquire_lock():
@@ -100,6 +150,22 @@ def release_lock():
         pass
 
 
+def prepare_detection_frame(frame):
+    """Downscale wide frames for faster/more stable Haar detection."""
+    height, width = frame.shape[:2]
+    max_width = max(1, config.PROCESS_MAX_WIDTH)
+    if width <= max_width:
+        return frame, 1.0
+
+    scale = max_width / width
+    resized = cv2.resize(
+        frame,
+        (max_width, int(height * scale)),
+        interpolation=cv2.INTER_AREA,
+    )
+    return resized, scale
+
+
 def main():
     if not os.path.exists(config.MODEL_PATH):
         print("No trained model. Run enroll.py then train.py first.")
@@ -119,7 +185,10 @@ def main():
     cap = None
     consecutive = {}   # student_id -> consecutive confident frames
     last_posted = {}   # student_id -> epoch seconds
-    session_open = session_is_open() if session_gated else True
+    session_state = {
+        "session_open": session_is_open(previous=True) if session_gated else True,
+        "checking": False,
+    }
     last_session_check = time.time()
 
     if session_gated:
@@ -131,8 +200,10 @@ def main():
     while True:
         # Re-check the backend periodically so the camera follows open/close.
         if session_gated and time.time() - last_session_check >= config.SESSION_POLL_SECONDS:
-            session_open = session_is_open()
+            check_session_async(session_state)
             last_session_check = time.time()
+
+        session_open = session_state["session_open"]
 
         if not session_open:
             if cap is not None:
@@ -149,7 +220,7 @@ def main():
 
         if cap is None:
             print("Open session found - starting camera...")
-            cap = cv2.VideoCapture(config.resolved_video_source())
+            cap = open_video_capture()
             if not cap.isOpened():
                 print("ERROR: cannot open video source", config.VIDEO_SOURCE)
                 cap = None
@@ -158,7 +229,7 @@ def main():
             if config.SHOW_WINDOW:
                 cv2.namedWindow("Recognize", cv2.WINDOW_NORMAL)
 
-        ok, frame = cap.read()
+        ok, frame = read_latest_frame(cap)
         if not ok:
             print("[WARN] lost the video stream - reconnecting...")
             cap.release()
@@ -169,12 +240,33 @@ def main():
         if publish_frame is not None:
             publish_frame(frame)
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = cascade.detectMultiScale(gray, 1.1, 5, minSize=(80, 80))
+        detect_frame, scale = prepare_detection_frame(frame)
+        gray_small = cv2.cvtColor(detect_frame, cv2.COLOR_BGR2GRAY)
+        faces = cascade.detectMultiScale(
+            gray_small,
+            1.1,
+            5,
+            minSize=(config.MIN_FACE_SIZE, config.MIN_FACE_SIZE),
+        )
+        gray_full = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         seen = set()
 
         for (x, y, w, h) in faces:
-            label, distance = recognizer.predict(cv2.resize(gray[y:y + h, x:x + w], config.FACE_SIZE))
+            if scale != 1.0:
+                x = int(x / scale)
+                y = int(y / scale)
+                w = int(w / scale)
+                h = int(h / scale)
+
+            x = max(0, x)
+            y = max(0, y)
+            w = min(w, gray_full.shape[1] - x)
+            h = min(h, gray_full.shape[0] - y)
+            if w <= 0 or h <= 0:
+                continue
+
+            face_roi = gray_full[y:y + h, x:x + w]
+            label, distance = recognizer.predict(cv2.resize(face_roi, config.FACE_SIZE))
             matched = distance <= config.LBPH_THRESHOLD
 
             if config.SHOW_WINDOW:

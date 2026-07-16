@@ -36,6 +36,10 @@ class _AttendanceParentAppState extends State<AttendanceParentApp> {
     });
   }
 
+  void _onLoggedIn() => setState(() => _loggedIn = true);
+
+  void _onLoggedOut() => setState(() => _loggedIn = false);
+
   @override
   Widget build(BuildContext context) {
     if (!_ready) {
@@ -57,8 +61,16 @@ class _AttendanceParentAppState extends State<AttendanceParentApp> {
         useMaterial3: true,
       ),
       home: _loggedIn
-          ? HomeScreen(api: _api, session: _session)
-          : LoginScreen(api: _api, session: _session),
+          ? HomeScreen(
+              api: _api,
+              session: _session,
+              onLogout: _onLoggedOut,
+            )
+          : LoginScreen(
+              api: _api,
+              session: _session,
+              onLogin: _onLoggedIn,
+            ),
     );
   }
 }
