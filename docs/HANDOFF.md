@@ -31,6 +31,15 @@ Parent**. Repo: `demonteverdefranciss-ctrl/Attendance_system` (branch `main`).
 - After ANY React/JS change: `npm run build` (or `npm run dev` for HMR)
 - Auto attendance sessions require the scheduler: `php artisan schedule:work`
 
+## Cloud / Linux agent environment (Cursor)
+
+- PHP: 8.3.x (`php` on PATH), Composer 2.x
+- Node: 22.x / npm 10+
+- MySQL 8: database `attendance_system`, user `attendance` / `attendance` (local agent only)
+- App URL: `http://127.0.0.1:8000` via `php artisan serve` — leave `ASSET_URL` unset
+- Setup: `composer install` → copy `.env` → `php artisan key:generate` → `php artisan migrate --seed` → `npm install` → `npm run build`
+- Stack versions (locked via `composer.lock` / `package-lock.json`): Laravel **12.64+**, Inertia React **3.6+**, Vite **7.3+**, Tailwind **4.3+**, React **19.2+**
+
 ## What's DONE (Phases 0–9 partial, 10 scaffold)
 
 0. Laravel + Inertia/React + Vite/Tailwind + Ziggy setup.
