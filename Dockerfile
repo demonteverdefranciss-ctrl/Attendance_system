@@ -15,8 +15,8 @@ RUN rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_wo
     && ln -sf /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf \
     && a2enmod rewrite
 
-# --- Node.js 20 (build front-end assets) ---
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+# --- Node.js 22 LTS (build front-end assets) ---
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
