@@ -1,9 +1,10 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import AtRiskStudentsTable from '@/Components/AtRiskStudentsTable';
 import { StatCard } from '@/Layouts/AuthenticatedLayout';
 import { Doughnut, Line, Bar, ChartCard, noAspect } from '@/Components/Charts';
 
-export default function AdminDashboard({ stats, summary, trend, perSection, range }) {
+export default function AdminDashboard({ stats, summary, trend, perSection, atRisk = [], methodBreakdown, range }) {
     const statusData = {
         labels: ['Present', 'Late', 'Absent', 'Excused'],
         datasets: [{
@@ -26,6 +27,17 @@ export default function AdminDashboard({ stats, summary, trend, perSection, rang
         labels: perSection.map((s) => s.section),
         datasets: [{ label: 'Rate %', data: perSection.map((s) => s.rate), backgroundColor: '#2563eb' }],
     };
+    const methodData = {
+        labels: ['Face', 'Manual', 'Other'],
+        datasets: [{
+            data: [
+                methodBreakdown?.face ?? 0,
+                methodBreakdown?.manual ?? 0,
+                methodBreakdown?.other ?? 0,
+            ],
+            backgroundColor: ['#7c3aed', '#64748b', '#94a3b8'],
+        }],
+    };
 
     return (
         <AdminLayout title="Admin Dashboard">
@@ -38,7 +50,11 @@ export default function AdminDashboard({ stats, summary, trend, perSection, rang
                 <StatCard label="Parents / Guardians" value={stats.guardians} />
             </div>
 
-            <p className="mb-3 text-sm text-gray-500">Attendance overview · {range.from} to {range.to}</p>
+            <p className="mb-3 text-sm text-gray-500">
+                Attendance overview · {range.from} to {range.to}
+                {' · '}
+                <Link href={route('reports.index')} className="text-blue-600 hover:underline">Open Reports</Link>
+            </p>
 
             <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <StatCard label="Attendance Rate" value={`${summary.rate}%`} />
@@ -46,19 +62,24 @@ export default function AdminDashboard({ stats, summary, trend, perSection, rang
                 <StatCard label="Absent" value={summary.absent} />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <ChartCard title="Status breakdown (last 30 days)">
                     <Doughnut data={statusData} options={noAspect} />
                 </ChartCard>
                 <ChartCard title="Daily attendance rate (last 14 days)">
                     <Line data={trendData} options={{ ...noAspect, scales: { y: { min: 0, max: 100 } } }} />
                 </ChartCard>
-                <div className="lg:col-span-2">
+                <ChartCard title="Face vs manual marking">
+                    <Doughnut data={methodData} options={noAspect} />
+                </ChartCard>
+                <div className="lg:col-span-1">
                     <ChartCard title="Attendance rate by section">
                         <Bar data={sectionData} options={{ ...noAspect, scales: { y: { min: 0, max: 100 } } }} />
                     </ChartCard>
                 </div>
             </div>
+
+            <AtRiskStudentsTable students={atRisk} />
         </AdminLayout>
     );
 }

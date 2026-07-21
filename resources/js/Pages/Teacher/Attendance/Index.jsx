@@ -1,15 +1,25 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
 export default function AttendanceIndex({ rows, today }) {
+    const [closingId, setClosingId] = useState(null);
+
     const openSession = (sectionId) => {
         router.post(route('teacher.attendance.open'), { section_id: sectionId });
     };
 
     const closeSession = (id) => {
-        if (confirm('Close this session? Unmarked students will be recorded absent.')) {
-            router.post(route('teacher.attendance.close', id), {}, { preserveScroll: true });
+        if (closingId) return;
+        if (!confirm('Close this session? Unmarked students will be recorded absent.')) {
+            return;
         }
+        setClosingId(id);
+        router.post(route('teacher.attendance.close', id), {}, {
+            preserveScroll: true,
+            onError: () => setClosingId(null),
+            onFinish: () => setClosingId(null),
+        });
     };
 
     return (
@@ -52,8 +62,12 @@ export default function AttendanceIndex({ rows, today }) {
                                         Mark
                                     </Link>
                                     {session.status === 'open' && (
-                                        <button onClick={() => closeSession(session.id)} className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
-                                            Close session
+                                        <button
+                                            onClick={() => closeSession(session.id)}
+                                            disabled={closingId === session.id}
+                                            className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                                        >
+                                            {closingId === session.id ? 'Closing…' : 'Close session'}
                                         </button>
                                     )}
                                     {session.status === 'closed' && (

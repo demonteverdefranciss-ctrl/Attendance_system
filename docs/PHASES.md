@@ -79,9 +79,9 @@
 Existing: summary counts, daily trend, per-section rates, student API summary, CSV/PDF reports.
 
 **Priority next:**
-1. At-risk students table (attendance rate &lt; 80%)
-2. Per-student attendance page with trend chart
-3. Face vs manual marking method chart on reports
+1. ~~At-risk students table (attendance rate &lt; 80%)~~ ✅
+2. ~~Per-student attendance page with trend chart~~ ✅ (`reports/students/{id}`)
+3. ~~Face vs manual marking method chart on reports~~ ✅
 
 **Backlog:** chronic absenteeism, late ranking, perfect attendance, monthly comparison, time-in heatmap, stay duration, recognition reliability metrics, biometric coverage, parent weekly summary / streaks.
 

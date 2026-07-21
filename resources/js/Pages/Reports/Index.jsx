@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TeacherLayout from '@/Layouts/TeacherLayout';
+import AtRiskStudentsTable from '@/Components/AtRiskStudentsTable';
 import { StatCard } from '@/Layouts/AuthenticatedLayout';
+import { Doughnut, ChartCard, noAspect } from '@/Components/Charts';
 
 const STATUS_COLORS = {
     present: 'text-green-700',
@@ -11,7 +13,7 @@ const STATUS_COLORS = {
     excused: 'text-blue-600',
 };
 
-export default function ReportsIndex({ sections, filters, summary, records }) {
+export default function ReportsIndex({ sections, filters, summary, methodBreakdown, atRisk = [], records }) {
     const { auth } = usePage().props;
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
 
@@ -27,6 +29,18 @@ export default function ReportsIndex({ sections, filters, summary, records }) {
     };
 
     const exportUrl = (fmt) => route(fmt === 'csv' ? 'reports.csv' : 'reports.pdf', form);
+
+    const methodData = {
+        labels: ['Face', 'Manual', 'Other'],
+        datasets: [{
+            data: [
+                methodBreakdown?.face ?? 0,
+                methodBreakdown?.manual ?? 0,
+                methodBreakdown?.other ?? 0,
+            ],
+            backgroundColor: ['#7c3aed', '#64748b', '#94a3b8'],
+        }],
+    };
 
     return (
         <Layout title="Attendance Reports">
@@ -71,6 +85,24 @@ export default function ReportsIndex({ sections, filters, summary, records }) {
                 <StatCard label="Total" value={summary.total} />
             </div>
 
+            <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <ChartCard title="Face vs manual marking">
+                    <Doughnut data={methodData} options={noAspect} />
+                </ChartCard>
+                <div className="rounded-xl bg-white p-5 text-sm text-gray-600 shadow-sm ring-1 ring-gray-200">
+                    <h3 className="mb-2 text-sm font-semibold text-gray-700">Method totals</h3>
+                    <ul className="space-y-1">
+                        <li>Face recognition: <strong>{methodBreakdown?.face ?? 0}</strong></li>
+                        <li>Manual: <strong>{methodBreakdown?.manual ?? 0}</strong></li>
+                        <li>Other / unknown: <strong>{methodBreakdown?.other ?? 0}</strong></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div className="mb-6">
+                <AtRiskStudentsTable students={atRisk} />
+            </div>
+
             <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -88,7 +120,13 @@ export default function ReportsIndex({ sections, filters, summary, records }) {
                             <tr key={i} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.date}</td>
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.section}</td>
-                                <td className="px-4 py-2 text-sm text-gray-700">{r.student}</td>
+                                <td className="px-4 py-2 text-sm text-gray-700">
+                                    {r.student_id ? (
+                                        <Link href={route('reports.student', r.student_id)} className="text-blue-600 hover:underline">
+                                            {r.student}
+                                        </Link>
+                                    ) : r.student}
+                                </td>
                                 <td className={`px-4 py-2 text-sm font-medium capitalize ${STATUS_COLORS[r.status] || 'text-gray-700'}`}>{r.status}</td>
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.time_in ?? '—'}</td>
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.time_out ?? '—'}</td>

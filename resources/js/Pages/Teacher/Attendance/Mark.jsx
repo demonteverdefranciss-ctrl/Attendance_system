@@ -17,6 +17,7 @@ const COLORS = {
 export default function Mark({ session, students, records, cameraStreamUrl, recognition }) {
     const [recognitionStatus, setRecognitionStatus] = useState(recognition?.status ?? 'unavailable');
     const [startingRecognition, setStartingRecognition] = useState(false);
+    const [closing, setClosing] = useState(false);
     const initial = {};
     students.forEach((s) => {
         initial[s.id] = records[s.id]?.status ?? '';
@@ -26,13 +27,14 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
 
     // Live updates: while the session is open, re-fetch records so face
     // recognitions from the camera appear without a manual refresh.
+    // Pause while closing so the reload does not cancel the Close POST.
     useEffect(() => {
-        if (session.status === 'closed') return;
+        if (session.status === 'closed' || closing) return;
         const timer = setInterval(() => {
             router.reload({ only: ['records', 'session'] });
         }, LIVE_REFRESH_MS);
         return () => clearInterval(timer);
-    }, [session.status]);
+    }, [session.status, closing]);
 
     // Fill in statuses arriving from the camera, but never overwrite a
     // teacher's unsaved manual selection.
@@ -98,9 +100,15 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
     };
 
     const closeSession = () => {
-        if (confirm('Close this session? Unmarked students will be recorded absent.')) {
-            router.post(route('teacher.attendance.close', session.id));
+        if (closing) return;
+        if (!confirm('Close this session? Unmarked students will be recorded absent.')) {
+            return;
         }
+        setClosing(true);
+        router.post(route('teacher.attendance.close', session.id), {}, {
+            onError: () => setClosing(false),
+            onFinish: () => setClosing(false),
+        });
     };
 
     const recordTimeOutNow = (studentId) => {
@@ -235,11 +243,11 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
 
                 {!closed && (
                     <div className="mt-4 flex items-center gap-3">
-                        <button type="submit" disabled={processing} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                        <button type="submit" disabled={processing || closing} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
                             Save Attendance
                         </button>
-                        <button type="button" onClick={closeSession} className="rounded-lg bg-gray-100 px-4 py-2 font-medium text-gray-700 hover:bg-gray-200">
-                            Close session
+                        <button type="button" onClick={closeSession} disabled={closing} className="rounded-lg bg-gray-100 px-4 py-2 font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50">
+                            {closing ? 'Closing…' : 'Close session'}
                         </button>
                     </div>
                 )}

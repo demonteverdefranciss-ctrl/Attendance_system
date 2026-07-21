@@ -94,6 +94,7 @@ Route::middleware('auth')->group(function () {
     // Reports & exports (admin sees all sections; teacher sees only their own).
     Route::middleware('role:admin,teacher')->group(function () {
         Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/students/{student}', [ReportController::class, 'student'])->name('reports.student');
         Route::get('reports/export/csv', [ReportController::class, 'csv'])->name('reports.csv');
         Route::get('reports/export/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
     });

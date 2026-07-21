@@ -1,9 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
+import AtRiskStudentsTable from '@/Components/AtRiskStudentsTable';
 import { StatCard } from '@/Layouts/AuthenticatedLayout';
 import { Doughnut, Line, ChartCard, noAspect } from '@/Components/Charts';
 
-export default function TeacherDashboard({ stats, summary, trend, range }) {
+export default function TeacherDashboard({ stats, summary, trend, atRisk = [], methodBreakdown, range }) {
     const statusData = {
         labels: ['Present', 'Late', 'Absent', 'Excused'],
         datasets: [{
@@ -20,6 +21,17 @@ export default function TeacherDashboard({ stats, summary, trend, range }) {
             backgroundColor: 'rgba(37,99,235,0.15)',
             tension: 0.3,
             fill: true,
+        }],
+    };
+    const methodData = {
+        labels: ['Face', 'Manual', 'Other'],
+        datasets: [{
+            data: [
+                methodBreakdown?.face ?? 0,
+                methodBreakdown?.manual ?? 0,
+                methodBreakdown?.other ?? 0,
+            ],
+            backgroundColor: ['#7c3aed', '#64748b', '#94a3b8'],
         }],
     };
 
@@ -41,16 +53,25 @@ export default function TeacherDashboard({ stats, summary, trend, range }) {
                 <StatCard label="Absent (30d)" value={summary.absent} />
             </div>
 
-            <p className="mb-3 text-sm text-gray-500">Attendance overview · {range.from} to {range.to}</p>
+            <p className="mb-3 text-sm text-gray-500">
+                Attendance overview · {range.from} to {range.to}
+                {' · '}
+                <Link href={route('reports.index')} className="text-blue-600 hover:underline">Open Reports</Link>
+            </p>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <ChartCard title="Status breakdown (last 30 days)">
                     <Doughnut data={statusData} options={noAspect} />
                 </ChartCard>
                 <ChartCard title="Daily attendance rate (last 14 days)">
                     <Line data={trendData} options={{ ...noAspect, scales: { y: { min: 0, max: 100 } } }} />
                 </ChartCard>
+                <ChartCard title="Face vs manual marking">
+                    <Doughnut data={methodData} options={noAspect} />
+                </ChartCard>
             </div>
+
+            <AtRiskStudentsTable students={atRisk} />
         </TeacherLayout>
     );
 }

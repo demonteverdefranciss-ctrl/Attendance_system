@@ -53,6 +53,8 @@ class DashboardController extends Controller
             'summary' => $this->analytics->summary(null, $from, $to),
             'trend' => $this->analytics->dailyTrend(null, $trendFrom, $to),
             'perSection' => $this->analytics->perSection(null, $from, $to),
+            'atRisk' => $this->analytics->atRiskStudents(null, $from, $to),
+            'methodBreakdown' => $this->analytics->methodBreakdown(null, $from, $to),
             'range' => ['from' => $from, 'to' => $to],
         ]);
     }
@@ -66,6 +68,8 @@ class DashboardController extends Controller
             ? DB::table('sections')->where('adviser_id', $teacher->id)->pluck('id')->all()
             : [];
 
+        $scope = $sectionIds ?: [0];
+
         return Inertia::render('Teacher/Dashboard', [
             'stats' => [
                 'sections' => count($sectionIds),
@@ -73,8 +77,10 @@ class DashboardController extends Controller
                     ? DB::table('students')->whereIn('section_id', $sectionIds)->count()
                     : 0,
             ],
-            'summary' => $this->analytics->summary($sectionIds ?: [0], $from, $to),
-            'trend' => $this->analytics->dailyTrend($sectionIds ?: [0], $trendFrom, $to),
+            'summary' => $this->analytics->summary($scope, $from, $to),
+            'trend' => $this->analytics->dailyTrend($scope, $trendFrom, $to),
+            'atRisk' => $this->analytics->atRiskStudents($scope, $from, $to),
+            'methodBreakdown' => $this->analytics->methodBreakdown($scope, $from, $to),
             'range' => ['from' => $from, 'to' => $to],
         ]);
     }

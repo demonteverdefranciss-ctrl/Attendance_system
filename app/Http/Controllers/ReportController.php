@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Section;
+use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\AnalyticsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response as ResponseFactory;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class ReportController extends Controller
 {
@@ -26,7 +28,24 @@ class ReportController extends Controller
             'sections' => $sections,
             'filters' => ['from' => $from, 'to' => $to, 'section_id' => $sectionId],
             'summary' => $this->analytics->summary($effective, $from, $to),
+            'methodBreakdown' => $this->analytics->methodBreakdown($effective, $from, $to),
+            'atRisk' => $this->analytics->atRiskStudents($effective, $from, $to),
             'records' => $this->analytics->records($scopeIds, $from, $to, $sectionId)->values(),
+        ]);
+    }
+
+    public function student(Request $request, Student $student): Response
+    {
+        $this->authorizeStudent($request, $student);
+
+        $from = $request->query('from', now()->subDays(29)->toDateString());
+        $to = $request->query('to', now()->toDateString());
+
+        $analytics = $this->analytics->studentAnalytics($student, $from, $to);
+
+        return Inertia::render('Reports/Student', [
+            'filters' => ['from' => $from, 'to' => $to],
+            ...$analytics,
         ]);
     }
 
@@ -87,5 +106,19 @@ class ReportController extends Controller
         }
 
         return [$scopeIds, $sections, $from, $to, $sectionId];
+    }
+
+    private function authorizeStudent(Request $request, Student $student): void
+    {
+        $user = $request->user();
+
+        if ($user->hasRole('admin')) {
+            return;
+        }
+
+        $teacher = Teacher::where('user_id', $user->id)->first();
+        $sectionIds = $teacher ? $teacher->sections()->pluck('id')->all() : [];
+
+        abort_unless($student->section_id && in_array($student->section_id, $sectionIds, true), 403);
     }
 }

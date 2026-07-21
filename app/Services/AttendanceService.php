@@ -73,6 +73,9 @@ class AttendanceService
             return;
         }
 
+        // Mark closed first so a slow absent-fill cannot leave the session stuck open.
+        $session->update(['status' => 'closed', 'closed_at' => now()]);
+
         $marked = $session->records()->pluck('student_id')->all();
 
         $unmarked = Student::where('section_id', $session->section_id)
@@ -81,10 +84,25 @@ class AttendanceService
             ->pluck('id');
 
         foreach ($unmarked as $studentId) {
-            $this->mark($session, (int) $studentId, 'absent', ['method' => 'manual']);
+            $this->mark($session, (int) $studentId, 'absent', [
+                'method' => 'manual',
+                'skip_notification' => true,
+                'skip_audit' => true,
+            ]);
         }
 
-        $session->update(['status' => 'closed', 'closed_at' => now()]);
+        if ($unmarked->isNotEmpty()) {
+            $this->audit->log(
+                action: 'attendance_session_closed',
+                userId: null,
+                entity: $session,
+                oldValues: ['status' => 'open'],
+                newValues: [
+                    'status' => 'closed',
+                    'auto_absent_count' => $unmarked->count(),
+                ],
+            );
+        }
     }
 
     /**
@@ -135,24 +153,30 @@ class AttendanceService
         }
 
         $record->save();
-        $this->dispatchAttendanceNotificationIfNeeded($record, $isNew, $beforeStatus, $beforeTimeIn);
-        $this->audit->log(
-            action: 'attendance_marked',
-            userId: $opts['marked_by'] ?? null,
-            entity: $record,
-            oldValues: [
-                'status' => $beforeStatus,
-                'time_in' => $beforeTimeIn?->toDateTimeString(),
-            ],
-            newValues: [
-                'status' => $record->status,
-                'time_in' => $record->time_in?->toDateTimeString(),
-                'time_out' => $record->time_out?->toDateTimeString(),
-                'method' => $record->method,
-            ],
-            ipAddress: $opts['ip_address'] ?? null,
-            userAgent: $opts['user_agent'] ?? null
-        );
+
+        if (empty($opts['skip_notification'])) {
+            $this->dispatchAttendanceNotificationIfNeeded($record, $isNew, $beforeStatus, $beforeTimeIn);
+        }
+
+        if (empty($opts['skip_audit'])) {
+            $this->audit->log(
+                action: 'attendance_marked',
+                userId: $opts['marked_by'] ?? null,
+                entity: $record,
+                oldValues: [
+                    'status' => $beforeStatus,
+                    'time_in' => $beforeTimeIn?->toDateTimeString(),
+                ],
+                newValues: [
+                    'status' => $record->status,
+                    'time_in' => $record->time_in?->toDateTimeString(),
+                    'time_out' => $record->time_out?->toDateTimeString(),
+                    'method' => $record->method,
+                ],
+                ipAddress: $opts['ip_address'] ?? null,
+                userAgent: $opts['user_agent'] ?? null
+            );
+        }
 
         return $record;
     }
