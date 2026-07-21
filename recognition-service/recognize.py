@@ -22,12 +22,31 @@ from preview import for_display
 
 LOCK_FILE = os.path.join(config.BASE_DIR, ".recognize.lock")
 
+# Latest post status for the Recognize window overlay (thread-safe enough for display).
+_post_status = {"text": "", "until": 0.0}
+_post_status_lock = threading.Lock()
+
+
+def set_post_status(text, seconds=4.0):
+    with _post_status_lock:
+        _post_status["text"] = text
+        _post_status["until"] = time.time() + seconds
+
+
+def current_post_status():
+    with _post_status_lock:
+        if time.time() > _post_status["until"]:
+            return ""
+        return _post_status["text"]
+
 
 def record(student_id, distance):
     """Post attendance in a background thread so RTSP reading stays live."""
     confidence = lbph_distance_to_confidence(distance)
     captured_at = datetime.now().astimezone().isoformat()
     client_uuid = str(uuid.uuid4())
+    set_post_status(f"Posting #{student_id}…", seconds=30.0)
+    print(f"[…] posting student {student_id}…")
 
     def _post():
         try:
@@ -49,10 +68,13 @@ def record(student_id, distance):
                 except Exception:
                     pass
                 print(f"[OK]  student {student_id} {mode} (conf={confidence:.2f})")
+                set_post_status(f"OK #{student_id} {mode}", seconds=5.0)
             else:
                 print(f"[WARN] student {student_id}: HTTP {resp.status_code} {resp.text[:200]}")
+                set_post_status(f"Failed #{student_id} HTTP {resp.status_code}", seconds=6.0)
         except Exception as exc:  # network/offline — Phase 6b adds a local buffer
             print(f"[ERR] student {student_id}: {exc}")
+            set_post_status(f"Network error #{student_id}", seconds=6.0)
 
     threading.Thread(target=_post, daemon=True).start()
 
@@ -290,6 +312,17 @@ def main():
                 consecutive[sid] = 0
 
         if config.SHOW_WINDOW:
+            status = current_post_status()
+            if status:
+                cv2.putText(
+                    frame,
+                    status,
+                    (10, frame.shape[0] - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 255),
+                    2,
+                )
             cv2.imshow("Recognize", for_display(frame))
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break

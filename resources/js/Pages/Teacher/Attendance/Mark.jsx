@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import CameraPreview from '@/Components/CameraPreview';
 import RecognitionStatus, { fetchRecognitionStatus, startRecognition } from '@/Components/RecognitionStatus';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
-const LIVE_REFRESH_MS = 5000;
+const LIVE_REFRESH_MS = 2000;
 
 const STATUSES = ['present', 'late', 'absent', 'excused'];
 const COLORS = {
@@ -18,6 +18,8 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
     const [recognitionStatus, setRecognitionStatus] = useState(recognition?.status ?? 'unavailable');
     const [startingRecognition, setStartingRecognition] = useState(false);
     const [closing, setClosing] = useState(false);
+    const [liveNotice, setLiveNotice] = useState('');
+    const prevTimeIns = useRef({});
     const initial = {};
     students.forEach((s) => {
         initial[s.id] = records[s.id]?.status ?? '';
@@ -36,7 +38,31 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
         return () => clearInterval(timer);
     }, [session.status, closing]);
 
-    // Fill in statuses arriving from the camera, but never overwrite a
+    // Announce only newly arrived camera time-ins.
+    useEffect(() => {
+        const prev = prevTimeIns.current;
+        const fresh = [];
+        students.forEach((s) => {
+            const timeIn = records[s.id]?.time_in;
+            if (timeIn && timeIn !== prev[s.id]) {
+                if (prev[s.id] !== undefined || Object.keys(prev).length > 0) {
+                    fresh.push(s);
+                }
+            }
+        });
+        const next = {};
+        students.forEach((s) => {
+            next[s.id] = records[s.id]?.time_in ?? null;
+        });
+        const wasEmpty = Object.keys(prev).length === 0;
+        prevTimeIns.current = next;
+        if (wasEmpty || fresh.length === 0) return;
+
+        const latest = fresh[fresh.length - 1];
+        setLiveNotice(`Camera marked: ${latest.last_name}, ${latest.first_name}`);
+        const clear = setTimeout(() => setLiveNotice(''), 4000);
+        return () => clearTimeout(clear);
+    }, [records, students]);    // Fill in statuses arriving from the camera, but never overwrite a
     // teacher's unsaved manual selection.
     useEffect(() => {
         setData((prev) => {
@@ -146,7 +172,7 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                     {!closed && (
                         <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
                             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
-                            live updates
+                            live updates · every 2s
                         </span>
                     )}
                 </p>
@@ -156,6 +182,12 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                     </button>
                 )}
             </div>
+
+            {liveNotice && (
+                <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800 ring-1 ring-green-200">
+                    {liveNotice}
+                </div>
+            )}
 
             {closed && (
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
