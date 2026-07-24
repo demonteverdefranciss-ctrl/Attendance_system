@@ -83,9 +83,9 @@ php artisan db:seed --force
 ## Notes
 - First deploy builds the Docker image (installs PHP/Node deps and runs
   `npm run build`) — this takes a few minutes.
-- The container waits for MySQL, runs migrations, then starts **Apache** on
-  `$PORT` (see `docker/entrypoint.sh`). `railway.toml` enables `/up` healthchecks
-  and auto-restart on failure.
+- The container waits for MySQL, runs migrations, then starts `php artisan serve`
+  on `$PORT` (see `docker/entrypoint.sh`). `railway.toml` enables `/up` healthchecks
+  (300s timeout) and auto-restart on failure.
 - If the site shows **upstream error**, open Railway → web service → **Restart**,
   and confirm the **MySQL** service is still running (trial/credit issues stop both).
 - Free/hobby tiers may sleep or run out of credits — first request after idle can
