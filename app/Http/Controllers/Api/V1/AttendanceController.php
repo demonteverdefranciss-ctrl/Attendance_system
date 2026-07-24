@@ -105,9 +105,10 @@ class AttendanceController extends ApiController
      */
     public function openSessionsForDevice(): JsonResponse
     {
-        $count = AttendanceSession::where('status', 'open')
-            ->whereDate('session_date', now()->toDateString())
-            ->count();
+        // Any currently open session should turn the school-PC camera on.
+        // Do not filter by session_date only — timezone skew between Railway
+        // and the device can hide a session that the website shows as open.
+        $count = AttendanceSession::where('status', 'open')->count();
 
         return $this->ok([
             'open' => $count > 0,

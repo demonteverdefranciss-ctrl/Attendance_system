@@ -8,7 +8,13 @@ const LABELS = {
 
 export default function RecognitionStatus({ enabled, status, onStart, starting }) {
     if (!enabled) {
-        return null;
+        return (
+            <div className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-900 ring-1 ring-blue-200">
+                Face recognition is controlled on the school PC. Leave{' '}
+                <code className="rounded bg-blue-100 px-1">run_recognition.ps1</code> running — it starts the
+                camera when you open a session here and stops it when you close.
+            </div>
+        );
     }
 
     const label = LABELS[status] ?? LABELS.stopped;

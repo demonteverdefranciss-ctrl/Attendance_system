@@ -114,9 +114,7 @@ class AttendanceService
      */
     public function stopRecognitionIfIdle(): void
     {
-        $stillOpen = AttendanceSession::where('status', 'open')
-            ->whereDate('session_date', now()->toDateString())
-            ->exists();
+        $stillOpen = AttendanceSession::where('status', 'open')->exists();
 
         if ($stillOpen) {
             return;

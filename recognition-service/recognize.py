@@ -177,6 +177,7 @@ def record(student_id, distance, session_state=None):
                 # Backend says no open session → turn camera off immediately.
                 if err_code == "NO_SESSION" and session_state is not None:
                     session_state["session_open"] = False
+                    session_state["force_open"] = False
                     set_hud("Session closed — camera off", ok=False)
                     print("[INFO] NO_SESSION from API — releasing camera.")
         except Exception as exc:
@@ -221,8 +222,9 @@ def maybe_start_stream_server():
 
 
 def session_is_open(previous=False, timeout=8):
-    """Ask the backend whether any attendance session is open today.
+    """Ask the backend whether any attendance session is open.
 
+    Returns (open_now, reached_api).
     A successful `open: false` always turns the camera off.
     Network errors keep the previous state so a brief Railway blip does not
     flicker the camera.
@@ -237,23 +239,27 @@ def session_is_open(previous=False, timeout=8):
                 set_hud("Session closed — camera off", ok=False)
                 if previous:
                     print("[INFO] Backend reports no open session — releasing camera.")
-            return open_now
+            return open_now, True
         print(f"[WARN] session check: HTTP {resp.status_code} {resp.text[:120]}")
         set_hud(f"API HTTP {resp.status_code} — keeping last state", ok=previous)
     except Exception as exc:
         print(f"[WARN] session check failed (keeping previous state): {exc}")
         set_hud("Railway unreachable — press O to force camera ON", ok=False)
-    return previous
+    return previous, False
 
 
 def check_session_async(state, timeout=8):
     def _check():
         try:
-            state["session_open"] = session_is_open(
-                previous=state["session_open"],
+            open_now, reached = session_is_open(
+                previous=bool(state["session_open"]),
                 timeout=timeout,
             )
-            state["api_ok"] = True
+            state["session_open"] = open_now
+            state["api_ok"] = reached
+            # Website Close always wins over a previous manual O override.
+            if reached and not open_now:
+                state["force_open"] = False
         except Exception:
             state["api_ok"] = False
         finally:
@@ -391,7 +397,7 @@ def main():
         print("Keys: O = force camera ON | C = force OFF | q/Esc = quit")
         set_hud("Checking Railway for open session…", ok=False)
         # Blocking first check with a longer timeout so a slow Railway still works.
-        session_state["session_open"] = session_is_open(previous=False, timeout=15)
+        session_state["session_open"] = session_is_open(previous=False, timeout=15)[0]
         last_session_check = time.time()
     else:
         print("Recognizing (camera always on). Keys: q/Esc = quit")
@@ -416,19 +422,13 @@ def main():
     try:
         while True:
             now = time.time()
-            # Poll often while the camera is on so Close Session turns it off quickly.
-            if session_gated and session_state["session_open"] and not session_state["force_open"]:
-                poll_every = 4
-            elif session_gated:
-                poll_every = 5
+            # Poll often so Open/Close on the website turns the camera on/off quickly.
+            if session_gated:
+                poll_every = 3
             else:
                 poll_every = 15
 
-            if (
-                session_gated
-                and not session_state["force_open"]
-                and now - last_session_check >= poll_every
-            ):
+            if session_gated and now - last_session_check >= poll_every:
                 # Longer timeout while waiting to open; shorter while already open.
                 to = 12 if not session_state["session_open"] else 5
                 check_session_async(session_state, timeout=to)
