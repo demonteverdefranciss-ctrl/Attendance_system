@@ -83,9 +83,47 @@ php artisan db:seed --force
 ## Notes
 - First deploy builds the Docker image (installs PHP/Node deps and runs
   `npm run build`) — this takes a few minutes.
-- The container runs `php artisan config:cache` and `php artisan migrate --force`
-  on every boot (see `docker/entrypoint.sh`).
-- Free tiers may **sleep on inactivity** (first request after idle is slow) and
-  have limited hours/credits — fine for a capstone demo.
+- The container waits for MySQL, runs migrations, then starts **Apache** on
+  `$PORT` (see `docker/entrypoint.sh`). `railway.toml` enables `/up` healthchecks
+  and auto-restart on failure.
+- If the site shows **upstream error**, open Railway → web service → **Restart**,
+  and confirm the **MySQL** service is still running (trial/credit issues stop both).
+- Free/hobby tiers may sleep or run out of credits — first request after idle can
+  be slow or fail until restart.
 - Point the recognition service at production by setting, in
   `recognition-service/.env`: `API_BASE_URL=https://<your-domain>/api/v1`.
+- Recognition on the school PC only opens the camera while a teacher has an
+  **open attendance session**. If Railway is down or no session is open, the
+  camera stays off even when the Tapo IP is correct.
+
+---
+
+## C. Backup Railway MySQL (before trial ends)
+
+Your school PC can dump Railway’s database with XAMPP `mysqldump`.
+
+1. Railway → **MySQL** service → **Settings → Networking** → enable **Public Networking / TCP Proxy**.
+2. Copy the **public host** and **port**.
+3. MySQL service → **Variables** → copy `MYSQLUSER`, `MYSQLPASSWORD`, `MYSQLDATABASE`.
+4. On the school PC (PowerShell):
+
+```powershell
+cd C:\xampp\htdocs\attendance_system
+.\scripts\backup-railway-mysql.ps1
+```
+
+Paste host/port/user/password/database when asked.  
+Output file: `backups/railway_attendance_YYYYMMDD_HHMMSS.sql` (gitignored).
+
+Optional (no prompts):
+
+```powershell
+$env:RAILWAY_MYSQL_HOST="...."
+$env:RAILWAY_MYSQL_PORT="...."
+$env:RAILWAY_MYSQL_USER="...."
+$env:RAILWAY_MYSQL_PASSWORD="...."
+$env:RAILWAY_MYSQL_DATABASE="railway"
+.\scripts\backup-railway-mysql.ps1
+```
+
+Keep the `.sql` file on a USB drive / Google Drive. Do **not** commit it to GitHub (student data).

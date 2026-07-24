@@ -25,3 +25,7 @@ Thumbs.db
 
 # Archived original raw-PHP prototype + local DB dump (kept locally only)
 /_legacy
+
+# Local database backups (may contain personal/student data — do not commit)
+/backups
+*.sql
