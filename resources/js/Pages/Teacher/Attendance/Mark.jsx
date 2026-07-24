@@ -271,7 +271,7 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                                     <td className="px-4 py-3 text-sm text-gray-700">{displayTime(records[s.id]?.time_in)}</td>
                                     <td className="px-4 py-3 text-sm text-gray-700">{displayTime(records[s.id]?.time_out)}</td>
                                     <td className="px-4 py-3">
-                                        {!closed && ['present', 'late'].includes(data.records[s.id]) && !records[s.id]?.time_out ? (
+                                        {!closed && ['present', 'late'].includes(records[s.id]?.status) && !records[s.id]?.time_out ? (
                                             <button
                                                 type="button"
                                                 onClick={() => recordTimeOutNow(s.id)}
@@ -280,7 +280,11 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                                                 Record time-out now
                                             </button>
                                         ) : (
-                                            <span className="text-xs text-gray-400">—</span>
+                                            <span className="text-xs text-gray-400">
+                                                {!closed && ['present', 'late'].includes(data.records[s.id]) && !records[s.id]?.status
+                                                    ? 'Save first'
+                                                    : '—'}
+                                            </span>
                                         )}
                                     </td>
                                 </tr>
