@@ -119,9 +119,15 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30, tes
                                                 : ' · closes at schedule end'}
                                     </p>
                                 )}
-                                <div className="mt-4 flex gap-3">
+                                <div className="mt-4 flex flex-wrap gap-3">
                                     <Link href={route('teacher.attendance.show', session.id)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
                                         Mark
+                                    </Link>
+                                    <Link
+                                        href={route('reports.session', session.id)}
+                                        className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                                    >
+                                        View report
                                     </Link>
                                     {session.status === 'open' && (
                                         <button

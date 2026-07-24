@@ -91,113 +91,58 @@ class DashboardController extends Controller
     public function parent(): Response
     {
         $guardian = Guardian::where('user_id', Auth::id())->first();
-
-        $notifications = $guardian
-            ? Notification::where('guardian_id', $guardian->id)
-                ->latest('id')
-                ->limit(30)
-                ->get()
-                ->map(fn ($n) => [
-                    'id' => $n->id,
-                    'type' => $n->type,
-                    'title' => $n->title,
-                    'body' => $n->body,
-                    'status' => $n->status,
-                    'sent_at' => $n->sent_at?->toDateTimeString(),
-                    'read_at' => $n->read_at?->toDateTimeString(),
-                ])
-                ->values()
-            : collect();
+        $children = $this->parentChildrenPayload($guardian);
+        $notifications = $this->parentNotificationsPayload($guardian, 5);
+        $enrollmentRequests = $this->parentEnrollmentPayload($guardian);
+        $excuseRequests = $this->parentExcusePayload($guardian);
 
         $unreadCount = $guardian
             ? Notification::where('guardian_id', $guardian->id)->whereNull('read_at')->count()
             : 0;
-        $enrollmentRequests = $guardian
-            ? ChildEnrollmentRequest::where('guardian_id', $guardian->id)
-                ->with('student:id,first_name,last_name,lrn')
-                ->latest('id')
-                ->limit(20)
-                ->get()
-                ->map(fn ($r) => [
-                    'id' => $r->id,
-                    'lrn' => $r->lrn,
-                    'student' => $r->full_name ?: null,
-                    'first_name' => $r->first_name,
-                    'last_name' => $r->last_name,
-                    'grade_level' => $r->grade_level,
-                    'relationship' => $r->relationship,
-                    'status' => $r->status,
-                    'notes' => $r->notes,
-                    'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
-                    'created_at' => $r->created_at?->toDateTimeString(),
-                ])
-                ->values()
-            : collect();
-
-        $children = $guardian
-            ? $guardian->students()
-                ->with('section:id,name,grade_level')
-                ->orderBy('last_name')
-                ->get()
-                ->map(function ($student) {
-                    $latestSubmission = BiometricPhotoSubmission::where('student_id', $student->id)
-                        ->latest('id')
-                        ->first();
-
-                    return [
-                        'id' => $student->id,
-                        'name' => $student->full_name,
-                        'lrn' => $student->lrn,
-                        'section' => $student->section
-                            ? "{$student->section->grade_level} - {$student->section->name}"
-                            : '—',
-                        'consent_biometric' => $student->consent_biometric,
-                        'biometric_submission' => $latestSubmission ? [
-                            'status' => $latestSubmission->status,
-                            'created_at' => $latestSubmission->created_at?->toDateTimeString(),
-                            'reviewed_at' => $latestSubmission->reviewed_at?->toDateTimeString(),
-                            'notes' => $latestSubmission->notes,
-                        ] : null,
-                    ];
-                })
-                ->values()
-            : collect();
-
-        $studentIds = $guardian
-            ? $guardian->students()->pluck('students.id')->all()
-            : [];
-
-        $excuseRequests = $studentIds
-            ? AttendanceExcuseRequest::with('student:id,first_name,last_name,lrn')
-                ->whereIn('student_id', $studentIds)
-                ->latest('id')
-                ->limit(30)
-                ->get()
-                ->map(fn ($r) => [
-                    'id' => $r->id,
-                    'student' => $r->student?->full_name,
-                    'student_id' => $r->student_id,
-                    'streak_count' => $r->streak_count,
-                    'streak_summary' => $r->streak_summary,
-                    'status' => $r->status,
-                    'letter_body' => $r->letter_body,
-                    'notes' => $r->notes,
-                    'notified_at' => $r->notified_at?->toDateTimeString(),
-                    'submitted_at' => $r->submitted_at?->toDateTimeString(),
-                    'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
-                    'created_at' => $r->created_at?->toDateTimeString(),
-                ])
-                ->values()
-            : collect();
 
         return Inertia::render('Parent/Dashboard', [
             'stats' => ['children' => $children->count()],
-            'children' => $children,
-            'notifications' => $notifications,
             'unreadCount' => $unreadCount,
+            'recentNotifications' => $notifications,
+            'pendingLetters' => $excuseRequests->where('status', 'awaiting_letter')->count(),
+            'pendingEnrollment' => $enrollmentRequests->where('status', 'pending')->count(),
+        ]);
+    }
+
+    public function parentBiometrics(): Response
+    {
+        $guardian = Guardian::where('user_id', Auth::id())->first();
+
+        return Inertia::render('Parent/Biometrics', [
+            'children' => $this->parentChildrenPayload($guardian),
+        ]);
+    }
+
+    public function parentEnrollment(): Response
+    {
+        $guardian = Guardian::where('user_id', Auth::id())->first();
+
+        return Inertia::render('Parent/Enrollment', [
+            'enrollmentRequests' => $this->parentEnrollmentPayload($guardian),
+        ]);
+    }
+
+    public function parentExcuseRequests(): Response
+    {
+        $guardian = Guardian::where('user_id', Auth::id())->first();
+
+        return Inertia::render('Parent/ExcuseRequests', [
+            'excuseRequests' => $this->parentExcusePayload($guardian),
+        ]);
+    }
+
+    public function parentNotifications(): Response
+    {
+        $guardian = Guardian::where('user_id', Auth::id())->first();
+
+        return Inertia::render('Parent/Notifications', [
+            'notifications' => $this->parentNotificationsPayload($guardian, 50),
             'notifyPref' => $guardian?->notify_pref ?? 'push',
-            'enrollmentRequests' => $enrollmentRequests,
-            'excuseRequests' => $excuseRequests,
         ]);
     }
 
@@ -215,10 +160,10 @@ class DashboardController extends Controller
         try {
             $this->excuses->submitLetter($guardian, $excuseRequest, $data['letter_body']);
         } catch (\InvalidArgumentException $e) {
-            return redirect()->route('parent.dashboard')->with('error', $e->getMessage());
+            return redirect()->route('parent.excuse-requests.index')->with('error', $e->getMessage());
         }
 
-        return redirect()->route('parent.dashboard')
+        return redirect()->route('parent.excuse-requests.index')
             ->with('success', 'Explanation letter submitted. A teacher will review it.');
     }
 
@@ -237,7 +182,7 @@ class DashboardController extends Controller
             ]);
         }
 
-        return redirect()->route('parent.dashboard')->with('success', 'Notification marked as read.');
+        return redirect()->route('parent.notifications.index')->with('success', 'Notification marked as read.');
     }
 
     public function updateParentNotificationPreference(Request $request): RedirectResponse
@@ -253,7 +198,7 @@ class DashboardController extends Controller
 
         $guardian->update(['notify_pref' => $data['notify_pref']]);
 
-        return redirect()->route('parent.dashboard')->with('success', 'Notification preference updated.');
+        return redirect()->route('parent.notifications.index')->with('success', 'Notification preference updated.');
     }
 
     public function createEnrollmentRequest(Request $request): RedirectResponse
@@ -275,7 +220,7 @@ class DashboardController extends Controller
         $student = Student::where('lrn', $data['lrn'])->first();
 
         if ($student && $guardian->students()->where('students.id', $student->id)->exists()) {
-            return redirect()->route('parent.dashboard')
+            return redirect()->route('parent.enrollment.index')
                 ->with('error', 'This child is already linked to your parent account.');
         }
 
@@ -285,7 +230,7 @@ class DashboardController extends Controller
             ->exists();
 
         if ($pendingExists) {
-            return redirect()->route('parent.dashboard')
+            return redirect()->route('parent.enrollment.index')
                 ->with('error', 'An enrollment request for this LRN is already pending.');
         }
 
@@ -316,7 +261,7 @@ class DashboardController extends Controller
             userAgent: $request->userAgent()
         );
 
-        return redirect()->route('parent.dashboard')
+        return redirect()->route('parent.enrollment.index')
             ->with('success', 'Child details submitted. A teacher will verify and link your child.');
     }
 
@@ -511,5 +456,121 @@ class DashboardController extends Controller
         $studentSectionId = $request->student?->section_id;
 
         abort_unless($studentSectionId && in_array($studentSectionId, $sectionIds, true), 403);
+    }
+
+    private function parentChildrenPayload(?Guardian $guardian)
+    {
+        if (! $guardian) {
+            return collect();
+        }
+
+        return $guardian->students()
+            ->with('section:id,name,grade_level')
+            ->orderBy('last_name')
+            ->get()
+            ->map(function ($student) {
+                $latestSubmission = BiometricPhotoSubmission::where('student_id', $student->id)
+                    ->latest('id')
+                    ->first();
+
+                return [
+                    'id' => $student->id,
+                    'name' => $student->full_name,
+                    'lrn' => $student->lrn,
+                    'section' => $student->section
+                        ? "{$student->section->grade_level} - {$student->section->name}"
+                        : '—',
+                    'consent_biometric' => $student->consent_biometric,
+                    'biometric_submission' => $latestSubmission ? [
+                        'status' => $latestSubmission->status,
+                        'created_at' => $latestSubmission->created_at?->toDateTimeString(),
+                        'reviewed_at' => $latestSubmission->reviewed_at?->toDateTimeString(),
+                        'notes' => $latestSubmission->notes,
+                    ] : null,
+                ];
+            })
+            ->values();
+    }
+
+    private function parentNotificationsPayload(?Guardian $guardian, int $limit = 30)
+    {
+        if (! $guardian) {
+            return collect();
+        }
+
+        return Notification::where('guardian_id', $guardian->id)
+            ->latest('id')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($n) => [
+                'id' => $n->id,
+                'type' => $n->type,
+                'title' => $n->title,
+                'body' => $n->body,
+                'status' => $n->status,
+                'sent_at' => $n->sent_at?->toDateTimeString(),
+                'read_at' => $n->read_at?->toDateTimeString(),
+            ])
+            ->values();
+    }
+
+    private function parentEnrollmentPayload(?Guardian $guardian)
+    {
+        if (! $guardian) {
+            return collect();
+        }
+
+        return ChildEnrollmentRequest::where('guardian_id', $guardian->id)
+            ->with('student:id,first_name,last_name,lrn')
+            ->latest('id')
+            ->limit(20)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'lrn' => $r->lrn,
+                'student' => $r->full_name ?: null,
+                'first_name' => $r->first_name,
+                'last_name' => $r->last_name,
+                'grade_level' => $r->grade_level,
+                'relationship' => $r->relationship,
+                'status' => $r->status,
+                'notes' => $r->notes,
+                'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
+                'created_at' => $r->created_at?->toDateTimeString(),
+            ])
+            ->values();
+    }
+
+    private function parentExcusePayload(?Guardian $guardian)
+    {
+        if (! $guardian) {
+            return collect();
+        }
+
+        $studentIds = $guardian->students()->pluck('students.id')->all();
+        if ($studentIds === []) {
+            return collect();
+        }
+
+        return AttendanceExcuseRequest::with('student:id,first_name,last_name,lrn')
+            ->whereIn('student_id', $studentIds)
+            ->latest('id')
+            ->limit(30)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'student' => $r->student?->full_name,
+                'student_id' => $r->student_id,
+                'streak_count' => $r->streak_count,
+                'streak_summary' => $r->streak_summary,
+                'status' => $r->status,
+                'letter_body' => $r->letter_body,
+                'notes' => $r->notes,
+                'notified_at' => $r->notified_at?->toDateTimeString(),
+                'submitted_at' => $r->submitted_at?->toDateTimeString(),
+                'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
+                'created_at' => $r->created_at?->toDateTimeString(),
+            ])
+            ->values();
     }
 }
