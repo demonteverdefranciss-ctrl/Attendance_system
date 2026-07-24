@@ -93,8 +93,40 @@ class AttendanceController extends Controller
             'rows' => $payloadRows,
             'today' => $today,
             'adhocMaxMinutes' => $adhocMax,
+            'testClearEnabled' => (bool) config('attendance.test_clear_enabled', false),
             'recognition' => $this->recognition->snapshot(),
         ]);
+    }
+
+    /**
+     * TEMPORARY (dev/testing): delete today's sessions + records for the
+     * teacher's sections so face recognition can be retested from a clean slate.
+     * Remove this action (and the UI button) before final handover.
+     */
+    public function clearTodayForTesting(): RedirectResponse
+    {
+        abort_unless(config('attendance.test_clear_enabled'), 404);
+
+        $sectionIds = $this->sectionIds();
+        $sessions = AttendanceSession::whereIn('section_id', $sectionIds)
+            ->whereDate('session_date', now()->toDateString())
+            ->get();
+
+        $sessionCount = $sessions->count();
+        $recordCount = 0;
+
+        foreach ($sessions as $session) {
+            $recordCount += $session->records()->count();
+            $session->delete();
+        }
+
+        $this->attendance->stopRecognitionIfIdle();
+
+        return redirect()->route('teacher.attendance.index')
+            ->with(
+                'success',
+                "TEST CLEAR: removed {$sessionCount} session(s) and {$recordCount} record(s) for today. Re-open Attendance to test again."
+            );
     }
 
     /**

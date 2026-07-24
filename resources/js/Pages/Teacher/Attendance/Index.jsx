@@ -1,9 +1,11 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
-export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30 }) {
+export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30, testClearEnabled = false }) {
     const [closingId, setClosingId] = useState(null);
+    const [clearing, setClearing] = useState(false);
+    const flash = usePage().props.flash ?? {};
 
     const openSession = (sectionId) => {
         router.post(route('teacher.attendance.open'), { section_id: sectionId });
@@ -22,6 +24,19 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30 }) {
         });
     };
 
+    const clearToday = () => {
+        if (clearing) return;
+        if (!confirm(
+            "TEMPORARY TEST TOOL\n\nDelete ALL of today's attendance sessions and marks for your sections?\n\nThis cannot be undone. Use only while testing recognition.",
+        )) {
+            return;
+        }
+        setClearing(true);
+        router.post(route('teacher.attendance.clear-today'), {}, {
+            onFinish: () => setClearing(false),
+        });
+    };
+
     const fmt = (value) => {
         if (!value) return null;
         const d = new Date(value);
@@ -32,12 +47,37 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30 }) {
         <TeacherLayout title="Mark Attendance">
             <Head title="Mark Attendance" />
 
+            {flash.success && (
+                <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800 ring-1 ring-green-200">
+                    {flash.success}
+                </div>
+            )}
+
             <p className="mb-2 text-sm text-gray-500">Today: {today}</p>
             <p className="mb-4 text-xs text-gray-500">
                 Schedule windows auto-open and auto-close on the website.
                 Manual &quot;Open Attendance&quot; sessions auto-close after {adhocMaxMinutes} minutes.
                 Keep <code className="rounded bg-gray-100 px-1">run_recognition.ps1</code> running on the school PC so the camera follows open/close.
             </p>
+
+            {testClearEnabled && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-300">
+                    <div>
+                        <p className="font-semibold">TEMPORARY — testing only (remove later)</p>
+                        <p className="text-amber-900/90">
+                            Clears today&apos;s sessions and marks so you can re-open and retest the camera.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={clearToday}
+                        disabled={clearing}
+                        className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
+                    >
+                        {clearing ? 'Clearing…' : "Clear today's attendance"}
+                    </button>
+                </div>
+            )}
 
             {rows.length === 0 && (
                 <div className="rounded-xl bg-white p-8 text-center text-sm text-gray-400 shadow-sm ring-1 ring-gray-200">

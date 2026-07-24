@@ -73,6 +73,9 @@ Route::middleware('auth')->group(function () {
 
         Route::get('attendance', [TeacherAttendanceController::class, 'index'])->name('attendance.index');
         Route::post('attendance/open', [TeacherAttendanceController::class, 'open'])->name('attendance.open');
+        // TEMPORARY — remove before final handover
+        Route::post('attendance/clear-today', [TeacherAttendanceController::class, 'clearTodayForTesting'])
+            ->name('attendance.clear-today');
         Route::get('attendance/{session}', [TeacherAttendanceController::class, 'show'])->name('attendance.show');
         Route::post('attendance/{session}', [TeacherAttendanceController::class, 'store'])->name('attendance.store');
         Route::post('attendance/{session}/students/{student}/time-out', [TeacherAttendanceController::class, 'recordTimeOut'])
