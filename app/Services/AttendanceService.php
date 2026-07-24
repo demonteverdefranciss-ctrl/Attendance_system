@@ -88,7 +88,13 @@ class AttendanceService
                 'method' => 'manual',
                 'skip_notification' => true,
                 'skip_audit' => true,
+                // Defer streak checks until after all absents are written.
+                'skip_excuse_check' => true,
             ]);
+        }
+
+        foreach ($unmarked as $studentId) {
+            app(ExcuseRequestService::class)->evaluateAfterMark((int) $studentId);
         }
 
         if ($unmarked->isNotEmpty()) {

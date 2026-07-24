@@ -4,7 +4,7 @@ import CameraPreview from '@/Components/CameraPreview';
 import RecognitionStatus, { fetchRecognitionStatus, startRecognition } from '@/Components/RecognitionStatus';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
-const LIVE_REFRESH_MS = 2000;
+const LIVE_REFRESH_MS = 5000;
 
 const STATUSES = ['present', 'late', 'absent', 'excused'];
 const COLORS = {
@@ -18,6 +18,7 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
     const [recognitionStatus, setRecognitionStatus] = useState(recognition?.status ?? 'unavailable');
     const [startingRecognition, setStartingRecognition] = useState(false);
     const [closing, setClosing] = useState(false);
+    const [closeSlow, setCloseSlow] = useState(false);
     const [liveNotice, setLiveNotice] = useState('');
     const prevTimeIns = useRef({});
     const initial = {};
@@ -29,11 +30,12 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
 
     // Live updates: while the session is open, re-fetch records so face
     // recognitions from the camera appear without a manual refresh.
-    // Pause while closing so the reload does not cancel the Close POST.
+    // Pause while closing so the reload does not cancel/block the Close POST.
+    // Use async reloads so they don't queue ahead of Close on slow Railway.
     useEffect(() => {
         if (session.status === 'closed' || closing) return;
         const timer = setInterval(() => {
-            router.reload({ only: ['records', 'session'] });
+            router.reload({ only: ['records', 'session'], async: true });
         }, LIVE_REFRESH_MS);
         return () => clearInterval(timer);
     }, [session.status, closing]);
@@ -131,9 +133,23 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
             return;
         }
         setClosing(true);
+        setCloseSlow(false);
+        // Drop any in-flight live-refresh requests so Close is not stuck behind them.
+        if (typeof router.cancelAll === 'function') {
+            router.cancelAll();
+        }
+        const slowTimer = setTimeout(() => setCloseSlow(true), 8000);
         router.post(route('teacher.attendance.close', session.id), {}, {
-            onError: () => setClosing(false),
-            onFinish: () => setClosing(false),
+            onError: () => {
+                clearTimeout(slowTimer);
+                setClosing(false);
+                setCloseSlow(false);
+            },
+            onFinish: () => {
+                clearTimeout(slowTimer);
+                setClosing(false);
+                setCloseSlow(false);
+            },
         });
     };
 
@@ -172,7 +188,7 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                     {!closed && (
                         <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
                             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
-                            live updates · every 2s
+                            live updates · every 5s
                         </span>
                     )}
                 </p>
@@ -274,13 +290,18 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                 </div>
 
                 {!closed && (
-                    <div className="mt-4 flex items-center gap-3">
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
                         <button type="submit" disabled={processing || closing} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
                             Save Attendance
                         </button>
                         <button type="button" onClick={closeSession} disabled={closing} className="rounded-lg bg-gray-100 px-4 py-2 font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50">
                             {closing ? 'Closing…' : 'Close session'}
                         </button>
+                        {closeSlow && (
+                            <span className="text-xs text-amber-700">
+                                Still waiting on Railway — keep this tab open. If it never finishes, refresh and check the session list.
+                            </span>
+                        )}
                     </div>
                 )}
                 {closed && (
