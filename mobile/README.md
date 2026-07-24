@@ -1,14 +1,23 @@
-# Parent Mobile App (Flutter)
+# Bigaa ES Attendance App (Flutter)
 
-Cross-platform parent app for the attendance system. Consumes `/api/v1` only (Sanctum bearer tokens).
+Cross-platform mobile app for parents and teachers. Consumes `/api/v1` only (Sanctum bearer tokens).
 
 ## Features
 
-- Parent login (`parent01` / `Parent@123` in seeded data)
+### Parent
+- Login (`parent01` / `Parent@123` in seeded data)
 - Dashboard: children count, unread notifications
 - Child attendance history + summary analytics
 - Notifications list + mark as read
 - Child enrollment request by LRN (teacher verification workflow)
+
+### Teacher
+- Login (`teacher01` / `Teacher@123` in seeded data)
+- Dashboard: sections, students, attendance rate, pending tasks
+- Attendance: open today's session, mark present/late/absent/excused, record time-out, close session
+- Enrollment requests: approve or reject parent LRN links
+- Biometric photos: review and approve/reject parent submissions
+- Student list with attendance detail view
 
 ## Android device not detected?
 

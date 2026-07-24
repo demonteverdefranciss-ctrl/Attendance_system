@@ -27,6 +27,19 @@ class ApiClient {
   Future<Map<String, dynamic>> post(String path, [Map<String, dynamic>? body]) =>
       _request('POST', path, body: body);
 
+  Future<List<int>> getBytes(String path) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+    final headers = {
+      'Accept': '*/*',
+      if (_token != null) 'Authorization': 'Bearer $_token',
+    };
+    final response = await _client.get(uri, headers: headers);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return response.bodyBytes;
+    }
+    throw ApiException('Failed to load resource (${response.statusCode}).');
+  }
+
   Future<Map<String, dynamic>> _request(
     String method,
     String path, {

@@ -37,7 +37,7 @@ def post_recognition(student_id, confidence=None, captured_at=None, client_uuid=
     return requests.post(url, json=payload, headers=headers, timeout=timeout)
 
 
-def get_open_sessions(timeout=10):
+def get_open_sessions(timeout=3):
     """GET whether any attendance session is open today (device-authenticated)."""
     url = f"{config.API_BASE_URL}/attendance/sessions/open"
     return requests.get(url, headers=device_headers(), timeout=timeout)

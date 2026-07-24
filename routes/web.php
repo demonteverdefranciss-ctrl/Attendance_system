@@ -12,6 +12,7 @@ use App\Http\Controllers\Parent\BiometricPhotoController as ParentBiometricPhoto
 use App\Http\Controllers\Teacher\AttendanceController as TeacherAttendanceController;
 use App\Http\Controllers\Teacher\BiometricPhotoController as TeacherBiometricPhotoController;
 use App\Http\Controllers\Teacher\RecognitionController as TeacherRecognitionController;
+use App\Http\Controllers\Teacher\ExcuseRequestController as TeacherExcuseRequestController;
 use App\Http\Controllers\CameraStreamController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
@@ -56,6 +57,12 @@ Route::middleware('auth')->group(function () {
         Route::post('enrollment-requests/{enrollmentRequest}/reject', [DashboardController::class, 'rejectEnrollmentRequest'])
             ->name('enrollment-requests.reject');
 
+        Route::get('excuse-requests', [TeacherExcuseRequestController::class, 'index'])->name('excuse-requests.index');
+        Route::post('excuse-requests/{excuseRequest}/approve', [TeacherExcuseRequestController::class, 'approve'])
+            ->name('excuse-requests.approve');
+        Route::post('excuse-requests/{excuseRequest}/reject', [TeacherExcuseRequestController::class, 'reject'])
+            ->name('excuse-requests.reject');
+
         Route::get('biometric-photos', [TeacherBiometricPhotoController::class, 'index'])->name('biometric-photos.index');
         Route::post('biometric-photos/{submission}/approve', [TeacherBiometricPhotoController::class, 'approve'])
             ->name('biometric-photos.approve');
@@ -80,6 +87,8 @@ Route::middleware('auth')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'parent'])->name('dashboard');
         Route::post('enrollment-requests', [DashboardController::class, 'createEnrollmentRequest'])->name('enrollment-requests.store');
         Route::post('biometric-photos', [ParentBiometricPhotoController::class, 'store'])->name('biometric-photos.store');
+        Route::post('excuse-requests/{excuseRequest}', [DashboardController::class, 'submitExcuseLetter'])
+            ->name('excuse-requests.submit');
         Route::post('notifications/{notification}/read', [DashboardController::class, 'markParentNotificationRead'])
             ->name('notifications.read');
         Route::post('notifications/preferences', [DashboardController::class, 'updateParentNotificationPreference'])

@@ -15,6 +15,7 @@ import uuid
 from datetime import datetime
 
 import cv2
+import numpy as np
 
 import config
 from api_client import get_open_sessions, lbph_distance_to_confidence, post_recognition
@@ -22,9 +23,10 @@ from preview import for_display
 
 LOCK_FILE = os.path.join(config.BASE_DIR, ".recognize.lock")
 
-# Latest post status for the Recognize window overlay (thread-safe enough for display).
 _post_status = {"text": "", "until": 0.0}
 _post_status_lock = threading.Lock()
+_hud = {"line": "Starting…", "ok": False}
+_hud_lock = threading.Lock()
 
 
 def set_post_status(text, seconds=4.0):
@@ -40,7 +42,101 @@ def current_post_status():
         return _post_status["text"]
 
 
-def record(student_id, distance):
+def set_hud(line, ok=False):
+    with _hud_lock:
+        _hud["line"] = line
+        _hud["ok"] = ok
+
+
+def current_hud():
+    with _hud_lock:
+        return _hud["line"], _hud["ok"]
+
+
+class FrameGrabber:
+    """Read RTSP/webcam on a background thread so the UI never freezes."""
+
+    def __init__(self):
+        self._cap = None
+        self._lock = threading.Lock()
+        self._frame = None
+        self._ok = False
+        self._running = False
+        self._thread = None
+        self._open_error = None
+
+    @property
+    def is_open(self):
+        return self._running and self._cap is not None
+
+    def start(self):
+        if self._running:
+            return True
+        self._open_error = None
+        set_hud("Connecting to camera…", ok=False)
+        os.environ.setdefault(
+            "OPENCV_FFMPEG_CAPTURE_OPTIONS",
+            "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;500000",
+        )
+        source = config.resolved_video_source()
+        cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
+        if not cap.isOpened():
+            cap = cv2.VideoCapture(source)
+        if not cap.isOpened():
+            self._open_error = f"cannot open video source {config.VIDEO_SOURCE}"
+            set_hud("Camera offline — retrying…", ok=False)
+            return False
+        try:
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        except Exception:
+            pass
+        self._cap = cap
+        self._running = True
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+        set_hud("Camera live", ok=True)
+        return True
+
+    def _loop(self):
+        skips = max(0, config.FRAME_SKIP)
+        while self._running and self._cap is not None:
+            try:
+                for _ in range(skips):
+                    self._cap.grab()
+                ok, frame = self._cap.read()
+            except Exception:
+                ok, frame = False, None
+            with self._lock:
+                self._ok = bool(ok)
+                if ok:
+                    self._frame = frame
+            if not ok:
+                time.sleep(0.05)
+
+    def read(self):
+        with self._lock:
+            if not self._ok or self._frame is None:
+                return False, None
+            return True, self._frame.copy()
+
+    def stop(self):
+        self._running = False
+        thread = self._thread
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=2.0)
+        self._thread = None
+        if self._cap is not None:
+            try:
+                self._cap.release()
+            except Exception:
+                pass
+            self._cap = None
+        with self._lock:
+            self._ok = False
+            self._frame = None
+
+
+def record(student_id, distance, session_state=None):
     """Post attendance in a background thread so RTSP reading stays live."""
     confidence = lbph_distance_to_confidence(distance)
     captured_at = datetime.now().astimezone().isoformat()
@@ -56,6 +152,7 @@ def record(student_id, distance):
                 captured_at=captured_at,
                 client_uuid=client_uuid,
                 event_type=config.EVENT_TYPE_HINT,
+                timeout=8,
             )
             if resp.status_code in (200, 201):
                 mode = "recorded"
@@ -70,47 +167,45 @@ def record(student_id, distance):
                 print(f"[OK]  student {student_id} {mode} (conf={confidence:.2f})")
                 set_post_status(f"OK #{student_id} {mode}", seconds=5.0)
             else:
+                err_code = None
+                try:
+                    err_code = (resp.json().get("error") or {}).get("code")
+                except Exception:
+                    pass
                 print(f"[WARN] student {student_id}: HTTP {resp.status_code} {resp.text[:200]}")
                 set_post_status(f"Failed #{student_id} HTTP {resp.status_code}", seconds=6.0)
-        except Exception as exc:  # network/offline — Phase 6b adds a local buffer
+                # Backend says no open session → turn camera off immediately.
+                if err_code == "NO_SESSION" and session_state is not None:
+                    session_state["session_open"] = False
+                    set_hud("Session closed — camera off", ok=False)
+                    print("[INFO] NO_SESSION from API — releasing camera.")
+        except Exception as exc:
             print(f"[ERR] student {student_id}: {exc}")
             set_post_status(f"Network error #{student_id}", seconds=6.0)
 
     threading.Thread(target=_post, daemon=True).start()
 
 
-def open_video_capture():
-    """Open RTSP/webcam with a small buffer for lower latency."""
-    # Prefer TCP + low-delay decode for IP cameras (ignored for webcam indexes).
-    os.environ.setdefault(
-        "OPENCV_FFMPEG_CAPTURE_OPTIONS",
-        "rtsp_transport;tcp|fflags;nobuffer|flags;low_delay|max_delay;0",
-    )
-    cap = cv2.VideoCapture(config.resolved_video_source(), cv2.CAP_FFMPEG)
-    if not cap.isOpened():
-        cap = cv2.VideoCapture(config.resolved_video_source())
+def should_quit(window_name="Recognize"):
+    """True if user pressed q/Esc or closed the OpenCV window.
+
+    Returns (quit, key) so callers can handle force-open / force-close keys.
+    """
+    key = cv2.waitKey(1) & 0xFF
+    if key in (ord("q"), 27):
+        return True, key
     try:
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-    except Exception:
-        pass
-    return cap
+        if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
+            return True, key
+    except cv2.error:
+        return True, key
+    return False, key
 
 
-def read_latest_frame(cap):
-    """Discard queued frames and return the newest one."""
-    ok, frame = False, None
-    skips = max(0, config.FRAME_SKIP)
-    for _ in range(skips):
-        cap.grab()
-    ok, frame = cap.read()
-    return ok, frame
-
-
-publish_frame = None  # set when the web preview is enabled
+publish_frame = None
 
 
 def maybe_start_stream_server():
-    """Serve the MJPEG web preview using OUR frames (one shared RTSP connection)."""
     port = os.getenv("STREAM_PORT", "").strip()
     if not port:
         return
@@ -125,27 +220,44 @@ def maybe_start_stream_server():
     ).start()
 
 
-def session_is_open(previous=True):
+def session_is_open(previous=False, timeout=8):
     """Ask the backend whether any attendance session is open today.
 
-    On network/API errors, keep the previous state so Railway timeouts do not
-    drop the live camera feed.
+    A successful `open: false` always turns the camera off.
+    Network errors keep the previous state so a brief Railway blip does not
+    flicker the camera.
     """
     try:
-        resp = get_open_sessions()
+        resp = get_open_sessions(timeout=timeout)
         if resp.status_code == 200:
-            return bool(resp.json().get("data", {}).get("open"))
+            open_now = bool(resp.json().get("data", {}).get("open"))
+            if open_now:
+                set_hud("Session open · camera live", ok=True)
+            else:
+                set_hud("Session closed — camera off", ok=False)
+                if previous:
+                    print("[INFO] Backend reports no open session — releasing camera.")
+            return open_now
         print(f"[WARN] session check: HTTP {resp.status_code} {resp.text[:120]}")
+        set_hud(f"API HTTP {resp.status_code} — keeping last state", ok=previous)
     except Exception as exc:
         print(f"[WARN] session check failed (keeping previous state): {exc}")
+        set_hud("Railway unreachable — press O to force camera ON", ok=False)
     return previous
 
 
-def check_session_async(state):
-    """Refresh session_open in the background so the RTSP loop never blocks."""
+def check_session_async(state, timeout=8):
     def _check():
-        state["session_open"] = session_is_open(previous=state["session_open"])
-        state["checking"] = False
+        try:
+            state["session_open"] = session_is_open(
+                previous=state["session_open"],
+                timeout=timeout,
+            )
+            state["api_ok"] = True
+        except Exception:
+            state["api_ok"] = False
+        finally:
+            state["checking"] = False
 
     if state.get("checking"):
         return
@@ -155,10 +267,28 @@ def check_session_async(state):
 
 def acquire_lock():
     if os.path.exists(LOCK_FILE):
-        print("ERROR: recognition is already running.")
-        print("Stop the other copy first (Ctrl+C in its terminal), or delete:")
-        print(LOCK_FILE)
-        return False
+        try:
+            old_pid = int(open(LOCK_FILE, encoding="utf-8").read().strip())
+        except (OSError, ValueError):
+            old_pid = None
+        if old_pid is not None:
+            try:
+                os.kill(old_pid, 0)
+            except OSError:
+                # Stale lock from a dead process.
+                try:
+                    os.remove(LOCK_FILE)
+                except OSError:
+                    pass
+            else:
+                print("ERROR: recognition is already running (PID %s)." % old_pid)
+                print("Close that window (q / Esc / X) or stop the other process.")
+                return False
+        else:
+            try:
+                os.remove(LOCK_FILE)
+            except OSError:
+                pass
 
     with open(LOCK_FILE, "w", encoding="utf-8") as fh:
         fh.write(str(os.getpid()))
@@ -173,7 +303,6 @@ def release_lock():
 
 
 def prepare_detection_frame(frame):
-    """Downscale wide frames for faster/more stable Haar detection."""
     height, width = frame.shape[:2]
     max_width = max(1, config.PROCESS_MAX_WIDTH)
     if width <= max_width:
@@ -186,6 +315,41 @@ def prepare_detection_frame(frame):
         interpolation=cv2.INTER_AREA,
     )
     return resized, scale
+
+
+def draw_hud(frame):
+    line, ok = current_hud()
+    color = (80, 200, 80) if ok else (80, 180, 255)
+    cv2.rectangle(frame, (0, 0), (frame.shape[1], 36), (20, 20, 20), -1)
+    cv2.putText(frame, line[:70], (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+    status = current_post_status()
+    if status:
+        cv2.putText(
+            frame,
+            status,
+            (10, frame.shape[0] - 16),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.65,
+            (0, 255, 255),
+            2,
+        )
+
+
+def idle_frame(message, hint="q / Esc / close window to quit"):
+    img = np.zeros((360, 640, 3), dtype=np.uint8)
+    cv2.putText(img, message[:48], (24, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (220, 220, 220), 2)
+    cv2.putText(img, hint[:55], (24, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (150, 150, 150), 1)
+    cv2.putText(
+        img,
+        "O = force camera ON   C = force camera OFF",
+        (24, 240),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (100, 200, 255),
+        1,
+    )
+    draw_hud(img)
+    return img
 
 
 def main():
@@ -203,134 +367,211 @@ def main():
     cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
     session_gated = config.SESSION_POLL_SECONDS > 0
-
-    cap = None
-    consecutive = {}   # student_id -> consecutive confident frames
-    last_posted = {}   # student_id -> epoch seconds
+    grabber = FrameGrabber()
+    consecutive = {}
+    last_posted = {}
+    # Start closed until the API confirms an open session (or user presses O).
     session_state = {
-        "session_open": session_is_open(previous=True) if session_gated else True,
+        "session_open": False if session_gated else True,
         "checking": False,
+        "force_open": False,  # manual override when Railway is unreachable
     }
-    last_session_check = time.time()
+    last_session_check = 0.0
+    last_cam_retry = 0.0
+    no_frame_since = None
+
+    if config.SHOW_WINDOW:
+        cv2.namedWindow("Recognize", cv2.WINDOW_NORMAL)
 
     if session_gated:
-        print(f"Session-gated mode: camera runs only while a session is open "
-              f"(checking every {config.SESSION_POLL_SECONDS}s). Press Ctrl+C to quit.")
-    else:
-        print("Recognizing. Press q to quit.")
-
-    while True:
-        # Re-check the backend periodically so the camera follows open/close.
-        if session_gated and time.time() - last_session_check >= config.SESSION_POLL_SECONDS:
-            check_session_async(session_state)
-            last_session_check = time.time()
-
-        session_open = session_state["session_open"]
-
-        if not session_open:
-            if cap is not None:
-                cap.release()
-                cap = None
-                cv2.destroyAllWindows()
-                consecutive.clear()
-                if publish_frame is not None:
-                    from stream_server import clear_frame
-                    clear_frame()
-                print("Session closed - camera released. Waiting for the next session...")
-            time.sleep(1)
-            continue
-
-        if cap is None:
-            print("Open session found - starting camera...")
-            cap = open_video_capture()
-            if not cap.isOpened():
-                print("ERROR: cannot open video source", config.VIDEO_SOURCE)
-                cap = None
-                time.sleep(5)
-                continue
-            if config.SHOW_WINDOW:
-                cv2.namedWindow("Recognize", cv2.WINDOW_NORMAL)
-
-        ok, frame = read_latest_frame(cap)
-        if not ok:
-            print("[WARN] lost the video stream - reconnecting...")
-            cap.release()
-            cap = None
-            time.sleep(2)
-            continue
-
-        if publish_frame is not None:
-            publish_frame(frame)
-
-        detect_frame, scale = prepare_detection_frame(frame)
-        gray_small = cv2.cvtColor(detect_frame, cv2.COLOR_BGR2GRAY)
-        faces = cascade.detectMultiScale(
-            gray_small,
-            1.1,
-            5,
-            minSize=(config.MIN_FACE_SIZE, config.MIN_FACE_SIZE),
+        print(
+            "Session-gated mode: camera runs only while a session is open "
+            f"(checking every {config.SESSION_POLL_SECONDS}s)."
         )
-        gray_full = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        seen = set()
+        print("Keys: O = force camera ON | C = force OFF | q/Esc = quit")
+        set_hud("Checking Railway for open session…", ok=False)
+        # Blocking first check with a longer timeout so a slow Railway still works.
+        session_state["session_open"] = session_is_open(previous=False, timeout=15)
+        last_session_check = time.time()
+    else:
+        print("Recognizing (camera always on). Keys: q/Esc = quit")
+        set_hud("Camera always-on mode", ok=True)
 
-        for (x, y, w, h) in faces:
-            if scale != 1.0:
-                x = int(x / scale)
-                y = int(y / scale)
-                w = int(w / scale)
-                h = int(h / scale)
+    def handle_keys(key):
+        """Apply O/C overrides. Returns True if the main loop should quit."""
+        if key in (ord("q"), 27):
+            return True
+        if key in (ord("o"), ord("O")):
+            session_state["force_open"] = True
+            session_state["session_open"] = True
+            set_hud("Forced ON (press C to turn off)", ok=True)
+            print("[INFO] Forced camera ON (O).")
+        elif key in (ord("c"), ord("C")):
+            session_state["force_open"] = False
+            session_state["session_open"] = False
+            set_hud("Forced OFF — waiting for session", ok=False)
+            print("[INFO] Forced camera OFF (C).")
+        return False
 
-            x = max(0, x)
-            y = max(0, y)
-            w = min(w, gray_full.shape[1] - x)
-            h = min(h, gray_full.shape[0] - y)
-            if w <= 0 or h <= 0:
+    try:
+        while True:
+            now = time.time()
+            # Poll often while the camera is on so Close Session turns it off quickly.
+            if session_gated and session_state["session_open"] and not session_state["force_open"]:
+                poll_every = 4
+            elif session_gated:
+                poll_every = 5
+            else:
+                poll_every = 15
+
+            if (
+                session_gated
+                and not session_state["force_open"]
+                and now - last_session_check >= poll_every
+            ):
+                # Longer timeout while waiting to open; shorter while already open.
+                to = 12 if not session_state["session_open"] else 5
+                check_session_async(session_state, timeout=to)
+                last_session_check = now
+
+            session_open = True
+            if session_gated:
+                session_open = session_state["session_open"] or session_state["force_open"]
+
+            if not session_open:
+                if grabber.is_open:
+                    grabber.stop()
+                    consecutive.clear()
+                    if publish_frame is not None:
+                        from stream_server import clear_frame
+                        clear_frame()
+                    print("Session closed - camera released. Waiting for the next session...")
+                    set_hud("Session closed — camera off", ok=False)
+
+                if config.SHOW_WINDOW:
+                    cv2.imshow(
+                        "Recognize",
+                        idle_frame(
+                            "Waiting for open session…",
+                            "If Railway is slow: press O to force camera ON",
+                        ),
+                    )
+                    quit_now, key = should_quit("Recognize")
+                    if handle_keys(key) or quit_now:
+                        break
+                else:
+                    time.sleep(0.3)
                 continue
 
-            face_roi = gray_full[y:y + h, x:x + w]
-            label, distance = recognizer.predict(cv2.resize(face_roi, config.FACE_SIZE))
-            matched = distance <= config.LBPH_THRESHOLD
+            if not grabber.is_open:
+                if now - last_cam_retry < 2.0:
+                    if config.SHOW_WINDOW:
+                        cv2.imshow("Recognize", idle_frame("Connecting to camera…"))
+                        quit_now, key = should_quit("Recognize")
+                        if handle_keys(key) or quit_now:
+                            break
+                    else:
+                        time.sleep(0.2)
+                    continue
+                last_cam_retry = now
+                print("Starting camera...")
+                if not grabber.start():
+                    print("ERROR:", grabber._open_error or "cannot open camera")
+                    if config.SHOW_WINDOW:
+                        cv2.imshow("Recognize", idle_frame("Camera offline — retrying…"))
+                        quit_now, key = should_quit("Recognize")
+                        if handle_keys(key) or quit_now:
+                            break
+                    continue
+
+            ok, frame = grabber.read()
+            if not ok:
+                if no_frame_since is None:
+                    no_frame_since = now
+                elif now - no_frame_since > 4.0:
+                    print("[WARN] lost the video stream - reconnecting...")
+                    grabber.stop()
+                    no_frame_since = None
+                    set_hud("Reconnecting camera…", ok=False)
+                if config.SHOW_WINDOW:
+                    cv2.imshow("Recognize", idle_frame("Waiting for camera frames…"))
+                    quit_now, key = should_quit("Recognize")
+                    if handle_keys(key) or quit_now:
+                        break
+                else:
+                    time.sleep(0.05)
+                continue
+
+            no_frame_since = None
+            if session_state.get("force_open"):
+                set_hud("Forced ON · camera live (C = off)", ok=True)
+            else:
+                set_hud("Session open · camera live", ok=True)
+
+            if publish_frame is not None:
+                publish_frame(frame)
+
+            detect_frame, scale = prepare_detection_frame(frame)
+            gray_small = cv2.cvtColor(detect_frame, cv2.COLOR_BGR2GRAY)
+            faces = cascade.detectMultiScale(
+                gray_small,
+                1.1,
+                5,
+                minSize=(config.MIN_FACE_SIZE, config.MIN_FACE_SIZE),
+            )
+            gray_full = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            seen = set()
+
+            for (x, y, w, h) in faces:
+                if scale != 1.0:
+                    x = int(x / scale)
+                    y = int(y / scale)
+                    w = int(w / scale)
+                    h = int(h / scale)
+
+                x = max(0, x)
+                y = max(0, y)
+                w = min(w, gray_full.shape[1] - x)
+                h = min(h, gray_full.shape[0] - y)
+                if w <= 0 or h <= 0:
+                    continue
+
+                face_roi = gray_full[y:y + h, x:x + w]
+                label, distance = recognizer.predict(cv2.resize(face_roi, config.FACE_SIZE))
+                matched = distance <= config.LBPH_THRESHOLD
+
+                if config.SHOW_WINDOW:
+                    color = (0, 255, 0) if matched else (0, 0, 255)
+                    text = f"#{label} ({distance:.0f})" if matched else "unknown"
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                    cv2.putText(frame, text, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+                if matched:
+                    seen.add(label)
+                    consecutive[label] = consecutive.get(label, 0) + 1
+                    if consecutive[label] >= config.MIN_CONSEC_FRAMES:
+                        if now - last_posted.get(label, 0) >= config.COOLDOWN_SECONDS:
+                            record(label, distance, session_state=session_state)
+                            last_posted[label] = now
+                        consecutive[label] = 0
+
+            for sid in list(consecutive.keys()):
+                if sid not in seen:
+                    consecutive[sid] = 0
 
             if config.SHOW_WINDOW:
-                color = (0, 255, 0) if matched else (0, 0, 255)
-                text = f"#{label} ({distance:.0f})" if matched else "unknown"
-                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(frame, text, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                draw_hud(frame)
+                cv2.imshow("Recognize", for_display(frame))
+                quit_now, key = should_quit("Recognize")
+                if handle_keys(key) or quit_now:
+                    break
+            else:
+                time.sleep(0.01)
 
-            if matched:
-                seen.add(label)
-                consecutive[label] = consecutive.get(label, 0) + 1
-                if consecutive[label] >= config.MIN_CONSEC_FRAMES:
-                    now = time.time()
-                    if now - last_posted.get(label, 0) >= config.COOLDOWN_SECONDS:
-                        record(label, distance)
-                        last_posted[label] = now
-                    consecutive[label] = 0
-
-        for sid in list(consecutive.keys()):
-            if sid not in seen:
-                consecutive[sid] = 0
-
-        if config.SHOW_WINDOW:
-            status = current_post_status()
-            if status:
-                cv2.putText(
-                    frame,
-                    status,
-                    (10, frame.shape[0] - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 255, 255),
-                    2,
-                )
-            cv2.imshow("Recognize", for_display(frame))
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-
-    if cap is not None:
-        cap.release()
-    cv2.destroyAllWindows()
-    release_lock()
+    finally:
+        grabber.stop()
+        cv2.destroyAllWindows()
+        release_lock()
 
 
 if __name__ == "__main__":

@@ -2,25 +2,27 @@ import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/teacher/teacher_home_screen.dart';
 import 'services/api_client.dart';
 import 'services/session_service.dart';
 
 void main() {
-  runApp(const AttendanceParentApp());
+  runApp(const AttendanceApp());
 }
 
-class AttendanceParentApp extends StatefulWidget {
-  const AttendanceParentApp({super.key});
+class AttendanceApp extends StatefulWidget {
+  const AttendanceApp({super.key});
 
   @override
-  State<AttendanceParentApp> createState() => _AttendanceParentAppState();
+  State<AttendanceApp> createState() => _AttendanceAppState();
 }
 
-class _AttendanceParentAppState extends State<AttendanceParentApp> {
+class _AttendanceAppState extends State<AttendanceApp> {
   final _api = ApiClient();
   late final _session = SessionService(_api);
   bool _ready = false;
   bool _loggedIn = false;
+  String _role = 'parent';
 
   @override
   void initState() {
@@ -30,13 +32,18 @@ class _AttendanceParentAppState extends State<AttendanceParentApp> {
 
   Future<void> _bootstrap() async {
     final loggedIn = await _session.restore();
+    final role = loggedIn ? await _session.userRole() : null;
     setState(() {
       _loggedIn = loggedIn;
+      _role = role ?? 'parent';
       _ready = true;
     });
   }
 
-  void _onLoggedIn() => setState(() => _loggedIn = true);
+  void _onLoggedIn(String role) => setState(() {
+        _loggedIn = true;
+        _role = role;
+      });
 
   void _onLoggedOut() => setState(() => _loggedIn = false);
 
@@ -61,11 +68,17 @@ class _AttendanceParentAppState extends State<AttendanceParentApp> {
         useMaterial3: true,
       ),
       home: _loggedIn
-          ? HomeScreen(
-              api: _api,
-              session: _session,
-              onLogout: _onLoggedOut,
-            )
+          ? (_role == 'teacher'
+              ? TeacherHomeScreen(
+                  api: _api,
+                  session: _session,
+                  onLogout: _onLoggedOut,
+                )
+              : HomeScreen(
+                  api: _api,
+                  session: _session,
+                  onLogout: _onLoggedOut,
+                ))
           : LoginScreen(
               api: _api,
               session: _session,
@@ -74,3 +87,6 @@ class _AttendanceParentAppState extends State<AttendanceParentApp> {
     );
   }
 }
+
+// Kept for widget tests.
+typedef AttendanceParentApp = AttendanceApp;

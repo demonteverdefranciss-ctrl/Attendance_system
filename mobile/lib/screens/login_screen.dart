@@ -12,7 +12,7 @@ class LoginScreen extends StatefulWidget {
 
   final ApiClient api;
   final SessionService session;
-  final VoidCallback onLogin;
+  final void Function(String role) onLogin;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -20,7 +20,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _username = TextEditingController(text: 'parent01');
+  final _username = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
   String? _error;
@@ -44,9 +44,9 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await widget.session.login(_username.text.trim(), _password.text);
+      final role = await widget.session.login(_username.text.trim(), _password.text);
       if (!mounted) return;
-      widget.onLogin();
+      widget.onLogin(role);
     } on ApiException catch (e) {
       setState(() {
         _error = e.message;
@@ -136,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Parent Attendance App',
+                                'Attendance App',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.85),
                                   fontSize: 13,
@@ -163,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 const Text(
-                                  'Sign in with your parent account',
+                                  'Sign in with your parent or teacher account',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(color: Colors.grey),
                                 ),

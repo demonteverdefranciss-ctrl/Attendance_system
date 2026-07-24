@@ -178,6 +178,15 @@ class AttendanceService
             );
         }
 
+        // Streak alerts must run even for auto-absents on session close.
+        if (
+            empty($opts['skip_excuse_check'])
+            && in_array($record->status, ['absent', 'late'], true)
+            && ($isNew || $beforeStatus !== $record->status)
+        ) {
+            app(ExcuseRequestService::class)->evaluateAfterMark((int) $studentId);
+        }
+
         return $record;
     }
 

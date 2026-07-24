@@ -4,28 +4,39 @@
 
 Pamantasan ng Cabuyao — College of Computing Studies
 
-**Report Date:** July 7, 2026  
+**Report Date:** July 24, 2026  
 **Development Methodology:** Agile (iterative sprints)  
-**Overall Development Progress:** approximately **78%**
+**Overall Development Progress:** approximately **80%** (equal-weight average of Objectives 1–5)
 
 ---
 
 ## II. Progress Relative to the Specific Objectives
 
+| Objective | Description | Status | Completion |
+|----------:|-------------|--------|----------:|
+| 1 | Centralized attendance system with facial recognition, RBAC, monitoring, reporting, and parent notifications | Substantially achieved | **95%** |
+| 2 | Cross-platform system (teacher recognition app, parent mobile, web dashboards) | Substantially achieved | **90%** |
+| 3 | Automated attendance tracking (time-in/out, status, absenteeism, reports, real-time parent notifications) | Substantially achieved | **93%** |
+| 4 | Secure management of attendance and facial data (RA 10173) | Substantially achieved | **85%** |
+| 5 | ISO 25010 evaluation by teachers, parents, and IT experts | Prepared, not yet conducted | **25%** |
+| — | **Overall (equal weight)** | — | **80%** |
+
+**Scoring notes:** Each objective is estimated from delivered features vs remaining gaps. Objective 5 remains low until UAT and ISO 25010 surveys are actually administered and tabulated.
+
 **Objective 1 — Centralized attendance system with facial recognition, RBAC, monitoring, reporting, and parent notifications.**  
-*Status: **Substantially achieved.*** Role-based web system, facial-recognition attendance pipeline, analytics/reporting, FCM parent notifications, and enrollment verification workflow are implemented.
+*Status: **Substantially achieved (95%).*** Role-based web system, facial-recognition attendance pipeline, analytics/reporting, FCM parent notifications, and enrollment verification workflow are implemented.
 
 **Objective 2 — Cross-platform system (teacher recognition app, parent mobile, web dashboards).**  
-*Status: **Partially achieved → advancing.*** Admin and teacher web dashboards are complete; Python recognition service is functional; **Flutter parent app scaffold** (`mobile/`) consumes the REST API for login, attendance viewing, and notifications.
+*Status: **Substantially achieved (90%).*** Admin/teacher/parent web dashboards; Python recognition service with Tapo camera; Flutter app for parents and teachers (APK built). Remaining: in-app FCM push and optional recognition upgrades.
 
 **Objective 3 — Automated attendance tracking (time-in/out, status, absenteeism, reports, real-time parent notifications).**  
-*Status: **Substantially achieved.*** Time-in and **time-out** recording, status classification, duplicate prevention, report exports, and parent notifications are implemented. The teacher attendance page updates in near-realtime (5 s auto-refresh) while a session is open, and the camera activates only during open sessions.
+*Status: **Substantially achieved (93%).*** Time-in/out, status classification, duplicate prevention, report exports, and parent notifications are implemented. Session-gated camera and near-realtime mark page refresh are in place.
 
 **Objective 4 — Secure management of attendance and facial data (RA 10173).**  
-*Status: **Substantially achieved.*** Audit logging, security headers, biometric consent enforcement, retention purge, **encrypted embeddings at rest**, and compliance checklist documented.
+*Status: **Substantially achieved (85%).*** Audit logging, security headers, biometric consent, retention purge, encrypted embeddings, and compliance checklist documented. Remaining: formal PIA document.
 
 **Objective 5 — ISO 25010 evaluation by teachers, parents, and IT experts.**  
-*Status: **Prepared, not yet conducted.*** UAT plan and ISO 25010 evaluation instrument are drafted (`docs/UAT_PLAN.md`, `docs/ISO25010_EVALUATION.md`).
+*Status: **Prepared, not yet conducted (25%).*** UAT plan and ISO 25010 evaluation instrument are drafted (`docs/UAT_PLAN.md`, `docs/ISO25010_EVALUATION.md`). Remaining: conduct evaluation and tabulate results.
 
 ---
 
@@ -55,4 +66,4 @@ Pamantasan ng Cabuyao — College of Computing Studies
 
 ## VIII. Summary
 
-The project has a functional, deployed system with web dashboards, API, facial-recognition prototype, parent notifications, security controls, and a mobile parent client scaffold. Approximately **78%** of development is complete. Remaining work focuses on recognition upgrades, mobile polish, formal evaluation, and documentation — building on the established foundation without requiring rework.
+The project has a functional system with web dashboards, API, facial-recognition prototype, parent notifications, security controls, and a Flutter parent/teacher mobile client. Approximately **80%** of development is complete under equal-weight scoring of the five specific objectives. The largest remaining gap is **Objective 5** (formal UAT / ISO 25010 evaluation), plus hosting stability and documentation for defense.

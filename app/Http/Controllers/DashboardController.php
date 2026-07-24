@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceExcuseRequest;
 use App\Models\BiometricPhotoSubmission;
 use App\Models\ChildEnrollmentRequest;
 use App\Models\Guardian;
@@ -10,6 +11,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\AnalyticsService;
 use App\Services\AuditService;
+use App\Services\ExcuseRequestService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +23,8 @@ class DashboardController extends Controller
 {
     public function __construct(
         private AnalyticsService $analytics,
-        private AuditService $audit
+        private AuditService $audit,
+        private ExcuseRequestService $excuses,
     )
     {
     }
@@ -160,6 +163,33 @@ class DashboardController extends Controller
                 ->values()
             : collect();
 
+        $studentIds = $guardian
+            ? $guardian->students()->pluck('students.id')->all()
+            : [];
+
+        $excuseRequests = $studentIds
+            ? AttendanceExcuseRequest::with('student:id,first_name,last_name,lrn')
+                ->whereIn('student_id', $studentIds)
+                ->latest('id')
+                ->limit(30)
+                ->get()
+                ->map(fn ($r) => [
+                    'id' => $r->id,
+                    'student' => $r->student?->full_name,
+                    'student_id' => $r->student_id,
+                    'streak_count' => $r->streak_count,
+                    'streak_summary' => $r->streak_summary,
+                    'status' => $r->status,
+                    'letter_body' => $r->letter_body,
+                    'notes' => $r->notes,
+                    'notified_at' => $r->notified_at?->toDateTimeString(),
+                    'submitted_at' => $r->submitted_at?->toDateTimeString(),
+                    'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
+                    'created_at' => $r->created_at?->toDateTimeString(),
+                ])
+                ->values()
+            : collect();
+
         return Inertia::render('Parent/Dashboard', [
             'stats' => ['children' => $children->count()],
             'children' => $children,
@@ -167,7 +197,29 @@ class DashboardController extends Controller
             'unreadCount' => $unreadCount,
             'notifyPref' => $guardian?->notify_pref ?? 'push',
             'enrollmentRequests' => $enrollmentRequests,
+            'excuseRequests' => $excuseRequests,
         ]);
+    }
+
+    public function submitExcuseLetter(Request $request, AttendanceExcuseRequest $excuseRequest): RedirectResponse
+    {
+        $guardian = $request->user()->guardian;
+        if (! $guardian) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'letter_body' => ['required', 'string', 'min:10', 'max:2000'],
+        ]);
+
+        try {
+            $this->excuses->submitLetter($guardian, $excuseRequest, $data['letter_body']);
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('parent.dashboard')->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('parent.dashboard')
+            ->with('success', 'Explanation letter submitted. A teacher will review it.');
     }
 
     public function markParentNotificationRead(Request $request, Notification $notification): RedirectResponse

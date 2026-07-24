@@ -7,6 +7,7 @@ class SessionService {
 
   static const _tokenKey = 'auth_token';
   static const _nameKey = 'user_name';
+  static const _roleKey = 'user_role';
 
   final ApiClient _api;
 
@@ -20,7 +21,7 @@ class SessionService {
     return true;
   }
 
-  Future<void> login(String username, String password) async {
+  Future<String> login(String username, String password) async {
     final response = await _api.post('/auth/login', {
       'username': username,
       'password': password,
@@ -28,15 +29,18 @@ class SessionService {
     final data = response['data'] as Map<String, dynamic>;
     final token = data['token'] as String;
     final user = data['user'] as Map<String, dynamic>;
+    final role = user['role'] as String? ?? '';
 
-    if (user['role'] != 'parent') {
-      throw ApiException('This app is for parent accounts only.');
+    if (role != 'parent' && role != 'teacher') {
+      throw ApiException('This app supports parent and teacher accounts only.');
     }
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
     await prefs.setString(_nameKey, user['name'] as String? ?? username);
+    await prefs.setString(_roleKey, role);
     _api.setToken(token);
+    return role;
   }
 
   Future<void> logout() async {
@@ -48,11 +52,17 @@ class SessionService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_nameKey);
+    await prefs.remove(_roleKey);
     _api.setToken(null);
   }
 
   Future<String?> userName() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_nameKey);
+  }
+
+  Future<String?> userRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_roleKey);
   }
 }

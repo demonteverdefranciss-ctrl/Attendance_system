@@ -5,6 +5,7 @@ import '../services/session_service.dart';
 import 'child_detail_screen.dart';
 import 'enrollment_screen.dart';
 import 'notifications_screen.dart';
+import 'parent_excuse_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -130,6 +131,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: const Text('Enroll child'),
                       ),
                     ],
+                  ),
+                  TextButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ParentExcuseScreen(api: widget.api),
+                      ),
+                    ),
+                    icon: const Icon(Icons.mail_outline),
+                    label: const Text('Explanation letters'),
                   ),
                   if (_students.isEmpty)
                     const Padding(

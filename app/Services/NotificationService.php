@@ -49,6 +49,83 @@ class NotificationService
         }
     }
 
+    /**
+     * Alert guardians that a student has 3 consecutive absents/lates and needs a letter.
+     */
+    public function queueConsecutiveAbsentLateAlert(Student $student, \App\Models\AttendanceExcuseRequest $request): void
+    {
+        $student->loadMissing('guardians');
+        $name = $student->full_name;
+        $dates = collect($request->streak_summary ?? [])
+            ->map(fn ($row) => ($row['date'] ?? '?').' ('.$row['status'].')')
+            ->implode(', ');
+
+        foreach ($student->guardians as $guardian) {
+            if ($guardian->notify_pref !== 'push') {
+                // Still create an in-app notification row for the parent dashboard.
+            }
+
+            $notification = Notification::create([
+                'guardian_id' => $guardian->id,
+                'student_id' => $student->id,
+                'channel' => 'push',
+                'type' => 'consecutive_absent_late',
+                'title' => 'Attendance concern — explanation needed',
+                'body' => "{$name} has been absent or late 3 times in a row ({$dates}). Please submit an explanation letter in the parent portal.",
+                'payload' => [
+                    'excuse_request_id' => $request->id,
+                    'streak_count' => $request->streak_count,
+                    'streak_summary' => $request->streak_summary,
+                ],
+                'status' => 'pending',
+            ]);
+
+            if ($guardian->notify_pref === 'push') {
+                SendPushNotificationJob::dispatch($notification->id);
+            } else {
+                $notification->update(['status' => 'sent', 'sent_at' => now()]);
+            }
+        }
+    }
+
+    /**
+     * Notify the submitting guardian of teacher approve/reject.
+     */
+    public function queueExcuseDecision(\App\Models\AttendanceExcuseRequest $request, string $decision): void
+    {
+        $guardian = $request->guardian;
+        $student = $request->student;
+        if (! $guardian || ! $student) {
+            return;
+        }
+
+        $approved = $decision === 'approved';
+        $title = $approved ? 'Explanation letter approved' : 'Explanation letter rejected';
+        $body = $approved
+            ? "{$student->full_name}'s explanation was accepted. The related absences/lates were marked excused."
+            : "{$student->full_name}'s explanation was not accepted.".($request->notes ? " Teacher note: {$request->notes}" : '');
+
+        $notification = Notification::create([
+            'guardian_id' => $guardian->id,
+            'student_id' => $student->id,
+            'channel' => 'push',
+            'type' => $approved ? 'excuse_approved' : 'excuse_rejected',
+            'title' => $title,
+            'body' => $body,
+            'payload' => [
+                'excuse_request_id' => $request->id,
+                'decision' => $decision,
+            ],
+            'status' => 'pending',
+        ]);
+
+        if ($guardian->notify_pref === 'push') {
+            SendPushNotificationJob::dispatch($notification->id);
+        } else {
+            $notification->update(['status' => 'sent', 'sent_at' => now()]);
+        }
+    }
+
     private function eventTypeForStatus(string $status): ?string
     {
         return match ($status) {
