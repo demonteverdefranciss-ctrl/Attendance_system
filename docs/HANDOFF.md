@@ -103,9 +103,15 @@ Refresh demo accounts anytime: `php artisan accounts:seed-demo`
 3. **Phase 11** — Offline sync drill on recognition node.
 4. **Phase 12** — UAT (`docs/UAT_PLAN.md`), ISO 25010 evaluation (`docs/ISO25010_EVALUATION.md`), defense docs.
 5. **Analytics enhancements (noted 2026-07-16)** — build on existing summary / trend / per-section / CSV+PDF:
-   - **Next 3 (priority):** (a) at-risk students table (rate &lt; 80%), (b) per-student attendance page with trend chart, (c) face vs manual method chart on reports.
+   - **Done:** at-risk (&lt;80%), per-student page, face vs manual method chart.
    - **Also useful:** chronic absenteeism list, late-arrivals ranking, perfect attendance, monthly/quarterly comparison, time-in heatmap, average stay duration.
    - **Recognition-related:** method breakdown, recognition success vs unknown/failed posts, biometric enrollment coverage.
    - **Parent/mobile:** weekly child summary, attendance streaks, missed-day alert history.
+6. **Capstone adviser recommendations (noted 2026-07-24)** — see `docs/PHASES.md`:
+   - Chronic-absent notifications + **possible penalties** (policy/teacher actions; not auto-punish).
+   - Frequent-late **possible actions** playbook for teachers.
+   - Parent **proof upload** for absenteeism with complete structured details (beyond text explanation letter).
+   - Related already built: 3 consecutive absent/late → letter → teacher excuse.
+7. **Auto session close after 30 minutes** (noted 2026-07-24) — see `docs/PHASES.md`. Schedule-based close already exists; duration timeout for open sessions is not built yet.
 
 Start by reading the codebase and `docs/PHASES.md`, confirm the plan for the chosen task, then implement one module and verify it (the owner tests via the browser + HTTP).

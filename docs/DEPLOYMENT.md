@@ -42,6 +42,7 @@ Then add these variables:
 | `DB_USERNAME` | `${{MySQL.MYSQLUSER}}` |
 | `DB_PASSWORD` | `${{MySQL.MYSQLPASSWORD}}` |
 | `SESSION_SECURE_COOKIE` | `true` |
+| `ATTENDANCE_ADHOC_SESSION_MAX_MINUTES` | `30` (manual Open timeout; `0` = off) |
 
 > **Critical:** Do **NOT** set `ASSET_URL` in Railway production variables.
 > If it exists, delete it and redeploy — it breaks login branding and built assets.
@@ -83,9 +84,13 @@ php artisan db:seed --force
 ## Notes
 - First deploy builds the Docker image (installs PHP/Node deps and runs
   `npm run build`) — this takes a few minutes.
-- The container waits for MySQL, runs migrations, then starts `php artisan serve`
-  on `$PORT` (see `docker/entrypoint.sh`). `railway.toml` enables `/up` healthchecks
+- The container waits for MySQL, runs migrations, starts **`php artisan schedule:work`**
+  in the background (so schedule auto-open/close and ad-hoc 30‑minute timeouts run),
+  then starts `php artisan serve` on `$PORT`. `railway.toml` enables `/up` healthchecks
   (300s timeout) and auto-restart on failure.
+- Attendance sessions: **schedule windows** auto-open/close on the website; **manual Open**
+  sessions auto-close after `ATTENDANCE_ADHOC_SESSION_MAX_MINUTES` (default 30). The school
+  PC camera follows open/close when `run_recognition.ps1` is running.
 - If the site shows **upstream error**, open Railway → web service → **Restart**,
   and confirm the **MySQL** service is still running (trial/credit issues stop both).
 - Free/hobby tiers may sleep or run out of credits — first request after idle can

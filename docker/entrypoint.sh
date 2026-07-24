@@ -51,8 +51,9 @@ if [ "$migrate_ok" -ne 1 ]; then
   exit 1
 fi
 
-# Use Laravel's built-in server on $PORT.
-# Apache PORT remapping caused Railway healthcheck failures (app never answered on $PORT).
-# artisan serve is single-threaded but reliably passes /up healthchecks on Railway.
+# Keep schedule-based auto open/close running (attendance:manage-sessions every minute).
+echo "[entrypoint] Starting Laravel scheduler (schedule:work)..."
+php artisan schedule:work >> /tmp/laravel-scheduler.log 2>&1 &
+
 echo "[entrypoint] Starting php artisan serve on 0.0.0.0:${PORT}"
 exec php artisan serve --host=0.0.0.0 --port="${PORT}"

@@ -103,6 +103,30 @@ class AttendanceService
                 ],
             );
         }
+
+        // On the school PC only: stop recognition when no sessions remain open.
+        $this->stopRecognitionIfIdle();
+    }
+
+    /**
+     * Stop the local recognition process when every session today is closed.
+     * No-op on Railway (recognition is not installed there).
+     */
+    public function stopRecognitionIfIdle(): void
+    {
+        $stillOpen = AttendanceSession::where('status', 'open')
+            ->whereDate('session_date', now()->toDateString())
+            ->exists();
+
+        if ($stillOpen) {
+            return;
+        }
+
+        try {
+            app(RecognitionProcessService::class)->stop();
+        } catch (\Throwable) {
+            // Recognition node may be unavailable on cloud hosts.
+        }
     }
 
     /**

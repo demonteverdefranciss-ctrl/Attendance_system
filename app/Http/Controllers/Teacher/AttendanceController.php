@@ -55,9 +55,44 @@ class AttendanceController extends Controller
             'session' => $sessions->get($section->id),
         ]);
 
+        $adhocMax = (int) config('attendance.adhoc_session_max_minutes', 30);
+
+        $payloadRows = $rows->map(function ($row) use ($adhocMax) {
+            $session = $row['session'];
+            $sessionPayload = null;
+            if ($session) {
+                $autoCloseAt = null;
+                if (
+                    $session->status === 'open'
+                    && $session->schedule_id === null
+                    && $adhocMax > 0
+                    && $session->opened_at
+                ) {
+                    $autoCloseAt = $session->opened_at->copy()->addMinutes($adhocMax)->toDateTimeString();
+                }
+
+                $sessionPayload = [
+                    'id' => $session->id,
+                    'status' => $session->status,
+                    'present_count' => $session->present_count,
+                    'absent_count' => $session->absent_count,
+                    'opened_at' => $session->opened_at?->toDateTimeString(),
+                    'schedule_id' => $session->schedule_id,
+                    'is_adhoc' => $session->schedule_id === null,
+                    'auto_close_at' => $autoCloseAt,
+                ];
+            }
+
+            return [
+                'section' => $row['section'],
+                'session' => $sessionPayload,
+            ];
+        });
+
         return Inertia::render('Teacher/Attendance/Index', [
-            'rows' => $rows,
+            'rows' => $payloadRows,
             'today' => $today,
+            'adhocMaxMinutes' => $adhocMax,
             'recognition' => $this->recognition->snapshot(),
         ]);
     }

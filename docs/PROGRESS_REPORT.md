@@ -61,6 +61,7 @@ Pamantasan ng Cabuyao — College of Computing Studies
 2. Complete Flutter app (FCM push, release testing)  
 3. Conduct UAT and ISO 25010 evaluation (Phase 12)  
 4. Finalize capstone documentation and defense materials  
+5. **Adviser backlog (noted 2026-07-24, not started):** chronic-absent penalty/actions guidance, frequent-late action playbook, parent absenteeism **proof upload** + complete details — see `docs/PHASES.md`  
 
 ---
 

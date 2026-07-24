@@ -87,4 +87,29 @@ Existing: summary counts, daily trend, per-section rates, student API summary, C
 
 ---
 
-_Last updated: 2026-07-16 — analytics enhancement backlog noted; recognition live on Tapo + Railway._
+## Capstone adviser recommendations (noted 2026-07-24) — not implemented yet
+
+Adviser asked for stronger chronic-attendance handling. Snapshot vs current system:
+
+| Recommendation | Status now | Suggested later |
+|----------------|------------|-----------------|
+| Notify when student is often absent + possible penalty | Partial: per-day absent notifs + **3 consecutive absent/late** → explanation letter | Separate chronic-absent rules (e.g. monthly count / rate); **penalty as school-policy guidance + teacher-chosen action**, not auto-punish |
+| If often late — possible actions | Partial: late notifs + same 3-streak letter flow | Separate late streak / ranking; teacher action list (warn → conference → guidance note) |
+| Parent upload **proof** of absenteeism with **complete details** | Partial: text **explanation letter** + teacher accept/reject → excused | File upload (JPG/PDF), structured fields (reason type, dates, medical details), mirror biometric submit/review pattern |
+
+**Already shipped (related):** `attendance_excuse_requests`, parent letter UI, teacher Explanation Letters approve/reject → mark `excused`, parent push/in-app alert on streak.
+
+**Do not auto-apply penalties** in code for Grade 6 / DepEd context — keep as documented policy + optional teacher workflow.
+
+---
+
+## Session timeout idea (noted 2026-07-24) — implemented for ad-hoc
+
+**Done:** Ad-hoc (manual Open) sessions auto-close after `ATTENDANCE_ADHOC_SESSION_MAX_MINUTES` (default **30**).
+Schedule-based sessions still close at schedule `end_time`. Laravel `schedule:work` runs in the Docker entrypoint so Railway processes this every minute.
+
+Camera on the school PC follows website open/close via `SESSION_POLL_SECONDS` + `run_recognition.ps1`.
+
+---
+
+_Last updated: 2026-07-24 — adviser recommendations + 30-min auto session close idea logged; implement only when owner requests._
