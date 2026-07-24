@@ -58,11 +58,4 @@ export default function AuthenticatedLayout({ title, children }) {
     );
 }
 
-export function StatCard({ label, value }) {
-    return (
-        <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
-            <div className="text-3xl font-bold text-gray-900">{value}</div>
-            <div className="mt-1 text-sm text-gray-500">{label}</div>
-        </div>
-    );
-}
+export { StatCard } from '@/Components/AppSidebarLayout';

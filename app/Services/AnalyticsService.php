@@ -15,9 +15,9 @@ class AnalyticsService
      * @param  array<int, int>|null  $sectionIds  null = all sections
      * @return array<string, int|float>
      */
-    public function summary(?array $sectionIds, string $from, string $to): array
+    public function summary(?array $sectionIds, string $from, string $to, ?int $sessionId = null): array
     {
-        $counts = $this->baseQuery($sectionIds, $from, $to)
+        $counts = $this->baseQuery($sectionIds, $from, $to, $sessionId)
             ->selectRaw('status, COUNT(*) as c')
             ->groupBy('status')
             ->pluck('c', 'status');
@@ -132,9 +132,9 @@ class AnalyticsService
      * @param  array<int, int>|null  $sectionIds
      * @return array<string, int>
      */
-    public function methodBreakdown(?array $sectionIds, string $from, string $to): array
+    public function methodBreakdown(?array $sectionIds, string $from, string $to, ?int $sessionId = null): array
     {
-        $counts = $this->baseQuery($sectionIds, $from, $to)
+        $counts = $this->baseQuery($sectionIds, $from, $to, $sessionId)
             ->selectRaw("COALESCE(NULLIF(method, ''), 'unknown') as method, COUNT(*) as c")
             ->groupBy('method')
             ->pluck('c', 'method');
@@ -210,10 +210,10 @@ class AnalyticsService
      *
      * @param  array<int, int>|null  $sectionIds
      */
-    public function records(?array $sectionIds, string $from, string $to, ?int $sectionId = null): Collection
+    public function records(?array $sectionIds, string $from, string $to, ?int $sectionId = null, ?int $sessionId = null): Collection
     {
-        return $this->baseQuery($sectionIds, $from, $to)
-            ->when($sectionId, fn ($q) => $q->whereHas('session', fn ($s) => $s->where('section_id', $sectionId)))
+        return $this->baseQuery($sectionIds, $from, $to, $sessionId)
+            ->when($sectionId && ! $sessionId, fn ($q) => $q->whereHas('session', fn ($s) => $s->where('section_id', $sectionId)))
             ->with(['student:id,first_name,last_name', 'session:id,section_id,session_date', 'session.section:id,name'])
             ->orderByDesc('id')
             ->limit(1000)
@@ -227,16 +227,65 @@ class AnalyticsService
                 'time_in' => $r->time_in?->format('H:i'),
                 'time_out' => $r->time_out?->format('H:i'),
                 'method' => $r->method,
+                'session_id' => $r->session_id,
             ]);
     }
 
     /**
-     * Base query constrained to sections + date range.
+     * Recent attendance sessions with present/absent counts for report browsing.
+     *
+     * @param  array<int, int>|null  $sectionIds
+     * @return array<int, array<string, mixed>>
+     */
+    public function recentSessions(?array $sectionIds, ?int $sectionId = null, int $limit = 40): array
+    {
+        $query = \App\Models\AttendanceSession::query()
+            ->with('section:id,name,grade_level')
+            ->withCount([
+                'records as present_count' => fn ($q) => $q->whereIn('status', ['present', 'late']),
+                'records as absent_count' => fn ($q) => $q->where('status', 'absent'),
+                'records as excused_count' => fn ($q) => $q->where('status', 'excused'),
+                'records as total_count',
+            ])
+            ->orderByDesc('session_date')
+            ->orderByDesc('opened_at')
+            ->limit($limit);
+
+        if ($sectionId) {
+            $query->where('section_id', $sectionId);
+        } elseif ($sectionIds !== null) {
+            $query->whereIn('section_id', $sectionIds);
+        }
+
+        return $query->get()->map(fn ($s) => [
+            'id' => $s->id,
+            'session_date' => $s->session_date?->toDateString(),
+            'status' => $s->status,
+            'opened_at' => $s->opened_at?->toDateTimeString(),
+            'closed_at' => $s->closed_at?->toDateTimeString(),
+            'section' => $s->section
+                ? "{$s->section->grade_level} - {$s->section->name}"
+                : '—',
+            'section_id' => $s->section_id,
+            'present_count' => (int) $s->present_count,
+            'absent_count' => (int) $s->absent_count,
+            'excused_count' => (int) $s->excused_count,
+            'total_count' => (int) $s->total_count,
+            'is_adhoc' => $s->schedule_id === null,
+        ])->all();
+    }
+
+    /**
+     * Base query constrained to sections + date range (and optional session).
      *
      * @param  array<int, int>|null  $sectionIds
      */
-    private function baseQuery(?array $sectionIds, string $from, string $to)
+    private function baseQuery(?array $sectionIds, string $from, string $to, ?int $sessionId = null)
     {
+        if ($sessionId) {
+            return AttendanceRecord::query()->where('session_id', $sessionId);
+        }
+
         return AttendanceRecord::query()
             ->whereHas('session', function ($s) use ($sectionIds, $from, $to) {
                 $s->whereBetween('session_date', [$from, $to]);

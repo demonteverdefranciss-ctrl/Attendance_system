@@ -3,7 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import AtRiskStudentsTable from '@/Components/AtRiskStudentsTable';
-import { StatCard } from '@/Layouts/AuthenticatedLayout';
+import { StatCard } from '@/Components/AppSidebarLayout';
 import { Doughnut, ChartCard, noAspect } from '@/Components/Charts';
 
 const STATUS_COLORS = {
@@ -13,7 +13,15 @@ const STATUS_COLORS = {
     excused: 'text-blue-600',
 };
 
-export default function ReportsIndex({ sections, filters, summary, methodBreakdown, atRisk = [], records }) {
+export default function ReportsIndex({
+    sections,
+    filters,
+    summary,
+    methodBreakdown,
+    atRisk = [],
+    records,
+    sessions = [],
+}) {
     const { auth } = usePage().props;
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
 
@@ -21,14 +29,27 @@ export default function ReportsIndex({ sections, filters, summary, methodBreakdo
         from: filters.from,
         to: filters.to,
         section_id: filters.section_id ?? '',
+        session_id: filters.session_id ?? '',
     });
 
     const apply = (e) => {
         e.preventDefault();
-        router.get(route('reports.index'), form, { preserveState: true, preserveScroll: true });
+        const payload = {
+            from: form.from,
+            to: form.to,
+            section_id: form.section_id || undefined,
+            session_id: form.session_id || undefined,
+        };
+        router.get(route('reports.index'), payload, { preserveState: true, preserveScroll: true });
     };
 
-    const exportUrl = (fmt) => route(fmt === 'csv' ? 'reports.csv' : 'reports.pdf', form);
+    const exportUrl = (fmt) =>
+        route(fmt === 'csv' ? 'reports.csv' : 'reports.pdf', {
+            from: form.from,
+            to: form.to,
+            section_id: form.section_id || undefined,
+            session_id: form.session_id || undefined,
+        });
 
     const methodData = {
         labels: ['Face', 'Manual', 'Other'],
@@ -49,21 +70,34 @@ export default function ReportsIndex({ sections, filters, summary, methodBreakdo
             <form onSubmit={apply} className="mb-6 flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
                 <div>
                     <label className="block text-xs font-medium text-gray-600">From</label>
-                    <input type="date" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })}
-                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                    <input
+                        type="date"
+                        value={form.from}
+                        onChange={(e) => setForm({ ...form, from: e.target.value, session_id: '' })}
+                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
                 </div>
                 <div>
                     <label className="block text-xs font-medium text-gray-600">To</label>
-                    <input type="date" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })}
-                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                    <input
+                        type="date"
+                        value={form.to}
+                        onChange={(e) => setForm({ ...form, to: e.target.value, session_id: '' })}
+                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
                 </div>
                 <div>
                     <label className="block text-xs font-medium text-gray-600">Section</label>
-                    <select value={form.section_id} onChange={(e) => setForm({ ...form, section_id: e.target.value })}
-                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <select
+                        value={form.section_id}
+                        onChange={(e) => setForm({ ...form, section_id: e.target.value, session_id: '' })}
+                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    >
                         <option value="">All sections</option>
                         {sections.map((s) => (
-                            <option key={s.id} value={s.id}>{s.grade_level} - {s.name}</option>
+                            <option key={s.id} value={s.id}>
+                                {s.grade_level} - {s.name}
+                            </option>
                         ))}
                     </select>
                 </div>
@@ -71,10 +105,69 @@ export default function ReportsIndex({ sections, filters, summary, methodBreakdo
                     Apply
                 </button>
                 <div className="ml-auto flex gap-2">
-                    <a href={exportUrl('csv')} className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">Export CSV</a>
-                    <a href={exportUrl('pdf')} className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">Export PDF</a>
+                    <a href={exportUrl('csv')} className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                        Export CSV
+                    </a>
+                    <a href={exportUrl('pdf')} className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                        Export PDF
+                    </a>
                 </div>
             </form>
+
+            <div className="mb-6 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+                <div className="border-b border-gray-100 px-4 py-3">
+                    <h2 className="text-base font-semibold text-gray-900">Sessions</h2>
+                    <p className="text-xs text-gray-500">
+                        Open a single attendance session for an easier per-class view.
+                    </p>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                {['Date', 'Section', 'Status', 'Present/Late', 'Absent', 'Total', ''].map((h) => (
+                                    <th
+                                        key={h || 'action'}
+                                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
+                                    >
+                                        {h}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {sessions.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
+                                        No sessions found for this filter.
+                                    </td>
+                                </tr>
+                            )}
+                            {sessions.map((s) => (
+                                <tr key={s.id} className="hover:bg-gray-50">
+                                    <td className="px-4 py-2 text-sm text-gray-700">{s.session_date}</td>
+                                    <td className="px-4 py-2 text-sm text-gray-700">{s.section}</td>
+                                    <td className="px-4 py-2 text-sm capitalize text-gray-700">
+                                        {s.status}
+                                        {s.is_adhoc ? ' · manual' : ''}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm font-medium text-green-700">{s.present_count}</td>
+                                    <td className="px-4 py-2 text-sm font-medium text-red-600">{s.absent_count}</td>
+                                    <td className="px-4 py-2 text-sm text-gray-700">{s.total_count}</td>
+                                    <td className="px-4 py-2 text-right">
+                                        <Link
+                                            href={route('reports.session', s.id)}
+                                            className="text-sm font-medium text-blue-600 hover:underline"
+                                        >
+                                            View
+                                        </Link>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
             <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                 <StatCard label="Rate" value={`${summary.rate}%`} />
@@ -92,29 +185,46 @@ export default function ReportsIndex({ sections, filters, summary, methodBreakdo
                 <div className="rounded-xl bg-white p-5 text-sm text-gray-600 shadow-sm ring-1 ring-gray-200">
                     <h3 className="mb-2 text-sm font-semibold text-gray-700">Method totals</h3>
                     <ul className="space-y-1">
-                        <li>Face recognition: <strong>{methodBreakdown?.face ?? 0}</strong></li>
-                        <li>Manual: <strong>{methodBreakdown?.manual ?? 0}</strong></li>
-                        <li>Other / unknown: <strong>{methodBreakdown?.other ?? 0}</strong></li>
+                        <li>
+                            Face recognition: <strong>{methodBreakdown?.face ?? 0}</strong>
+                        </li>
+                        <li>
+                            Manual: <strong>{methodBreakdown?.manual ?? 0}</strong>
+                        </li>
+                        <li>
+                            Other / unknown: <strong>{methodBreakdown?.other ?? 0}</strong>
+                        </li>
                     </ul>
                 </div>
             </div>
 
-            <div className="mb-6">
-                <AtRiskStudentsTable students={atRisk} />
-            </div>
+            {!filters.session_id && (
+                <div className="mb-6">
+                    <AtRiskStudentsTable students={atRisk} />
+                </div>
+            )}
 
             <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
                             {['Date', 'Section', 'Student', 'Status', 'Time In', 'Time Out', 'Method'].map((h) => (
-                                <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>
+                                <th
+                                    key={h}
+                                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
+                                >
+                                    {h}
+                                </th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {records.length === 0 && (
-                            <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No records for this period.</td></tr>
+                            <tr>
+                                <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
+                                    No records for this period.
+                                </td>
+                            </tr>
                         )}
                         {records.map((r, i) => (
                             <tr key={i} className="hover:bg-gray-50">
@@ -122,12 +232,21 @@ export default function ReportsIndex({ sections, filters, summary, methodBreakdo
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.section}</td>
                                 <td className="px-4 py-2 text-sm text-gray-700">
                                     {r.student_id ? (
-                                        <Link href={route('reports.student', r.student_id)} className="text-blue-600 hover:underline">
+                                        <Link
+                                            href={route('reports.student', r.student_id)}
+                                            className="text-blue-600 hover:underline"
+                                        >
                                             {r.student}
                                         </Link>
-                                    ) : r.student}
+                                    ) : (
+                                        r.student
+                                    )}
                                 </td>
-                                <td className={`px-4 py-2 text-sm font-medium capitalize ${STATUS_COLORS[r.status] || 'text-gray-700'}`}>{r.status}</td>
+                                <td
+                                    className={`px-4 py-2 text-sm font-medium capitalize ${STATUS_COLORS[r.status] || 'text-gray-700'}`}
+                                >
+                                    {r.status}
+                                </td>
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.time_in ?? '—'}</td>
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.time_out ?? '—'}</td>
                                 <td className="px-4 py-2 text-sm capitalize text-gray-500">{r.method}</td>

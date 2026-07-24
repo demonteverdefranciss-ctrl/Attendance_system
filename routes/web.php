@@ -88,6 +88,11 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:parent')->prefix('parent')->name('parent.')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'parent'])->name('dashboard');
+        Route::get('biometrics', [DashboardController::class, 'parentBiometrics'])->name('biometrics.index');
+        Route::get('enrollment', [DashboardController::class, 'parentEnrollment'])->name('enrollment.index');
+        Route::get('excuse-requests', [DashboardController::class, 'parentExcuseRequests'])->name('excuse-requests.index');
+        Route::get('notifications', [DashboardController::class, 'parentNotifications'])->name('notifications.index');
+
         Route::post('enrollment-requests', [DashboardController::class, 'createEnrollmentRequest'])->name('enrollment-requests.store');
         Route::post('biometric-photos', [ParentBiometricPhotoController::class, 'store'])->name('biometric-photos.store');
         Route::post('excuse-requests/{excuseRequest}', [DashboardController::class, 'submitExcuseLetter'])
@@ -106,6 +111,7 @@ Route::middleware('auth')->group(function () {
     // Reports & exports (admin sees all sections; teacher sees only their own).
     Route::middleware('role:admin,teacher')->group(function () {
         Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/sessions/{session}', [ReportController::class, 'session'])->name('reports.session');
         Route::get('reports/students/{student}', [ReportController::class, 'student'])->name('reports.student');
         Route::get('reports/export/csv', [ReportController::class, 'csv'])->name('reports.csv');
         Route::get('reports/export/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');

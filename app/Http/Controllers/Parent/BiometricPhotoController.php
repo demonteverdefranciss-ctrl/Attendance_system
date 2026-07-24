@@ -35,7 +35,7 @@ class BiometricPhotoController extends Controller
         $student = Student::findOrFail($data['student_id']);
 
         if (! $guardian->students()->where('students.id', $student->id)->exists()) {
-            return redirect()->route('parent.dashboard')
+            return redirect()->route('parent.biometrics.index')
                 ->with('error', 'You can only upload photos for your linked children.');
         }
 
@@ -44,7 +44,7 @@ class BiometricPhotoController extends Controller
             ->exists();
 
         if ($pendingExists) {
-            return redirect()->route('parent.dashboard')
+            return redirect()->route('parent.biometrics.index')
                 ->with('error', 'A photo submission for this child is already pending teacher review.');
         }
 
@@ -54,7 +54,7 @@ class BiometricPhotoController extends Controller
             ->exists();
 
         if ($approvedExists) {
-            return redirect()->route('parent.dashboard')
+            return redirect()->route('parent.biometrics.index')
                 ->with('error', 'Approved photos for this child are awaiting import at school.');
         }
 
@@ -78,7 +78,7 @@ class BiometricPhotoController extends Controller
             userAgent: $request->userAgent()
         );
 
-        return redirect()->route('parent.dashboard')
+        return redirect()->route('parent.biometrics.index')
             ->with('success', 'Face photos submitted. A teacher will review them before enrollment.');
     }
 }

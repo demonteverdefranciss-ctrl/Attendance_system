@@ -174,9 +174,14 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
         <TeacherLayout
             title={`${session.section.grade_level} - ${session.section.name}`}
             actions={
-                <Link href={route('teacher.attendance.index')} className="text-sm text-gray-500 hover:underline">
-                    ← Back
-                </Link>
+                <div className="flex items-center gap-3">
+                    <Link href={route('reports.session', session.id)} className="text-sm text-blue-600 hover:underline">
+                        View report
+                    </Link>
+                    <Link href={route('teacher.attendance.index')} className="text-sm text-gray-500 hover:underline">
+                        ← Back
+                    </Link>
+                </div>
             }
         >
             <Head title="Mark Attendance" />
