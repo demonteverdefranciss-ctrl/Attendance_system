@@ -139,12 +139,18 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                   _ActionCard(
                     icon: Icons.mail_outline,
                     title: 'Explanation letters',
-                    subtitle: 'Review parent excuse letters',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => TeacherExcuseScreen(api: widget.api),
-                      ),
-                    ),
+                    subtitle: '${_dash['pending_excuse'] ?? 0} pending',
+                    badge: (_dash['pending_excuse'] as int? ?? 0) > 0
+                        ? '${_dash['pending_excuse']}'
+                        : null,
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => TeacherExcuseScreen(api: widget.api),
+                        ),
+                      );
+                      _load();
+                    },
                   ),
                   _ActionCard(
                     icon: Icons.face_retouching_natural,

@@ -43,11 +43,13 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('parent')->group(function () {
             Route::get('dashboard', [ParentController::class, 'dashboard']);
+            Route::get('children', [ParentController::class, 'children']);
             Route::get('enrollment-requests', [ParentController::class, 'enrollmentRequests']);
             Route::post('enrollment-requests', [ParentController::class, 'storeEnrollmentRequest']);
             Route::post('notification-preference', [ParentController::class, 'updateNotificationPreference']);
             Route::get('excuse-requests', [ParentController::class, 'excuseRequests']);
             Route::post('excuse-requests/{excuseRequest}', [ParentController::class, 'submitExcuseLetter']);
+            Route::post('biometric-photos', [ParentController::class, 'storeBiometricPhotos']);
         });
 
         Route::prefix('teacher')->group(function () {

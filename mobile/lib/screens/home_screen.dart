@@ -5,6 +5,7 @@ import '../services/session_service.dart';
 import 'child_detail_screen.dart';
 import 'enrollment_screen.dart';
 import 'notifications_screen.dart';
+import 'parent_biometric_screen.dart';
 import 'parent_excuse_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _userName = 'Parent';
   int _childrenCount = 0;
   int _unread = 0;
+  String _notifyPref = 'push';
   List<Map<String, dynamic>> _students = [];
 
   @override
@@ -54,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _userName = name ?? 'Parent';
         _childrenCount = dashData['children_count'] as int? ?? studentList.length;
         _unread = dashData['unread_notifications'] as int? ?? 0;
+        _notifyPref = dashData['notify_pref'] as String? ?? 'push';
         _students = studentList;
         _loading = false;
       });
@@ -62,6 +65,20 @@ class _HomeScreenState extends State<HomeScreen> {
         _error = e.message;
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _saveNotifyPref(String pref) async {
+    try {
+      await widget.api.post('/parent/notification-preference', {'notify_pref': pref});
+      setState(() => _notifyPref = pref);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(pref == 'push' ? 'Push notifications on.' : 'Push notifications off.')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -79,11 +96,23 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             tooltip: 'Notifications',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => NotificationsScreen(api: widget.api),
-              ),
-            ),
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => NotificationsScreen(
+                    api: widget.api,
+                    onOpenExcuseLetters: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ParentExcuseScreen(api: widget.api),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+              _load();
+            },
             icon: Badge(
               isLabelVisible: _unread > 0,
               label: Text('$_unread'),
@@ -108,6 +137,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 12),
                       _StatCard(label: 'Unread', value: '$_unread'),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
+                    child: SwitchListTile(
+                      title: const Text('Push notifications'),
+                      subtitle: const Text('Attendance alerts for your children'),
+                      value: _notifyPref == 'push',
+                      onChanged: (on) => _saveNotifyPref(on ? 'push' : 'none'),
+                    ),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
@@ -140,6 +178,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     icon: const Icon(Icons.mail_outline),
                     label: const Text('Explanation letters'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ParentBiometricScreen(api: widget.api),
+                      ),
+                    ),
+                    icon: const Icon(Icons.face_retouching_natural),
+                    label: const Text('Face photos'),
                   ),
                   if (_students.isEmpty)
                     const Padding(

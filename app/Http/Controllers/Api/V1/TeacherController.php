@@ -54,6 +54,10 @@ class TeacherController extends ApiController
             ->whereHas('student', fn ($q) => $q->whereIn('section_id', $sectionIds))
             ->count();
 
+        $pendingExcuse = AttendanceExcuseRequest::where('status', 'pending')
+            ->whereHas('student', fn ($q) => $q->whereIn('section_id', $sectionIds))
+            ->count();
+
         $openSessions = AttendanceSession::whereIn('section_id', $sectionIds)
             ->where('status', 'open')
             ->whereDate('session_date', now()->toDateString())
@@ -67,6 +71,7 @@ class TeacherController extends ApiController
             'open_sessions' => $openSessions,
             'pending_enrollment' => $pendingEnrollment,
             'pending_biometric' => $pendingBiometric,
+            'pending_excuse' => $pendingExcuse,
             'summary' => $this->analytics->summary($scope, $from, $to),
             'range' => ['from' => $from, 'to' => $to],
         ]);
@@ -517,6 +522,7 @@ class TeacherController extends ApiController
                     ? "{$r->student->section->grade_level} - {$r->student->section->name}"
                     : '—',
                 'guardian' => $r->guardian?->full_name,
+                'guardian_phone' => $r->guardian?->phone,
                 'streak_count' => $r->streak_count,
                 'streak_summary' => $r->streak_summary,
                 'letter_body' => $r->letter_body,

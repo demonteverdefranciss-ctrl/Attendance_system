@@ -14,7 +14,11 @@ class EnrollmentScreen extends StatefulWidget {
 class _EnrollmentScreenState extends State<EnrollmentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _lrn = TextEditingController();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
+  final _gradeLevel = TextEditingController();
   final _relationship = TextEditingController();
+  String? _gender;
   bool _loading = false;
   bool _listLoading = true;
   String? _error;
@@ -30,6 +34,9 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
   @override
   void dispose() {
     _lrn.dispose();
+    _firstName.dispose();
+    _lastName.dispose();
+    _gradeLevel.dispose();
     _relationship.dispose();
     super.dispose();
   }
@@ -62,11 +69,20 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
     try {
       await widget.api.post('/parent/enrollment-requests', {
         'lrn': _lrn.text.trim(),
-        'relationship': _relationship.text.trim().isEmpty ? null : _relationship.text.trim(),
+        'first_name': _firstName.text.trim(),
+        'last_name': _lastName.text.trim(),
+        'gender': _gender,
+        'grade_level': _gradeLevel.text.trim().isEmpty ? null : _gradeLevel.text.trim(),
+        'relationship':
+            _relationship.text.trim().isEmpty ? null : _relationship.text.trim(),
       });
       _lrn.clear();
+      _firstName.clear();
+      _lastName.clear();
+      _gradeLevel.clear();
       _relationship.clear();
       setState(() {
+        _gender = null;
         _success = 'Request submitted for teacher verification.';
         _loading = false;
       });
@@ -86,7 +102,9 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('Submit your child LRN for teacher verification before linking.'),
+          const Text(
+            'Submit your child’s full details for teacher verification before linking.',
+          ),
           const SizedBox(height: 16),
           Form(
             key: _formKey,
@@ -95,10 +113,60 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
                 TextFormField(
                   controller: _lrn,
                   decoration: const InputDecoration(
-                    labelText: 'Student LRN',
+                    labelText: 'Student LRN *',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'LRN required' : null,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'LRN required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _firstName,
+                  decoration: const InputDecoration(
+                    labelText: 'First name *',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'First name required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _lastName,
+                  decoration: const InputDecoration(
+                    labelText: 'Last name *',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Last name required' : null,
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Gender (optional)',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SegmentedButton<String>(
+                  emptySelectionAllowed: true,
+                  segments: const [
+                    ButtonSegment(value: 'male', label: Text('Male')),
+                    ButtonSegment(value: 'female', label: Text('Female')),
+                  ],
+                  selected: _gender == null ? <String>{} : {_gender!},
+                  onSelectionChanged: (set) {
+                    setState(() => _gender = set.isEmpty ? null : set.first);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _gradeLevel,
+                  decoration: const InputDecoration(
+                    labelText: 'Grade level (optional)',
+                    border: OutlineInputBorder(),
+                    hintText: 'e.g. Grade 6',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -106,6 +174,7 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Relationship (optional)',
                     border: OutlineInputBorder(),
+                    hintText: 'e.g. Mother, Father, Guardian',
                   ),
                 ),
                 if (_error != null) ...[
@@ -119,7 +188,13 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: _loading ? null : _submit,
-                  child: _loading ? const CircularProgressIndicator() : const Text('Submit request'),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Submit request'),
                 ),
               ],
             ),
@@ -129,13 +204,15 @@ class _EnrollmentScreenState extends State<EnrollmentScreen> {
           const SizedBox(height: 8),
           if (_listLoading) const Center(child: CircularProgressIndicator()),
           if (!_listLoading && _requests.isEmpty) const Text('No requests yet.'),
-          ..._requests.map((r) => Card(
-                child: ListTile(
-                  title: Text(r['student']?.toString() ?? 'LRN ${r['lrn']}'),
-                  subtitle: Text('${r['status']} · ${r['created_at'] ?? ''}'),
-                  trailing: r['notes'] != null ? const Icon(Icons.note_alt_outlined) : null,
-                ),
-              )),
+          ..._requests.map(
+            (r) => Card(
+              child: ListTile(
+                title: Text(r['student']?.toString() ?? 'LRN ${r['lrn']}'),
+                subtitle: Text('${r['status']} · ${r['created_at'] ?? ''}'),
+                trailing: r['notes'] != null ? const Icon(Icons.note_alt_outlined) : null,
+              ),
+            ),
+          ),
         ],
       ),
     );

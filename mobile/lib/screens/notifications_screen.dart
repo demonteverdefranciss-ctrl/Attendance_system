@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key, required this.api});
+  const NotificationsScreen({
+    super.key,
+    required this.api,
+    this.onOpenExcuseLetters,
+  });
 
   final ApiClient api;
+  final VoidCallback? onOpenExcuseLetters;
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -15,6 +20,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _items = [];
+
+  static const _excuseTypes = {
+    'consecutive_absent_late',
+    'excuse_approved',
+    'excuse_rejected',
+  };
 
   @override
   void initState() {
@@ -47,6 +58,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _load();
   }
 
+  void _openRelated(String? type) {
+    if (type != null && _excuseTypes.contains(type)) {
+      widget.onOpenExcuseLetters?.call();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,16 +79,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   if (_items.isEmpty) const Text('No notifications yet.'),
                   ..._items.map((n) {
                     final read = n['read_at'] != null;
+                    final type = n['type']?.toString();
+                    final isExcuse = type != null && _excuseTypes.contains(type);
                     return Card(
                       child: ListTile(
                         title: Text(n['title']?.toString() ?? 'Attendance update'),
                         subtitle: Text(n['body']?.toString() ?? ''),
-                        trailing: read
-                            ? const Icon(Icons.done, color: Colors.green)
-                            : TextButton(
+                        onTap: isExcuse ? () => _openRelated(type) : null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isExcuse)
+                              IconButton(
+                                tooltip: 'Open letters',
+                                onPressed: () => _openRelated(type),
+                                icon: const Icon(Icons.mail_outline),
+                              ),
+                            if (read)
+                              const Icon(Icons.done, color: Colors.green)
+                            else
+                              TextButton(
                                 onPressed: () => _markRead(n['id'] as int),
                                 child: const Text('Read'),
                               ),
+                          ],
+                        ),
                       ),
                     );
                   }),
