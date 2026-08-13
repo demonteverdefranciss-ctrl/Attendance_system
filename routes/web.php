@@ -51,6 +51,8 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:teacher')->prefix('teacher')->name('teacher.')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'teacher'])->name('dashboard');
+        Route::post('notifications/{teacherNotification}/read', [DashboardController::class, 'markTeacherNotificationRead'])
+            ->name('notifications.read');
         Route::get('enrollment-requests', [DashboardController::class, 'teacherEnrollmentRequests'])->name('enrollment-requests.index');
         Route::post('enrollment-requests/{enrollmentRequest}/approve', [DashboardController::class, 'approveEnrollmentRequest'])
             ->name('enrollment-requests.approve');

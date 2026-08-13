@@ -26,6 +26,11 @@ class Teacher extends Model
         return $this->hasMany(Section::class, 'adviser_id');
     }
 
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(TeacherNotification::class);
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");

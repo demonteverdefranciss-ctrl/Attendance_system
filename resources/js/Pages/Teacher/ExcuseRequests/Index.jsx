@@ -1,19 +1,13 @@
 import { router } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
+import TeacherReviewActions from '@/Components/TeacherReviewActions';
 
 export default function ExcuseRequestsIndex({ requests = [] }) {
-    const review = (item, action) => {
+    const review = (item, action, notes) => {
         const routeName = action === 'approve'
             ? 'teacher.excuse-requests.approve'
             : 'teacher.excuse-requests.reject';
 
-        const notePrompt = action === 'approve'
-            ? 'Optional note for the parent (leave blank to skip):'
-            : 'Optional rejection reason for the parent (leave blank to skip):';
-        const notesInput = window.prompt(notePrompt, '');
-        if (notesInput === null) return;
-
-        const notes = notesInput.trim();
         if (notes.length > 500) {
             window.alert('Note is too long. Please keep it within 500 characters.');
             return;
@@ -32,7 +26,7 @@ export default function ExcuseRequestsIndex({ requests = [] }) {
         <TeacherLayout title="Explanation Letters">
             <p className="mb-4 text-sm text-gray-500">
                 Parents submit explanation letters after 3 consecutive absences or late marks.
-                Approving excuses those attendance records.
+                Accepting excuses those attendance records.
             </p>
 
             <div className="space-y-4">
@@ -44,36 +38,18 @@ export default function ExcuseRequestsIndex({ requests = [] }) {
 
                 {requests.map((item) => (
                     <div key={item.id} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div>
-                                <h3 className="text-base font-semibold text-gray-900">{item.student}</h3>
-                                <p className="text-xs text-gray-500">
-                                    LRN: {item.lrn} · {item.section}
-                                </p>
-                                <p className="mt-1 text-xs text-gray-500">
-                                    Parent: {item.guardian || '—'}
-                                    {item.guardian_phone ? ` · ${item.guardian_phone}` : ''}
-                                </p>
-                                <p className="mt-1 text-xs text-gray-500">
-                                    Streak: {item.streak_count} consecutive absent/late · Submitted: {fmt(item.submitted_at)}
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => review(item, 'approve')}
-                                    className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-700"
-                                >
-                                    Accept (excuse)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => review(item, 'reject')}
-                                    className="rounded-lg bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-100"
-                                >
-                                    Reject
-                                </button>
-                            </div>
+                        <div>
+                            <h3 className="text-base font-semibold text-gray-900">{item.student}</h3>
+                            <p className="text-xs text-gray-500">
+                                LRN: {item.lrn} · {item.section}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Parent: {item.guardian || '—'}
+                                {item.guardian_phone ? ` · ${item.guardian_phone}` : ''}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Streak: {item.streak_count} consecutive absent/late · Submitted: {fmt(item.submitted_at)}
+                            </p>
                         </div>
 
                         <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
@@ -93,6 +69,11 @@ export default function ExcuseRequestsIndex({ requests = [] }) {
                                 ))}
                             </div>
                         )}
+
+                        <TeacherReviewActions
+                            onAccept={(notes) => review(item, 'approve', notes)}
+                            onReject={(notes) => review(item, 'reject', notes)}
+                        />
                     </div>
                 ))}
             </div>

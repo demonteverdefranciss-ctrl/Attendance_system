@@ -1,19 +1,13 @@
 import { router } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
+import TeacherReviewActions from '@/Components/TeacherReviewActions';
 
 export default function BiometricPhotosIndex({ submissions }) {
-    const review = (id, action) => {
+    const review = (id, action, notes) => {
         const routeName = action === 'approve'
             ? 'teacher.biometric-photos.approve'
             : 'teacher.biometric-photos.reject';
 
-        const notePrompt = action === 'approve'
-            ? 'Optional note for the parent (leave blank to skip):'
-            : 'Optional rejection reason (leave blank to skip):';
-        const notesInput = window.prompt(notePrompt, '');
-        if (notesInput === null) return;
-
-        const notes = notesInput.trim();
         if (notes.length > 500) {
             window.alert('Note is too long. Please keep it within 500 characters.');
             return;
@@ -31,8 +25,8 @@ export default function BiometricPhotosIndex({ submissions }) {
     return (
         <TeacherLayout title="Biometric Photo Reviews">
             <p className="mb-4 text-sm text-gray-500">
-                Parents upload face photos with consent. Approve only if the photos clearly show the
-                correct student. Approved photos can be imported on the school PC with{' '}
+                Parents upload face photos with consent. Accept only if the photos clearly show the
+                correct student. Accepted photos can be imported on the school PC with{' '}
                 <code className="rounded bg-gray-100 px-1">python sync_enrollment.py</code>.
             </p>
 
@@ -45,34 +39,16 @@ export default function BiometricPhotosIndex({ submissions }) {
 
                 {submissions.map((item) => (
                     <div key={item.id} className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <h2 className="text-lg font-semibold text-gray-900">{item.student}</h2>
-                                <p className="mt-1 text-sm text-gray-500">
-                                    LRN {item.lrn} · {item.section}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                    Parent: {item.guardian}
-                                    {item.guardian_phone ? ` (${item.guardian_phone})` : ''}
-                                </p>
-                                <p className="text-xs text-gray-400">Submitted {fmt(item.created_at)}</p>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => review(item.id, 'approve')}
-                                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
-                                >
-                                    Approve
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => review(item.id, 'reject')}
-                                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-                                >
-                                    Reject
-                                </button>
-                            </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-gray-900">{item.student}</h2>
+                            <p className="mt-1 text-sm text-gray-500">
+                                LRN {item.lrn} · {item.section}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                                Parent: {item.guardian}
+                                {item.guardian_phone ? ` (${item.guardian_phone})` : ''}
+                            </p>
+                            <p className="text-xs text-gray-400">Submitted {fmt(item.created_at)}</p>
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-3">
@@ -92,6 +68,11 @@ export default function BiometricPhotosIndex({ submissions }) {
                                 </a>
                             ))}
                         </div>
+
+                        <TeacherReviewActions
+                            onAccept={(notes) => review(item.id, 'approve', notes)}
+                            onReject={(notes) => review(item.id, 'reject', notes)}
+                        />
                     </div>
                 ))}
             </div>

@@ -2,12 +2,16 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 export default function AppSidebarLayout({ nav = [], title, actions, children }) {
-    const { auth, flash } = usePage().props;
+    const { auth, flash, teacherAlerts = [] } = usePage().props;
     const [open, setOpen] = useState(false);
 
     const logout = (e) => {
         e.preventDefault();
         router.post(route('logout'));
+    };
+
+    const dismissAlert = (id) => {
+        router.post(route('teacher.notifications.read', id), {}, { preserveScroll: true });
     };
 
     useEffect(() => {
@@ -127,6 +131,29 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                         )}
                         {flash?.warning && (
                             <div className="mb-4 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800">{flash.warning}</div>
+                        )}
+
+                        {Array.isArray(teacherAlerts) && teacherAlerts.length > 0 && (
+                            <div className="mb-4 space-y-2">
+                                {teacherAlerts.map((alert) => (
+                                    <div
+                                        key={alert.id}
+                                        className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-900 ring-1 ring-blue-200"
+                                    >
+                                        <div>
+                                            <p className="font-semibold">{alert.title}</p>
+                                            {alert.body && <p className="mt-0.5 text-blue-800">{alert.body}</p>}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => dismissAlert(alert.id)}
+                                            className="rounded-lg bg-white px-3 py-1 text-xs font-medium text-blue-800 ring-1 ring-blue-200 hover:bg-blue-100"
+                                        >
+                                            Dismiss
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         )}
 
                         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
