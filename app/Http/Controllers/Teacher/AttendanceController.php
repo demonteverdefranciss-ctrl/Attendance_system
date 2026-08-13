@@ -55,20 +55,19 @@ class AttendanceController extends Controller
             'session' => $sessions->get($section->id),
         ]);
 
-        $adhocMax = (int) config('attendance.adhoc_session_max_minutes', 30);
-
-        $payloadRows = $rows->map(function ($row) use ($adhocMax) {
+        $payloadRows = $rows->map(function ($row) {
             $session = $row['session'];
+            $section = $row['section'];
+            $sessionMax = $section->sessionMaxMinutes();
             $sessionPayload = null;
             if ($session) {
                 $autoCloseAt = null;
                 if (
                     $session->status === 'open'
-                    && $session->schedule_id === null
-                    && $adhocMax > 0
+                    && $sessionMax > 0
                     && $session->opened_at
                 ) {
-                    $autoCloseAt = $session->opened_at->copy()->addMinutes($adhocMax)->toDateTimeString();
+                    $autoCloseAt = $session->opened_at->copy()->addMinutes($sessionMax)->toDateTimeString();
                 }
 
                 $sessionPayload = [
@@ -80,11 +79,12 @@ class AttendanceController extends Controller
                     'schedule_id' => $session->schedule_id,
                     'is_adhoc' => $session->schedule_id === null,
                     'auto_close_at' => $autoCloseAt,
+                    'session_max_minutes' => $sessionMax,
                 ];
             }
 
             return [
-                'section' => $row['section'],
+                'section' => $section,
                 'session' => $sessionPayload,
             ];
         });
@@ -92,7 +92,7 @@ class AttendanceController extends Controller
         return Inertia::render('Teacher/Attendance/Index', [
             'rows' => $payloadRows,
             'today' => $today,
-            'adhocMaxMinutes' => $adhocMax,
+            'adhocMaxMinutes' => $sessionMax,
             'testClearEnabled' => (bool) config('attendance.test_clear_enabled', false),
             'recognition' => $this->recognition->snapshot(),
         ]);

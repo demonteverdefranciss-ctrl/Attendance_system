@@ -71,20 +71,23 @@ class ManageAttendanceSessions extends Command
             }
         }
 
-        // Ad-hoc sessions (no schedule) auto-close after N minutes.
-        $maxMinutes = (int) config('attendance.adhoc_session_max_minutes', 30);
-        if ($maxMinutes > 0) {
-            $cutoff = $now->copy()->subMinutes($maxMinutes);
-            $stale = AttendanceSession::where('status', 'open')
-                ->whereNull('schedule_id')
-                ->whereNotNull('opened_at')
-                ->where('opened_at', '<=', $cutoff)
-                ->get();
+        $stale = AttendanceSession::with('section')
+            ->where('status', 'open')
+            ->whereNotNull('opened_at')
+            ->get();
 
-            foreach ($stale as $session) {
+        foreach ($stale as $session) {
+            $maxMinutes = $session->section?->sessionMaxMinutes()
+                ?: (int) config('attendance.session_max_minutes', 360);
+
+            if ($maxMinutes <= 0) {
+                continue;
+            }
+
+            if ($session->opened_at->lte($now->copy()->subMinutes($maxMinutes))) {
                 $service->closeSession($session);
                 $closed++;
-                $this->info("Closed ad-hoc session #{$session->id} (open ≥ {$maxMinutes} min)");
+                $this->info("Closed session #{$session->id} (open ≥ {$maxMinutes} min)");
             }
         }
 

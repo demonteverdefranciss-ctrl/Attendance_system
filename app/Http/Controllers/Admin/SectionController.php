@@ -62,12 +62,18 @@ class SectionController extends Controller
      */
     private function validateData(Request $request, ?Section $section = null): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'grade_level' => ['required', 'string', 'max:20'],
             'school_year' => ['required', 'string', 'max:20'],
             'adviser_id' => ['nullable', 'exists:teachers,id'],
+            'session_max_hours' => ['required', 'numeric', 'min:0.5', 'max:12'],
         ]);
+
+        $validated['session_max_minutes'] = (int) round(((float) $validated['session_max_hours']) * 60);
+        unset($validated['session_max_hours']);
+
+        return $validated;
     }
 
     private function teacherOptions()

@@ -2,7 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
-export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30, testClearEnabled = false }) {
+export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 360, testClearEnabled = false }) {
     const [closingId, setClosingId] = useState(null);
     const [clearing, setClearing] = useState(false);
     const flash = usePage().props.flash ?? {};
@@ -55,8 +55,8 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30, tes
 
             <p className="mb-2 text-sm text-gray-500">Today: {today}</p>
             <p className="mb-4 text-xs text-gray-500">
-                Schedule windows auto-open and auto-close on the website.
-                Manual &quot;Open Attendance&quot; sessions auto-close after {adhocMaxMinutes} minutes.
+                Schedule windows auto-open at start time. Each section auto-closes after the hours set by Admin
+                (or at schedule end, whichever comes first).
                 Keep <code className="rounded bg-gray-100 px-1">run_recognition.ps1</code> running on the school PC so the camera follows open/close.
             </p>
 
