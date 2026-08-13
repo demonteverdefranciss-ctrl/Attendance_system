@@ -87,8 +87,14 @@ class _TeacherExcuseScreenState extends State<TeacherExcuseScreen> {
                             Text('LRN: ${item['lrn']} · ${item['section']}'),
                             Text('Parent: ${item['guardian'] ?? '—'}'),
                             const SizedBox(height: 8),
-                            Text(item['letter_body']?.toString() ?? '',
-                                style: const TextStyle(fontStyle: FontStyle.italic)),
+                            if ((item['letter_body'] as String?)?.isNotEmpty == true)
+                              Text(item['letter_body'].toString(),
+                                  style: const TextStyle(fontStyle: FontStyle.italic))
+                            else
+                              const Text('No typed letter — a PDF was uploaded.',
+                                  style: TextStyle(fontStyle: FontStyle.italic)),
+                            if (item['has_pdf'] == true) const Text('PDF letter attached.'),
+                            if (item['has_photo'] == true) const Text('Supporting photo attached.'),
                             const SizedBox(height: 12),
                             Row(
                               children: [

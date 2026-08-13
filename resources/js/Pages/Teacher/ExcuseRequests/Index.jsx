@@ -52,9 +52,35 @@ export default function ExcuseRequestsIndex({ requests = [] }) {
                             </p>
                         </div>
 
-                        <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                        <div className="mt-3 space-y-3 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
                             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Explanation letter</div>
-                            <p className="mt-1 whitespace-pre-wrap">{item.letter_body}</p>
+                            {item.letter_body ? (
+                                <p className="whitespace-pre-wrap">{item.letter_body}</p>
+                            ) : (
+                                <p className="text-xs text-gray-500">No typed letter — a PDF was uploaded.</p>
+                            )}
+                            {item.has_pdf ? (
+                                <a
+                                    href={route('teacher.excuse-requests.file', { excuseRequest: item.id, type: 'pdf' })}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-block text-sm font-medium text-blue-700 hover:underline"
+                                >
+                                    Open PDF{item.letter_pdf_name ? ` (${item.letter_pdf_name})` : ''}
+                                </a>
+                            ) : null}
+                            {item.has_photo ? (
+                                <div>
+                                    <p className="text-xs font-medium text-gray-600">
+                                        Supporting photo{item.photo_name ? `: ${item.photo_name}` : ''}
+                                    </p>
+                                    <img
+                                        src={route('teacher.excuse-requests.file', { excuseRequest: item.id, type: 'photo' })}
+                                        alt="Supporting photo"
+                                        className="mt-1 max-h-64 rounded-lg object-contain"
+                                    />
+                                </div>
+                            ) : null}
                         </div>
 
                         {Array.isArray(item.streak_summary) && item.streak_summary.length > 0 && (

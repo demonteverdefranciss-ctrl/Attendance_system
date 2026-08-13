@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SubmitExcuseLetterRequest;
 use App\Models\AttendanceExcuseRequest;
 use App\Models\BiometricPhotoSubmission;
 use App\Models\ChildEnrollmentRequest;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
@@ -160,25 +162,39 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function submitExcuseLetter(Request $request, AttendanceExcuseRequest $excuseRequest): RedirectResponse
+    public function submitExcuseLetter(SubmitExcuseLetterRequest $request, AttendanceExcuseRequest $excuseRequest): RedirectResponse
     {
         $guardian = $request->user()->guardian;
         if (! $guardian) {
             abort(403);
         }
 
-        $data = $request->validate([
-            'letter_body' => ['required', 'string', 'min:10', 'max:2000'],
-        ]);
-
         try {
-            $this->excuses->submitLetter($guardian, $excuseRequest, $data['letter_body']);
+            $this->excuses->submitLetter(
+                $guardian,
+                $excuseRequest,
+                $request->input('letter_body'),
+                $request->file('letter_pdf'),
+                $request->file('photo'),
+            );
         } catch (\InvalidArgumentException $e) {
             return redirect()->route('parent.excuse-requests.index')->with('error', $e->getMessage());
         }
 
         return redirect()->route('parent.excuse-requests.index')
             ->with('success', 'Explanation letter submitted. A teacher will review it.');
+    }
+
+    public function excuseLetterFile(Request $request, AttendanceExcuseRequest $excuseRequest, string $type): StreamedResponse
+    {
+        $guardian = $request->user()->guardian;
+        if (! $guardian) {
+            abort(403);
+        }
+
+        $this->excuses->assertGuardianCanAccess($guardian, $excuseRequest);
+
+        return $this->excuses->attachmentResponse($excuseRequest, $type);
     }
 
     public function markParentNotificationRead(Request $request, Notification $notification): RedirectResponse
@@ -579,6 +595,7 @@ class DashboardController extends Controller
                 'streak_summary' => $r->streak_summary,
                 'status' => $r->status,
                 'letter_body' => $r->letter_body,
+                ...$r->attachmentMeta(),
                 'notes' => $r->notes,
                 'notified_at' => $r->notified_at?->toDateTimeString(),
                 'submitted_at' => $r->submitted_at?->toDateTimeString(),

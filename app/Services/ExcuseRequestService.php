@@ -7,7 +7,10 @@ use App\Models\AttendanceRecord;
 use App\Models\Guardian;
 use App\Models\Student;
 use App\Models\Teacher;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExcuseRequestService
 {
@@ -100,8 +103,13 @@ class ExcuseRequestService
         );
     }
 
-    public function submitLetter(Guardian $guardian, AttendanceExcuseRequest $request, string $letterBody): AttendanceExcuseRequest
-    {
+    public function submitLetter(
+        Guardian $guardian,
+        AttendanceExcuseRequest $request,
+        ?string $letterBody = null,
+        ?UploadedFile $pdf = null,
+        ?UploadedFile $photo = null,
+    ): AttendanceExcuseRequest {
         if (! $guardian->students()->whereKey($request->student_id)->exists()) {
             abort(403, 'This child is not linked to your account.');
         }
@@ -110,9 +118,32 @@ class ExcuseRequestService
             throw new \InvalidArgumentException('This request is not waiting for an explanation letter.');
         }
 
+        $letterBody = is_string($letterBody) ? trim($letterBody) : '';
+        if ($letterBody === '' && ! $pdf) {
+            throw new \InvalidArgumentException('Type an explanation or upload a PDF letter.');
+        }
+
+        $pdfPath = null;
+        $pdfName = null;
+        if ($pdf) {
+            $pdfPath = $pdf->store("excuse-letters/{$request->id}", 'local');
+            $pdfName = $this->safeOriginalName($pdf, 'explanation-letter.pdf');
+        }
+
+        $photoPath = null;
+        $photoName = null;
+        if ($photo) {
+            $photoPath = $photo->store("excuse-letters/{$request->id}", 'local');
+            $photoName = $this->safeOriginalName($photo, 'supporting-photo.jpg');
+        }
+
         $request->update([
             'guardian_id' => $guardian->id,
-            'letter_body' => $letterBody,
+            'letter_body' => $letterBody !== '' ? $letterBody : null,
+            'letter_pdf_path' => $pdfPath,
+            'letter_pdf_name' => $pdfName,
+            'photo_path' => $photoPath,
+            'photo_name' => $photoName,
             'status' => 'pending',
             'submitted_at' => now(),
         ]);
@@ -122,10 +153,38 @@ class ExcuseRequestService
             userId: $guardian->user_id,
             entity: $request,
             oldValues: ['status' => 'awaiting_letter'],
-            newValues: ['status' => 'pending', 'guardian_id' => $guardian->id],
+            newValues: [
+                'status' => 'pending',
+                'guardian_id' => $guardian->id,
+                'has_pdf' => (bool) $pdfPath,
+                'has_photo' => (bool) $photoPath,
+            ],
         );
 
         return $request->fresh();
+    }
+
+    public function assertGuardianCanAccess(Guardian $guardian, AttendanceExcuseRequest $request): void
+    {
+        abort_unless($guardian->students()->whereKey($request->student_id)->exists(), 403);
+    }
+
+    public function assertTeacherCanAccess(Teacher $teacher, AttendanceExcuseRequest $request): void
+    {
+        $this->authorizeTeacher($teacher, $request);
+    }
+
+    public function attachmentResponse(AttendanceExcuseRequest $request, string $type): StreamedResponse
+    {
+        [$path, $downloadName] = match (strtolower($type)) {
+            'pdf' => [$request->letter_pdf_path, $request->letter_pdf_name ?: 'explanation-letter.pdf'],
+            'photo' => [$request->photo_path, $request->photo_name ?: 'supporting-photo.jpg'],
+            default => abort(404),
+        };
+
+        abort_unless(is_string($path) && $path !== '' && Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response($path, $downloadName);
     }
 
     public function approve(Teacher $teacher, AttendanceExcuseRequest $request, ?string $notes = null): AttendanceExcuseRequest
@@ -214,5 +273,13 @@ class ExcuseRequestService
             $sectionId && $teacher->sections()->whereKey($sectionId)->exists(),
             403
         );
+    }
+
+    private function safeOriginalName(UploadedFile $file, string $fallback): string
+    {
+        $name = basename($file->getClientOriginalName());
+        $name = preg_replace('/[^\w.\- ()]/u', '_', $name) ?: $fallback;
+
+        return mb_substr($name, 0, 180);
     }
 }

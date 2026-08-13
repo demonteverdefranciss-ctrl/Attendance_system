@@ -520,6 +520,7 @@ class TeacherController extends ApiController
                 'streak_count' => $r->streak_count,
                 'streak_summary' => $r->streak_summary,
                 'letter_body' => $r->letter_body,
+                ...$r->attachmentMeta(),
                 'submitted_at' => $r->submitted_at?->toDateTimeString(),
             ]);
 
@@ -552,6 +553,14 @@ class TeacherController extends ApiController
         }
 
         return $this->ok(['message' => 'Explanation letter rejected.']);
+    }
+
+    public function excuseLetterFile(Request $request, AttendanceExcuseRequest $excuseRequest, string $type): StreamedResponse|JsonResponse
+    {
+        $teacher = $this->teacherOrFail($request);
+        $this->excuses->assertTeacherCanAccess($teacher, $excuseRequest);
+
+        return $this->excuses->attachmentResponse($excuseRequest, $type);
     }
 
     public function biometricPhotoFile(Request $request, BiometricPhoto $photo): StreamedResponse|JsonResponse

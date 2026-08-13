@@ -15,6 +15,10 @@ class AttendanceExcuseRequest extends Model
         'streak_summary',
         'status',
         'letter_body',
+        'letter_pdf_path',
+        'letter_pdf_name',
+        'photo_path',
+        'photo_name',
         'teacher_id',
         'notes',
         'notified_at',
@@ -46,5 +50,18 @@ class AttendanceExcuseRequest extends Model
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class);
+    }
+
+    /**
+     * @return array{has_pdf: bool, letter_pdf_name: ?string, has_photo: bool, photo_name: ?string}
+     */
+    public function attachmentMeta(): array
+    {
+        return [
+            'has_pdf' => filled($this->letter_pdf_path),
+            'letter_pdf_name' => $this->letter_pdf_name,
+            'has_photo' => filled($this->photo_path),
+            'photo_name' => $this->photo_name,
+        ];
     }
 }

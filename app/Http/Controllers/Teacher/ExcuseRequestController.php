@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExcuseRequestController extends Controller
 {
@@ -43,6 +44,7 @@ class ExcuseRequestController extends Controller
                 'streak_count' => $r->streak_count,
                 'streak_summary' => $r->streak_summary,
                 'letter_body' => $r->letter_body,
+                ...$r->attachmentMeta(),
                 'submitted_at' => $r->submitted_at?->toDateTimeString(),
             ]);
 
@@ -79,5 +81,13 @@ class ExcuseRequestController extends Controller
 
         return redirect()->route('teacher.excuse-requests.index')
             ->with('success', 'Explanation letter rejected.');
+    }
+
+    public function file(Request $request, AttendanceExcuseRequest $excuseRequest, string $type): StreamedResponse
+    {
+        $teacher = Teacher::where('user_id', $request->user()->id)->firstOrFail();
+        $this->excuses->assertTeacherCanAccess($teacher, $excuseRequest);
+
+        return $this->excuses->attachmentResponse($excuseRequest, $type);
     }
 }
