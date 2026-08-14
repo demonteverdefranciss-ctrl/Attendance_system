@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
+import FilePickButton from '@/Components/FilePickButton';
 
 export function submissionBadge(status) {
     if (status === 'approved') return 'bg-green-100 text-green-700';
@@ -88,13 +89,15 @@ export function ChildBiometricUpload({ child }) {
                         Upload 1–3 clear front-facing photos (JPEG/PNG, max 2 MB each). A teacher must
                         approve them before they are used for face recognition.
                     </p>
-                    <input
-                        type="file"
+                    <FilePickButton
+                        kind="photo"
                         accept="image/jpeg,image/png"
                         multiple
-                        onChange={(e) => setFiles(e.target.files ? Array.from(e.target.files).slice(0, 3) : [])}
-                        className="block w-full text-xs text-gray-600"
                         required
+                        label="Add photos"
+                        hint="1–3 front-facing JPEG/PNG, max 2 MB each"
+                        value={files}
+                        onChange={setFiles}
                     />
                     <label className="flex items-start gap-2 text-xs text-gray-700">
                         <input

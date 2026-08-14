@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
+import FilePickButton from '@/Components/FilePickButton';
 import ParentLayout from '@/Layouts/ParentLayout';
 
 function fileUrl(requestId, type) {
@@ -101,27 +102,46 @@ export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
                             </p>
                             {r.status === 'awaiting_letter' && (
                                 <form className="mt-3 space-y-3" onSubmit={(e) => submitExcuseLetter(e, r.id)}>
-                                    <div className="flex flex-wrap gap-3 text-sm text-gray-700">
-                                        <label className="inline-flex items-center gap-2">
-                                            <input
-                                                type="radio"
-                                                name={`letter-mode-${r.id}`}
-                                                checked={modeFor(r.id) === 'text'}
-                                                onChange={() => setModes((prev) => ({ ...prev, [r.id]: 'text' }))}
-                                                className="border-gray-300 text-blue-600"
-                                            />
-                                            Type a letter
-                                        </label>
-                                        <label className="inline-flex items-center gap-2">
-                                            <input
-                                                type="radio"
-                                                name={`letter-mode-${r.id}`}
-                                                checked={modeFor(r.id) === 'pdf'}
-                                                onChange={() => setModes((prev) => ({ ...prev, [r.id]: 'pdf' }))}
-                                                className="border-gray-300 text-blue-600"
-                                            />
-                                            Upload a PDF
-                                        </label>
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setModes((prev) => ({ ...prev, [r.id]: 'text' }));
+                                                setPdfs((prev) => ({ ...prev, [r.id]: null }));
+                                            }}
+                                            className={`flex flex-col items-center gap-2 rounded-xl px-3 py-4 text-center ring-1 transition ${
+                                                modeFor(r.id) === 'text'
+                                                    ? 'bg-blue-50 ring-2 ring-blue-600'
+                                                    : 'bg-white ring-gray-200 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none" aria-hidden="true">
+                                                <rect x="8" y="8" width="32" height="32" rx="4" fill="#EFF6FF" stroke="#2563EB" strokeWidth="2" />
+                                                <path d="M16 18h16M16 24h16M16 30h10" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" />
+                                            </svg>
+                                            <span className="text-sm font-semibold text-gray-900">Type a letter</span>
+                                        </button>
+                                        <FilePickButton
+                                            kind="pdf"
+                                            accept="application/pdf,.pdf"
+                                            label="Upload PDF"
+                                            hint="PDF letter, max 5 MB"
+                                            value={pdfs[r.id] || null}
+                                            onChange={(file) => {
+                                                setPdfs((prev) => ({ ...prev, [r.id]: file }));
+                                                if (file) {
+                                                    setModes((prev) => ({ ...prev, [r.id]: 'pdf' }));
+                                                }
+                                            }}
+                                        />
+                                        <FilePickButton
+                                            kind="photo"
+                                            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                                            label="Add photo"
+                                            hint="Optional JPEG/PNG"
+                                            value={photos[r.id] || null}
+                                            onChange={(file) => setPhotos((prev) => ({ ...prev, [r.id]: file }))}
+                                        />
                                     </div>
 
                                     {modeFor(r.id) === 'text' ? (
@@ -134,33 +154,10 @@ export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
                                             required
                                         />
                                     ) : (
-                                        <div>
-                                            <label className="block text-xs font-medium text-gray-600">PDF letter (max 5 MB)</label>
-                                            <input
-                                                type="file"
-                                                accept="application/pdf,.pdf"
-                                                onChange={(e) =>
-                                                    setPdfs((prev) => ({ ...prev, [r.id]: e.target.files?.[0] || null }))
-                                                }
-                                                className="mt-1 block w-full text-xs text-gray-600"
-                                                required
-                                            />
-                                        </div>
+                                        <p className="text-xs text-gray-500">
+                                            PDF selected. You can still add an optional photo, then submit.
+                                        </p>
                                     )}
-
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-600">
-                                            Supporting photo (optional, JPEG/PNG, max 5 MB)
-                                        </label>
-                                        <input
-                                            type="file"
-                                            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-                                            onChange={(e) =>
-                                                setPhotos((prev) => ({ ...prev, [r.id]: e.target.files?.[0] || null }))
-                                            }
-                                            className="mt-1 block w-full text-xs text-gray-600"
-                                        />
-                                    </div>
 
                                     <button
                                         type="submit"
