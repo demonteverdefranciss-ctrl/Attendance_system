@@ -8,6 +8,11 @@ export default function SectionsIndex({ sections }) {
         { key: 'school_year', label: 'School Year' },
         { key: 'adviser', label: 'Adviser', render: (s) => (s.adviser ? `${s.adviser.first_name} ${s.adviser.last_name}` : '—') },
         { key: 'students_count', label: 'Students', render: (s) => s.students_count },
+        {
+            key: 'session_max_minutes',
+            label: 'Auto-close',
+            render: (s) => `${Math.round(((s.session_max_minutes || 360) / 60) * 10) / 10} hrs`,
+        },
     ];
 
     return (

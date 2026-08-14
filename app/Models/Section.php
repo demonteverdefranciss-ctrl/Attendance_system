@@ -13,6 +13,7 @@ class Section extends Model
         'name',
         'grade_level',
         'school_year',
+        'session_max_minutes',
     ];
 
     public function adviser(): BelongsTo
@@ -33,5 +34,15 @@ class Section extends Model
     public function attendanceSessions(): HasMany
     {
         return $this->hasMany(AttendanceSession::class);
+    }
+
+    /**
+     * Minutes an open session should last before auto-close.
+     */
+    public function sessionMaxMinutes(): int
+    {
+        $minutes = (int) ($this->session_max_minutes ?? 0);
+
+        return $minutes > 0 ? $minutes : (int) config('attendance.session_max_minutes', 360);
     }
 }

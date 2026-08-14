@@ -10,6 +10,9 @@ export default function SectionForm({ section, teachers }) {
         grade_level: section?.grade_level ?? 'Grade 6',
         school_year: section?.school_year ?? '',
         adviser_id: section?.adviser_id ?? '',
+        session_max_hours: section?.session_max_minutes
+            ? String(Math.round((section.session_max_minutes / 60) * 10) / 10)
+            : '6',
     });
 
     const submit = (e) => {
@@ -34,7 +37,21 @@ export default function SectionForm({ section, teachers }) {
                             <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
                         ))}
                     </SelectField>
+                    <TextField
+                        label="Auto-close session after (hours)"
+                        type="number"
+                        min="0.5"
+                        max="12"
+                        step="0.5"
+                        value={data.session_max_hours}
+                        onChange={(e) => setData('session_max_hours', e.target.value)}
+                        error={errors.session_max_hours}
+                    />
                 </div>
+                <p className="-mt-3 text-xs text-gray-500">
+                    Attendance for this section auto-closes this many hours after it opens (default 6).
+                    Schedule end time can still close it earlier.
+                </p>
 
                 <div className="flex items-center gap-3">
                     <button type="submit" disabled={processing} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
