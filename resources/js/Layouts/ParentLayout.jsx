@@ -2,6 +2,7 @@ import AppSidebarLayout from '@/Components/AppSidebarLayout';
 
 const nav = [
     { label: 'Dashboard', route: 'parent.dashboard' },
+    { label: 'Attendance', route: 'parent.attendance.index' },
     { label: 'Biometric Photos', route: 'parent.biometrics.index' },
     { label: 'Enrollment', route: 'parent.enrollment.index' },
     { label: 'Explanation Letters', route: 'parent.excuse-requests.index' },

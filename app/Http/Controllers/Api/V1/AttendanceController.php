@@ -85,7 +85,7 @@ class AttendanceController extends ApiController
             return $this->ok($this->recordPayload($record), 201);
         }
 
-        $status = $this->attendance->statusForArrival($session->schedule, $capturedAt);
+        $status = $this->attendance->statusForArrival($session->schedule, $capturedAt, $session);
         $record = $this->attendance->mark($session, $student->id, $status, [
             'method' => 'face',
             'confidence' => $data['confidence'] ?? null,

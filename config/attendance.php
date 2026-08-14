@@ -17,6 +17,12 @@ return [
     'adhoc_session_max_minutes' => (int) env('ATTENDANCE_SESSION_MAX_MINUTES', 360),
 
     /*
+    | Camera/face arrival after this many minutes from session opened_at is late.
+    | Set to 0 to disable the session-start grace period.
+    */
+    'late_after_minutes' => (int) env('ATTENDANCE_LATE_AFTER_MINUTES', 30),
+
+    /*
     |--------------------------------------------------------------------------
     | TEMPORARY — test clear button (remove after development)
     |--------------------------------------------------------------------------

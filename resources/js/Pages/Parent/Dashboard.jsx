@@ -26,6 +26,11 @@ export default function ParentDashboard({
                     <h2 className="text-base font-semibold text-gray-900">Quick links</h2>
                     <ul className="mt-3 space-y-2 text-sm">
                         <li>
+                            <Link href={route('parent.attendance.index')} className="text-blue-600 hover:underline">
+                                Attendance records
+                            </Link>
+                        </li>
+                        <li>
                             <Link href={route('parent.biometrics.index')} className="text-blue-600 hover:underline">
                                 Biometric face photos
                             </Link>
