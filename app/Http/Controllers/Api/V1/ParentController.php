@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Api\ApiController;
+use App\Http\Requests\SubmitExcuseLetterRequest;
 use App\Models\AttendanceExcuseRequest;
 use App\Models\BiometricPhotoSubmission;
 use App\Models\ChildEnrollmentRequest;
@@ -13,6 +14,7 @@ use App\Services\BiometricPhotoService;
 use App\Services\ExcuseRequestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ParentController extends ApiController
 {
@@ -246,6 +248,7 @@ class ParentController extends ApiController
                 'streak_summary' => $r->streak_summary,
                 'status' => $r->status,
                 'letter_body' => $r->letter_body,
+                ...$r->attachmentMeta(),
                 'notes' => $r->notes,
                 'submitted_at' => $r->submitted_at?->toDateTimeString(),
                 'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
@@ -255,20 +258,31 @@ class ParentController extends ApiController
         return $this->ok($items);
     }
 
-    public function submitExcuseLetter(Request $request, AttendanceExcuseRequest $excuseRequest): JsonResponse
+    public function submitExcuseLetter(SubmitExcuseLetterRequest $request, AttendanceExcuseRequest $excuseRequest): JsonResponse
     {
         $guardian = $this->guardianOrFail($request);
-        $data = $request->validate([
-            'letter_body' => ['required', 'string', 'min:10', 'max:2000'],
-        ]);
 
         try {
-            $this->excuses->submitLetter($guardian, $excuseRequest, $data['letter_body']);
+            $this->excuses->submitLetter(
+                $guardian,
+                $excuseRequest,
+                $request->input('letter_body'),
+                $request->file('letter_pdf'),
+                $request->file('photo'),
+            );
         } catch (\InvalidArgumentException $e) {
             return $this->fail($e->getMessage(), 'INVALID', 422);
         }
 
         return $this->ok(['message' => 'Explanation letter submitted.']);
+    }
+
+    public function excuseLetterFile(Request $request, AttendanceExcuseRequest $excuseRequest, string $type): StreamedResponse
+    {
+        $guardian = $this->guardianOrFail($request);
+        $this->excuses->assertGuardianCanAccess($guardian, $excuseRequest);
+
+        return $this->excuses->attachmentResponse($excuseRequest, $type);
     }
 
     private function guardianOrFail(Request $request)

@@ -2,24 +2,60 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import ParentLayout from '@/Layouts/ParentLayout';
 
+function fileUrl(requestId, type) {
+    return route('parent.excuse-requests.file', { excuseRequest: requestId, type });
+}
+
 export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
+    const [modes, setModes] = useState({});
     const [letters, setLetters] = useState({});
+    const [pdfs, setPdfs] = useState({});
+    const [photos, setPhotos] = useState({});
+    const [submittingId, setSubmittingId] = useState(null);
+
+    const modeFor = (id) => modes[id] || 'text';
 
     const submitExcuseLetter = (e, requestId) => {
         e.preventDefault();
+        const mode = modeFor(requestId);
         const letter_body = (letters[requestId] || '').trim();
-        if (letter_body.length < 10) {
+        const pdf = pdfs[requestId] || null;
+        const photo = photos[requestId] || null;
+
+        if (mode === 'text' && letter_body.length < 10) {
             window.alert('Please write at least 10 characters explaining the absences/lates.');
             return;
         }
-        router.post(
-            route('parent.excuse-requests.submit', requestId),
-            { letter_body },
-            {
-                preserveScroll: true,
-                onSuccess: () => setLetters((prev) => ({ ...prev, [requestId]: '' })),
+        if (mode === 'pdf' && !pdf) {
+            window.alert('Please choose a PDF file for the explanation letter.');
+            return;
+        }
+
+        const formData = new FormData();
+        if (mode === 'text') {
+            formData.append('letter_body', letter_body);
+        } else {
+            formData.append('letter_pdf', pdf);
+        }
+        if (photo) {
+            formData.append('photo', photo);
+        }
+
+        setSubmittingId(requestId);
+        router.post(route('parent.excuse-requests.submit', requestId), formData, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setLetters((prev) => ({ ...prev, [requestId]: '' }));
+                setPdfs((prev) => ({ ...prev, [requestId]: null }));
+                setPhotos((prev) => ({ ...prev, [requestId]: null }));
             },
-        );
+            onError: (errors) => {
+                const first = Object.values(errors)[0];
+                if (first) window.alert(typeof first === 'string' ? first : 'Please check the letter and files.');
+            },
+            onFinish: () => setSubmittingId(null),
+        });
     };
 
     return (
@@ -30,7 +66,7 @@ export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
                 <div className="border-b border-gray-100 px-4 py-3">
                     <h2 className="text-base font-semibold text-gray-900">Explanation Letters</h2>
                     <p className="text-xs text-gray-500">
-                        After 3 consecutive absences or late marks, submit a letter for the teacher to review.
+                        After 3 consecutive absences or late marks, submit a typed letter or a PDF. You can also attach a photo.
                     </p>
                 </div>
                 <div className="divide-y divide-gray-100">
@@ -64,27 +100,107 @@ export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
                                     : ''}
                             </p>
                             {r.status === 'awaiting_letter' && (
-                                <form className="mt-3 space-y-2" onSubmit={(e) => submitExcuseLetter(e, r.id)}>
-                                    <textarea
-                                        value={letters[r.id] || ''}
-                                        onChange={(e) => setLetters((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                                        rows={4}
-                                        placeholder="Explain why your child was absent or late..."
-                                        className="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                        required
-                                    />
+                                <form className="mt-3 space-y-3" onSubmit={(e) => submitExcuseLetter(e, r.id)}>
+                                    <div className="flex flex-wrap gap-3 text-sm text-gray-700">
+                                        <label className="inline-flex items-center gap-2">
+                                            <input
+                                                type="radio"
+                                                name={`letter-mode-${r.id}`}
+                                                checked={modeFor(r.id) === 'text'}
+                                                onChange={() => setModes((prev) => ({ ...prev, [r.id]: 'text' }))}
+                                                className="border-gray-300 text-blue-600"
+                                            />
+                                            Type a letter
+                                        </label>
+                                        <label className="inline-flex items-center gap-2">
+                                            <input
+                                                type="radio"
+                                                name={`letter-mode-${r.id}`}
+                                                checked={modeFor(r.id) === 'pdf'}
+                                                onChange={() => setModes((prev) => ({ ...prev, [r.id]: 'pdf' }))}
+                                                className="border-gray-300 text-blue-600"
+                                            />
+                                            Upload a PDF
+                                        </label>
+                                    </div>
+
+                                    {modeFor(r.id) === 'text' ? (
+                                        <textarea
+                                            value={letters[r.id] || ''}
+                                            onChange={(e) => setLetters((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                                            rows={4}
+                                            placeholder="Explain why your child was absent or late..."
+                                            className="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            required
+                                        />
+                                    ) : (
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-600">PDF letter (max 5 MB)</label>
+                                            <input
+                                                type="file"
+                                                accept="application/pdf,.pdf"
+                                                onChange={(e) =>
+                                                    setPdfs((prev) => ({ ...prev, [r.id]: e.target.files?.[0] || null }))
+                                                }
+                                                className="mt-1 block w-full text-xs text-gray-600"
+                                                required
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600">
+                                            Supporting photo (optional, JPEG/PNG, max 5 MB)
+                                        </label>
+                                        <input
+                                            type="file"
+                                            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                                            onChange={(e) =>
+                                                setPhotos((prev) => ({ ...prev, [r.id]: e.target.files?.[0] || null }))
+                                            }
+                                            className="mt-1 block w-full text-xs text-gray-600"
+                                        />
+                                    </div>
+
                                     <button
                                         type="submit"
-                                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                        disabled={submittingId === r.id}
+                                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                                     >
-                                        Submit explanation letter
+                                        {submittingId === r.id ? 'Submitting…' : 'Submit explanation letter'}
                                     </button>
                                 </form>
                             )}
-                            {r.letter_body && r.status !== 'awaiting_letter' && (
-                                <p className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-700">
-                                    {r.letter_body}
-                                </p>
+                            {r.status !== 'awaiting_letter' && (
+                                <div className="mt-2 space-y-2">
+                                    {r.letter_body ? (
+                                        <p className="whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                                            {r.letter_body}
+                                        </p>
+                                    ) : null}
+                                    {r.has_pdf ? (
+                                        <a
+                                            href={fileUrl(r.id, 'pdf')}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-block text-xs font-medium text-blue-700 hover:underline"
+                                        >
+                                            View PDF{r.letter_pdf_name ? ` (${r.letter_pdf_name})` : ''}
+                                        </a>
+                                    ) : null}
+                                    {r.has_photo ? (
+                                        <div>
+                                            <p className="text-xs font-medium text-gray-600">
+                                                Photo{r.photo_name ? `: ${r.photo_name}` : ''}
+                                            </p>
+                                            <img
+                                                src={fileUrl(r.id, 'photo')}
+                                                alt="Supporting photo"
+                                                className="mt-1 max-h-48 rounded-lg object-contain"
+                                            />
+                                        </div>
+                                    ) : null}
+                                </div>
                             )}
                             {r.notes ? <p className="mt-1 text-xs text-gray-600">Teacher note: {r.notes}</p> : null}
                         </div>

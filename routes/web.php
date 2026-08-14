@@ -60,6 +60,9 @@ Route::middleware('auth')->group(function () {
             ->name('enrollment-requests.reject');
 
         Route::get('excuse-requests', [TeacherExcuseRequestController::class, 'index'])->name('excuse-requests.index');
+        Route::get('excuse-requests/{excuseRequest}/file/{type}', [TeacherExcuseRequestController::class, 'file'])
+            ->whereIn('type', ['pdf', 'photo'])
+            ->name('excuse-requests.file');
         Route::post('excuse-requests/{excuseRequest}/approve', [TeacherExcuseRequestController::class, 'approve'])
             ->name('excuse-requests.approve');
         Route::post('excuse-requests/{excuseRequest}/reject', [TeacherExcuseRequestController::class, 'reject'])
@@ -93,6 +96,9 @@ Route::middleware('auth')->group(function () {
         Route::get('biometrics', [DashboardController::class, 'parentBiometrics'])->name('biometrics.index');
         Route::get('enrollment', [DashboardController::class, 'parentEnrollment'])->name('enrollment.index');
         Route::get('excuse-requests', [DashboardController::class, 'parentExcuseRequests'])->name('excuse-requests.index');
+        Route::get('excuse-requests/{excuseRequest}/file/{type}', [DashboardController::class, 'excuseLetterFile'])
+            ->whereIn('type', ['pdf', 'photo'])
+            ->name('excuse-requests.file');
         Route::get('notifications', [DashboardController::class, 'parentNotifications'])->name('notifications.index');
 
         Route::post('enrollment-requests', [DashboardController::class, 'createEnrollmentRequest'])->name('enrollment-requests.store');

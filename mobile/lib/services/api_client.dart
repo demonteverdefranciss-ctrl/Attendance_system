@@ -27,6 +27,27 @@ class ApiClient {
   Future<Map<String, dynamic>> post(String path, [Map<String, dynamic>? body]) =>
       _request('POST', path, body: body);
 
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    Map<String, String> fields = const {},
+    Map<String, String> files = const {},
+  }) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Accept'] = 'application/json';
+    if (_token != null) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+    request.fields.addAll(fields);
+    for (final entry in files.entries) {
+      request.files.add(await http.MultipartFile.fromPath(entry.key, entry.value));
+    }
+
+    final streamed = await _client.send(request);
+    final response = await http.Response.fromStream(streamed);
+    return _decode(response);
+  }
+
   Future<List<int>> getBytes(String path) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path');
     final headers = {
@@ -93,20 +114,6 @@ class ApiClient {
       _ => throw ApiException('Unsupported method: $method'),
     };
 
-    Map<String, dynamic> payload;
-    try {
-      payload = jsonDecode(response.body) as Map<String, dynamic>;
-    } catch (_) {
-      throw ApiException('Invalid server response (${response.statusCode}).');
-    }
-
-    if (response.statusCode >= 200 && response.statusCode < 300 && payload['success'] == true) {
-      return payload;
-    }
-
-    final error = payload['error'];
-    final message = error is Map ? (error['message'] as String? ?? 'Request failed') : 'Request failed';
-    final code = error is Map ? error['code'] as String? : null;
-    throw ApiException(message, code: code);
+    return _decode(response);
   }
 }
