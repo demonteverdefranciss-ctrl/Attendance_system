@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\TeacherNotification;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -46,7 +47,45 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
             ],
+            'teacherAlerts' => fn () => $this->teacherAlerts($request),
             'assetBase' => rtrim((string) env('ASSET_URL', ''), '/'),
         ];
+    }
+
+    /**
+     * Unread in-app alerts for the signed-in teacher (empty for other roles).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function teacherAlerts(Request $request): array
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasRole('teacher')) {
+            return [];
+        }
+
+        $teacher = $user->teacher;
+        if (! $teacher) {
+            return [];
+        }
+
+        try {
+            return TeacherNotification::query()
+                ->where('teacher_id', $teacher->id)
+                ->whereNull('read_at')
+                ->latest('id')
+                ->limit(8)
+                ->get()
+                ->map(fn (TeacherNotification $n) => [
+                    'id' => $n->id,
+                    'type' => $n->type,
+                    'title' => $n->title,
+                    'body' => $n->body,
+                    'created_at' => $n->created_at?->toDateTimeString(),
+                ])
+                ->all();
+        } catch (\Throwable) {
+            return [];
+        }
     }
 }

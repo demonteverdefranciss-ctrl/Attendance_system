@@ -1,10 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import AtRiskStudentsTable from '@/Components/AtRiskStudentsTable';
 import { StatCard } from '@/Layouts/AuthenticatedLayout';
 import { Doughnut, Line, ChartCard, noAspect } from '@/Components/Charts';
 
-export default function TeacherDashboard({ stats, summary, trend, atRisk = [], methodBreakdown, range }) {
+export default function TeacherDashboard({ stats, summary, trend, atRisk = [], methodBreakdown, range, notifications = [] }) {
     const statusData = {
         labels: ['Present', 'Late', 'Absent', 'Excused'],
         datasets: [{
@@ -72,6 +72,42 @@ export default function TeacherDashboard({ stats, summary, trend, atRisk = [], m
             </div>
 
             <AtRiskStudentsTable students={atRisk} />
+
+            <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+                <div className="border-b border-gray-100 px-4 py-3">
+                    <h2 className="text-base font-semibold text-gray-900">Notifications</h2>
+                    <p className="text-xs text-gray-500">Session reminders and other teacher alerts</p>
+                </div>
+                <div className="divide-y divide-gray-100">
+                    {notifications.length === 0 && (
+                        <div className="px-4 py-8 text-center text-sm text-gray-400">No notifications yet.</div>
+                    )}
+                    {notifications.map((n) => (
+                        <div key={n.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-sm font-semibold text-gray-900">{n.title}</h3>
+                                    {n.read_at ? (
+                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">Read</span>
+                                    ) : (
+                                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">New</span>
+                                    )}
+                                </div>
+                                {n.body && <p className="mt-1 text-sm text-gray-600">{n.body}</p>}
+                            </div>
+                            {!n.read_at && (
+                                <button
+                                    type="button"
+                                    onClick={() => router.post(route('teacher.notifications.read', n.id), {}, { preserveScroll: true })}
+                                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                                >
+                                    Dismiss
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
         </TeacherLayout>
     );
 }

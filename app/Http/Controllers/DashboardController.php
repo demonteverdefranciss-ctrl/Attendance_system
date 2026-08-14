@@ -9,6 +9,7 @@ use App\Models\Guardian;
 use App\Models\Notification;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\TeacherNotification;
 use App\Services\AnalyticsService;
 use App\Services\AuditService;
 use App\Services\ExcuseRequestService;
@@ -85,7 +86,20 @@ class DashboardController extends Controller
             'atRisk' => $this->analytics->atRiskStudents($scope, $from, $to),
             'methodBreakdown' => $this->analytics->methodBreakdown($scope, $from, $to),
             'range' => ['from' => $from, 'to' => $to],
+            'notifications' => $this->teacherNotificationsPayload($teacher?->id),
         ]);
+    }
+
+    public function markTeacherNotificationRead(Request $request, TeacherNotification $teacherNotification): RedirectResponse
+    {
+        $teacher = Teacher::where('user_id', $request->user()->id)->first();
+        abort_unless($teacher && $teacherNotification->teacher_id === $teacher->id, 403);
+
+        if (! $teacherNotification->read_at) {
+            $teacherNotification->update(['read_at' => now()]);
+        }
+
+        return back();
     }
 
     public function parent(): Response
@@ -572,5 +586,30 @@ class DashboardController extends Controller
                 'created_at' => $r->created_at?->toDateTimeString(),
             ])
             ->values();
+    }
+
+    private function teacherNotificationsPayload(?int $teacherId)
+    {
+        if (! $teacherId) {
+            return collect();
+        }
+
+        try {
+            return TeacherNotification::where('teacher_id', $teacherId)
+                ->latest('id')
+                ->limit(15)
+                ->get()
+                ->map(fn ($n) => [
+                    'id' => $n->id,
+                    'type' => $n->type,
+                    'title' => $n->title,
+                    'body' => $n->body,
+                    'read_at' => $n->read_at?->toDateTimeString(),
+                    'created_at' => $n->created_at?->toDateTimeString(),
+                ])
+                ->values();
+        } catch (\Throwable) {
+            return collect();
+        }
     }
 }
