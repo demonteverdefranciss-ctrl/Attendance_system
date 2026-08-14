@@ -102,10 +102,13 @@ export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
                             </p>
                             {r.status === 'awaiting_letter' && (
                                 <form className="mt-3 space-y-3" onSubmit={(e) => submitExcuseLetter(e, r.id)}>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                                         <button
                                             type="button"
-                                            onClick={() => setModes((prev) => ({ ...prev, [r.id]: 'text' }))}
+                                            onClick={() => {
+                                                setModes((prev) => ({ ...prev, [r.id]: 'text' }));
+                                                setPdfs((prev) => ({ ...prev, [r.id]: null }));
+                                            }}
                                             className={`flex flex-col items-center gap-2 rounded-xl px-3 py-4 text-center ring-1 transition ${
                                                 modeFor(r.id) === 'text'
                                                     ? 'bg-blue-50 ring-2 ring-blue-600'
@@ -118,23 +121,27 @@ export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
                                             </svg>
                                             <span className="text-sm font-semibold text-gray-900">Type a letter</span>
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setModes((prev) => ({ ...prev, [r.id]: 'pdf' }))}
-                                            className={`flex flex-col items-center gap-2 rounded-xl px-3 py-4 text-center ring-1 transition ${
-                                                modeFor(r.id) === 'pdf'
-                                                    ? 'bg-blue-50 ring-2 ring-blue-600'
-                                                    : 'bg-white ring-gray-200 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            <svg viewBox="0 0 48 48" className="h-10 w-10" aria-hidden="true">
-                                                <rect x="10" y="6" width="24" height="32" rx="3" fill="#FEF2F2" stroke="#DC2626" strokeWidth="2" />
-                                                <path d="M34 14V6l8 8h-8z" fill="#FECACA" stroke="#DC2626" strokeWidth="2" strokeLinejoin="round" />
-                                                <rect x="14" y="24" width="20" height="9" rx="1.5" fill="#DC2626" />
-                                                <text x="24" y="31" textAnchor="middle" fontSize="7" fontWeight="700" fill="#fff">PDF</text>
-                                            </svg>
-                                            <span className="text-sm font-semibold text-gray-900">Upload PDF</span>
-                                        </button>
+                                        <FilePickButton
+                                            kind="pdf"
+                                            accept="application/pdf,.pdf"
+                                            label="Upload PDF"
+                                            hint="PDF letter, max 5 MB"
+                                            value={pdfs[r.id] || null}
+                                            onChange={(file) => {
+                                                setPdfs((prev) => ({ ...prev, [r.id]: file }));
+                                                if (file) {
+                                                    setModes((prev) => ({ ...prev, [r.id]: 'pdf' }));
+                                                }
+                                            }}
+                                        />
+                                        <FilePickButton
+                                            kind="photo"
+                                            accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                                            label="Add photo"
+                                            hint="Optional JPEG/PNG"
+                                            value={photos[r.id] || null}
+                                            onChange={(file) => setPhotos((prev) => ({ ...prev, [r.id]: file }))}
+                                        />
                                     </div>
 
                                     {modeFor(r.id) === 'text' ? (
@@ -147,25 +154,10 @@ export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
                                             required
                                         />
                                     ) : (
-                                        <FilePickButton
-                                            kind="pdf"
-                                            accept="application/pdf,.pdf"
-                                            required
-                                            label="Choose PDF"
-                                            hint="PDF letter, max 5 MB"
-                                            value={pdfs[r.id] || null}
-                                            onChange={(file) => setPdfs((prev) => ({ ...prev, [r.id]: file }))}
-                                        />
+                                        <p className="text-xs text-gray-500">
+                                            PDF selected. You can still add an optional photo, then submit.
+                                        </p>
                                     )}
-
-                                    <FilePickButton
-                                        kind="photo"
-                                        accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-                                        label="Add photo"
-                                        hint="Optional JPEG or PNG, max 5 MB"
-                                        value={photos[r.id] || null}
-                                        onChange={(file) => setPhotos((prev) => ({ ...prev, [r.id]: file }))}
-                                    />
 
                                     <button
                                         type="submit"

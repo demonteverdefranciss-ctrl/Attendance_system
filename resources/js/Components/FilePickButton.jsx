@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 function PdfMark({ className = 'h-10 w-10' }) {
     return (
@@ -33,15 +33,12 @@ function fileList(value, multiple) {
 export default function FilePickButton({
     accept,
     multiple = false,
-    required = false,
     kind = 'photo',
     label,
     hint,
     value,
     onChange,
 }) {
-    const inputId = useId();
-    const inputRef = useRef(null);
     const files = fileList(value, multiple);
     const selected = files.length > 0;
     const [previews, setPreviews] = useState([]);
@@ -66,46 +63,40 @@ export default function FilePickButton({
             return;
         }
         onChange(next[0] || null);
+        e.target.value = '';
     };
 
     return (
-        <div>
+        <label
+            className={`relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl px-3 py-4 text-center ring-1 transition ${
+                selected
+                    ? 'bg-blue-50 ring-2 ring-blue-600'
+                    : 'bg-white ring-gray-200 hover:bg-gray-50 hover:ring-blue-300'
+            }`}
+        >
             <input
-                id={inputId}
-                ref={inputRef}
                 type="file"
                 accept={accept}
                 multiple={multiple}
-                required={required && !selected}
-                className="sr-only"
                 onChange={handleChange}
-            />
-            <button
-                type="button"
+                className="absolute inset-0 z-10 cursor-pointer opacity-0"
                 aria-label={label}
-                onClick={() => inputRef.current?.click()}
-                className={`flex w-full flex-col items-center justify-center gap-2 rounded-xl px-3 py-4 text-center ring-1 transition ${
-                    selected
-                        ? 'bg-blue-50 ring-2 ring-blue-600'
-                        : 'bg-white ring-gray-200 hover:bg-gray-50 hover:ring-blue-300'
-                }`}
-            >
-                {kind === 'pdf' ? <PdfMark /> : <PhotoMark />}
-                <span className="text-sm font-semibold text-gray-900">{label}</span>
-                {hint ? <span className="text-xs text-gray-500">{hint}</span> : null}
-                {selected ? (
-                    <span className="max-w-full truncate text-xs font-medium text-blue-700">
-                        {multiple ? `${files.length} photo${files.length === 1 ? '' : 's'} selected` : files[0].name}
-                    </span>
-                ) : null}
-                {previews.length > 0 ? (
-                    <span className="flex flex-wrap justify-center gap-1">
-                        {previews.map((url) => (
-                            <img key={url} src={url} alt="" className="h-12 w-12 rounded-md object-cover ring-1 ring-blue-100" />
-                        ))}
-                    </span>
-                ) : null}
-            </button>
-        </div>
+            />
+            {kind === 'pdf' ? <PdfMark /> : <PhotoMark />}
+            <span className="text-sm font-semibold text-gray-900">{label}</span>
+            {hint && !selected ? <span className="text-xs text-gray-500">{hint}</span> : null}
+            {selected ? (
+                <span className="relative z-20 max-w-full truncate text-xs font-medium text-blue-700">
+                    {multiple ? `${files.length} photo${files.length === 1 ? '' : 's'} selected` : files[0].name}
+                </span>
+            ) : null}
+            {previews.length > 0 ? (
+                <span className="relative z-20 flex flex-wrap justify-center gap-1">
+                    {previews.map((url) => (
+                        <img key={url} src={url} alt="" className="h-12 w-12 rounded-md object-cover ring-1 ring-blue-100" />
+                    ))}
+                </span>
+            ) : null}
+        </label>
     );
 }
