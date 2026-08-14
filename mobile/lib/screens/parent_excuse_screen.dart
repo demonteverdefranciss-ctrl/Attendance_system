@@ -194,6 +194,7 @@ class _ParentExcuseScreenState extends State<ParentExcuseScreen> {
                   ..._items.map((item) {
                     final id = item['id'] as int;
                     final status = item['status'] as String? ?? '';
+                    final mode = _modeFor(id);
                     final streak = (item['streak_summary'] as List?)?.cast<Map<String, dynamic>>() ?? [];
                     return Card(
                       child: Padding(
@@ -249,35 +250,81 @@ class _ParentExcuseScreenState extends State<ParentExcuseScreen> {
                               ),
                             ],
                             if (status == 'awaiting_letter') ...[
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: _controllerFor(id),
-                                maxLines: 4,
-                                maxLength: 2000,
-                                decoration: const InputDecoration(
-                                  border: OutlineInputBorder(),
-                                  hintText: 'Explain why your child was absent or late…',
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _ChoiceTile(
+                                      selected: mode == 'text',
+                                      icon: Icons.edit_note,
+                                      color: const Color(0xFF2563EB),
+                                      label: 'Type letter',
+                                      onTap: () => setState(() => _modes[id] = 'text'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _ChoiceTile(
+                                      selected: mode == 'pdf',
+                                      icon: Icons.picture_as_pdf,
+                                      color: const Color(0xFFDC2626),
+                                      label: 'Upload PDF',
+                                      onTap: () => setState(() => _modes[id] = 'pdf'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              if (mode == 'text')
+                                TextField(
+                                  controller: _controllerFor(id),
+                                  maxLines: 4,
+                                  maxLength: 2000,
+                                  decoration: const InputDecoration(
+                                    border: OutlineInputBorder(),
+                                    hintText: 'Explain why your child was absent or late…',
+                                  ),
+                                )
+                              else
+                                _UploadTile(
+                                  icon: Icons.picture_as_pdf,
+                                  color: const Color(0xFFDC2626),
+                                  label: 'Choose PDF',
+                                  selectedName: _pdfNames[id],
+                                  onTap: () => _pickPdf(id),
                                 ),
                               const SizedBox(height: 8),
-                              OutlinedButton.icon(
-                                onPressed: () => _pickPhoto(id),
-                                icon: const Icon(Icons.photo),
-                                label: Text(_photoNames[id] ?? 'Add photo (optional)'),
+                              _UploadTile(
+                                icon: Icons.photo_camera,
+                                color: const Color(0xFF2563EB),
+                                label: 'Add photo',
+                                hint: 'Optional',
+                                selectedName: _photoNames[id],
+                                onTap: () => _pickPhoto(id),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               FilledButton(
                                 onPressed: () => _submit(id),
                                 child: const Text('Submit letter'),
                               ),
                             ],
-                            if (item['letter_body'] != null && status != 'awaiting_letter')
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  item['letter_body'].toString(),
-                                  style: const TextStyle(fontStyle: FontStyle.italic),
+                            if (status != 'awaiting_letter') ...[
+                              if (item['letter_body'] != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    item['letter_body'].toString(),
+                                    style: const TextStyle(fontStyle: FontStyle.italic),
+                                  ),
                                 ),
-                              ),
+                              if (item['has_pdf'] == true)
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 8),
+                                  child: Text('PDF letter submitted.'),
+                                ),
+                              if (item['has_photo'] == true)
+                                const Text('Supporting photo submitted.'),
+                            ],
                             if (item['notes'] != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 8),
@@ -294,6 +341,103 @@ class _ParentExcuseScreenState extends State<ParentExcuseScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _ChoiceTile extends StatelessWidget {
+  const _ChoiceTile({
+    required this.selected,
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final Color color;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? color.withValues(alpha: 0.08) : Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: selected ? color : const Color(0xFFE5E7EB), width: selected ? 2 : 1),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, size: 36, color: color),
+              const SizedBox(height: 8),
+              Text(label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UploadTile extends StatelessWidget {
+  const _UploadTile({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.onTap,
+    this.hint,
+    this.selectedName,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String? hint;
+  final String? selectedName;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = selectedName != null;
+    return Material(
+      color: selected ? color.withValues(alpha: 0.08) : Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: selected ? color : const Color(0xFFE5E7EB), width: selected ? 2 : 1),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, size: 40, color: color),
+              const SizedBox(height: 8),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+              if (hint != null && !selected)
+                Text(hint!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              if (selected)
+                Text(
+                  selectedName!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
