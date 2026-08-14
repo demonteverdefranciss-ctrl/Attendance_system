@@ -42,14 +42,46 @@ class _TeacherExcuseScreenState extends State<TeacherExcuseScreen> {
   }
 
   Future<void> _review(int id, bool approve) async {
+    final controller = TextEditingController();
+    final notes = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(approve ? 'Accept letter' : 'Reject letter'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          maxLength: 500,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            hintText: approve
+                ? 'Optional note for the parent'
+                : 'Optional rejection reason for the parent',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(approve ? 'Accept' : 'Reject'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (notes == null) return;
+
     try {
       final path = approve
           ? '/teacher/excuse-requests/$id/approve'
           : '/teacher/excuse-requests/$id/reject';
-      await widget.api.post(path);
+      await widget.api.post(path, {'notes': notes.isEmpty ? null : notes});
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(approve ? 'Approved (excused).' : 'Rejected.')),
+        SnackBar(
+          content: Text(
+            approve ? 'Approved (records marked excused).' : 'Rejected.',
+          ),
+        ),
       );
       _load();
     } on ApiException catch (e) {
@@ -69,6 +101,12 @@ class _TeacherExcuseScreenState extends State<TeacherExcuseScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  Text(
+                    'Parents submit explanation letters after 3 consecutive absences or late marks. '
+                    'Accepting excuses those attendance records.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 12),
                   if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
                   if (_items.isEmpty)
                     const Padding(
@@ -76,25 +114,49 @@ class _TeacherExcuseScreenState extends State<TeacherExcuseScreen> {
                       child: Text('No pending explanation letters.'),
                     ),
                   ..._items.map((item) {
+                    final streak = (item['streak_summary'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                    final phone = item['guardian_phone']?.toString();
                     return Card(
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(item['student']?.toString() ?? 'Student',
-                                style: Theme.of(context).textTheme.titleMedium),
+                            Text(
+                              item['student']?.toString() ?? 'Student',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
                             Text('LRN: ${item['lrn']} · ${item['section']}'),
-                            Text('Parent: ${item['guardian'] ?? '—'}'),
+                            Text(
+                              'Parent: ${item['guardian'] ?? '—'}'
+                              '${phone != null && phone.isNotEmpty ? ' · $phone' : ''}',
+                            ),
+                            Text(
+                              'Streak: ${item['streak_count'] ?? 0} · Submitted: ${item['submitted_at'] ?? '—'}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            if (streak.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: streak.map((row) {
+                                  return Chip(
+                                    label: Text(
+                                      '${row['date']}: ${row['status']}',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  );
+                                }).toList(),
+                              ),
+                            ],
                             const SizedBox(height: 8),
-                            if ((item['letter_body'] as String?)?.isNotEmpty == true)
-                              Text(item['letter_body'].toString(),
-                                  style: const TextStyle(fontStyle: FontStyle.italic))
-                            else
-                              const Text('No typed letter — a PDF was uploaded.',
-                                  style: TextStyle(fontStyle: FontStyle.italic)),
-                            if (item['has_pdf'] == true) const Text('PDF letter attached.'),
-                            if (item['has_photo'] == true) const Text('Supporting photo attached.'),
+                            Text(
+                              item['letter_body']?.toString() ?? '',
+                              style: const TextStyle(fontStyle: FontStyle.italic),
+                            ),
                             const SizedBox(height: 12),
                             Row(
                               children: [

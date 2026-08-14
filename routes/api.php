@@ -43,6 +43,7 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('parent')->group(function () {
             Route::get('dashboard', [ParentController::class, 'dashboard']);
+            Route::get('children', [ParentController::class, 'children']);
             Route::get('enrollment-requests', [ParentController::class, 'enrollmentRequests']);
             Route::post('enrollment-requests', [ParentController::class, 'storeEnrollmentRequest']);
             Route::post('notification-preference', [ParentController::class, 'updateNotificationPreference']);
@@ -50,6 +51,7 @@ Route::prefix('v1')->group(function () {
             Route::get('excuse-requests/{excuseRequest}/file/{type}', [ParentController::class, 'excuseLetterFile'])
                 ->whereIn('type', ['pdf', 'photo']);
             Route::post('excuse-requests/{excuseRequest}', [ParentController::class, 'submitExcuseLetter']);
+            Route::post('biometric-photos', [ParentController::class, 'storeBiometricPhotos']);
         });
 
         Route::prefix('teacher')->group(function () {

@@ -6,16 +6,19 @@ Cross-platform mobile app for parents and teachers. Consumes `/api/v1` only (San
 
 ### Parent
 - Login (`parent01` / `Parent@123` in seeded data)
-- Dashboard: children count, unread notifications
+- Dashboard: children count, unread notifications, push preference toggle
 - Child attendance history + summary analytics
-- Notifications list + mark as read
-- Child enrollment request by LRN (teacher verification workflow)
+- Notifications list + mark as read (opens explanation letters for streak alerts)
+- Child enrollment request (LRN + name + optional details; teacher verification)
+- Explanation letters after 3 consecutive absent/late days
+- Face photo upload for biometric enrollment (teacher review)
 
 ### Teacher
 - Login (`teacher01` / `Teacher@123` in seeded data)
 - Dashboard: sections, students, attendance rate, pending tasks
 - Attendance: open today's session, mark present/late/absent/excused, record time-out, close session
 - Enrollment requests: approve or reject parent LRN links
+- Explanation letters: accept (excuse records) or reject with optional notes
 - Biometric photos: review and approve/reject parent submissions
 - Student list with attendance detail view
 
@@ -82,7 +85,15 @@ Copy to phone and install (enable install from unknown sources).
 | GET | `/notifications` | Notification list |
 | POST | `/notifications/{id}/read` | Mark read |
 | GET | `/parent/enrollment-requests` | Request status |
-| POST | `/parent/enrollment-requests` | Submit LRN request |
+| POST | `/parent/enrollment-requests` | Submit enrollment (LRN + names) |
+| POST | `/parent/notification-preference` | Toggle push / none |
+| GET | `/parent/excuse-requests` | Explanation letter list |
+| POST | `/parent/excuse-requests/{id}` | Submit letter body |
+| GET | `/parent/children` | Children + biometric submission status |
+| POST | `/parent/biometric-photos` | Multipart face photo upload |
+| GET | `/teacher/excuse-requests` | Pending letters to review |
+| POST | `/teacher/excuse-requests/{id}/approve` | Accept (excuse records) |
+| POST | `/teacher/excuse-requests/{id}/reject` | Reject letter |
 
 ## Push notifications (optional)
 

@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\SubmitExcuseLetterRequest;
 use App\Models\AttendanceExcuseRequest;
+use App\Models\BiometricPhotoSubmission;
 use App\Models\ChildEnrollmentRequest;
 use App\Models\Notification;
 use App\Models\Student;
 use App\Services\AuditService;
+use App\Services\BiometricPhotoService;
 use App\Services\ExcuseRequestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +21,7 @@ class ParentController extends ApiController
     public function __construct(
         private AuditService $audit,
         private ExcuseRequestService $excuses,
+        private BiometricPhotoService $photos,
     ) {
     }
 
@@ -34,6 +37,99 @@ class ParentController extends ApiController
             'unread_notifications' => $unreadCount,
             'notify_pref' => $guardian->notify_pref ?? 'push',
         ]);
+    }
+
+    public function children(Request $request): JsonResponse
+    {
+        $guardian = $this->guardianOrFail($request);
+
+        $children = $guardian->students()
+            ->with('section:id,name,grade_level')
+            ->orderBy('last_name')
+            ->get()
+            ->map(function ($student) {
+                $latestSubmission = BiometricPhotoSubmission::where('student_id', $student->id)
+                    ->latest('id')
+                    ->first();
+
+                return [
+                    'id' => $student->id,
+                    'name' => $student->full_name,
+                    'first_name' => $student->first_name,
+                    'last_name' => $student->last_name,
+                    'lrn' => $student->lrn,
+                    'section' => $student->section
+                        ? "{$student->section->grade_level} - {$student->section->name}"
+                        : '—',
+                    'consent_biometric' => (bool) $student->consent_biometric,
+                    'biometric_submission' => $latestSubmission ? [
+                        'status' => $latestSubmission->status,
+                        'created_at' => $latestSubmission->created_at?->toDateTimeString(),
+                        'reviewed_at' => $latestSubmission->reviewed_at?->toDateTimeString(),
+                        'notes' => $latestSubmission->notes,
+                    ] : null,
+                ];
+            })
+            ->values();
+
+        return $this->ok($children);
+    }
+
+    public function storeBiometricPhotos(Request $request): JsonResponse
+    {
+        $guardian = $this->guardianOrFail($request);
+
+        $data = $request->validate([
+            'student_id' => ['required', 'integer', 'exists:students,id'],
+            'consent_acknowledged' => ['accepted'],
+            'photos' => ['required', 'array', 'min:1', 'max:'.BiometricPhotoService::MAX_PHOTOS],
+            'photos.*' => ['image', 'mimes:jpeg,jpg,png', 'max:2048'],
+        ]);
+
+        $student = Student::findOrFail($data['student_id']);
+
+        if (! $guardian->students()->where('students.id', $student->id)->exists()) {
+            return $this->fail('You can only upload photos for your linked children.', 'FORBIDDEN', 403);
+        }
+
+        $pendingExists = BiometricPhotoSubmission::where('student_id', $student->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($pendingExists) {
+            return $this->fail('A photo submission for this child is already pending teacher review.', 'PENDING_EXISTS', 422);
+        }
+
+        $approvedExists = BiometricPhotoSubmission::where('student_id', $student->id)
+            ->where('status', 'approved')
+            ->whereNull('synced_at')
+            ->exists();
+
+        if ($approvedExists) {
+            return $this->fail('Approved photos for this child are awaiting import at school.', 'AWAITING_SYNC', 422);
+        }
+
+        $submission = $this->photos->createSubmission(
+            $student,
+            $guardian->id,
+            $data['photos'],
+            true
+        );
+
+        $this->audit->log(
+            action: 'biometric_photos_submitted',
+            userId: $request->user()->id,
+            entity: $submission,
+            newValues: [
+                'student_id' => $student->id,
+                'photo_count' => count($data['photos']),
+                'status' => 'pending',
+            ],
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent()
+        );
+
+        return $this->ok(['message' => 'Face photos submitted for teacher review.'], 201);
     }
 
     public function enrollmentRequests(Request $request): JsonResponse
