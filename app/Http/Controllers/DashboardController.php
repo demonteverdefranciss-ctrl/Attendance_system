@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SubmitExcuseLetterRequest;
 use App\Models\AttendanceExcuseRequest;
+use App\Models\AttendanceRecord;
 use App\Models\BiometricPhotoSubmission;
 use App\Models\ChildEnrollmentRequest;
 use App\Models\Guardian;
@@ -149,6 +150,17 @@ class DashboardController extends Controller
 
         return Inertia::render('Parent/ExcuseRequests', [
             'excuseRequests' => $this->parentExcusePayload($guardian),
+        ]);
+    }
+
+    public function parentAttendance(): Response
+    {
+        $guardian = Guardian::where('user_id', Auth::id())->first();
+        $children = $this->parentChildrenPayload($guardian);
+
+        return Inertia::render('Parent/Attendance', [
+            'children' => $children,
+            'records' => $this->parentAttendancePayload($guardian),
         ]);
     }
 
@@ -601,6 +613,42 @@ class DashboardController extends Controller
                 'submitted_at' => $r->submitted_at?->toDateTimeString(),
                 'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
                 'created_at' => $r->created_at?->toDateTimeString(),
+            ])
+            ->values();
+    }
+
+    private function parentAttendancePayload(?Guardian $guardian)
+    {
+        if (! $guardian) {
+            return collect();
+        }
+
+        $studentIds = $guardian->students()->pluck('students.id')->all();
+        if ($studentIds === []) {
+            return collect();
+        }
+
+        return AttendanceRecord::with([
+            'student:id,first_name,last_name',
+            'session:id,session_date,section_id',
+            'session.section:id,name,grade_level',
+        ])
+            ->whereIn('student_id', $studentIds)
+            ->latest('id')
+            ->limit(200)
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'student_id' => $r->student_id,
+                'student' => $r->student?->full_name,
+                'date' => $r->session?->session_date?->toDateString(),
+                'section' => $r->session?->section
+                    ? "{$r->session->section->grade_level} - {$r->session->section->name}"
+                    : '—',
+                'status' => $r->status,
+                'time_in' => $r->time_in?->toDateTimeString(),
+                'time_out' => $r->time_out?->toDateTimeString(),
+                'method' => $r->method,
             ])
             ->values();
     }

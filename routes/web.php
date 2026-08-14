@@ -96,6 +96,7 @@ Route::middleware('auth')->group(function () {
         Route::get('biometrics', [DashboardController::class, 'parentBiometrics'])->name('biometrics.index');
         Route::get('enrollment', [DashboardController::class, 'parentEnrollment'])->name('enrollment.index');
         Route::get('excuse-requests', [DashboardController::class, 'parentExcuseRequests'])->name('excuse-requests.index');
+        Route::get('attendance', [DashboardController::class, 'parentAttendance'])->name('attendance.index');
         Route::get('excuse-requests/{excuseRequest}/file/{type}', [DashboardController::class, 'excuseLetterFile'])
             ->whereIn('type', ['pdf', 'photo'])
             ->name('excuse-requests.file');

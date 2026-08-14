@@ -38,10 +38,14 @@ class AttendanceService
 
         // Close any other open sessions for this section today (e.g. leftover
         // schedule + ad-hoc) so Close/Re-open and the camera stay in sync.
-        AttendanceSession::where('section_id', $section->id)
+        $leftovers = AttendanceSession::where('section_id', $section->id)
             ->whereDate('session_date', $date->toDateString())
             ->where('status', 'open')
-            ->update(['status' => 'closed', 'closed_at' => now()]);
+            ->get();
+
+        foreach ($leftovers as $leftover) {
+            $this->closeSession($leftover, ['skip_stop_recognition' => true]);
+        }
 
         return AttendanceSession::create([
             'section_id' => $section->id,
@@ -65,9 +69,11 @@ class AttendanceService
     }
 
     /**
-     * Close a session and mark every still-unmarked active student absent.
+     * Close a session, auto time-out present/late students, and mark unmarked students absent.
+     *
+     * @param  array<string, mixed>  $opts  skip_stop_recognition
      */
-    public function closeSession(AttendanceSession $session): void
+    public function closeSession(AttendanceSession $session, array $opts = []): void
     {
         if ($session->status === 'closed') {
             return;
@@ -75,6 +81,18 @@ class AttendanceService
 
         // Mark closed first so a slow absent-fill cannot leave the session stuck open.
         $session->update(['status' => 'closed', 'closed_at' => now()]);
+        $closedAt = $session->closed_at ?? now();
+
+        $timedOut = $session->records()
+            ->whereIn('status', ['present', 'late'])
+            ->whereNull('time_out')
+            ->get();
+
+        foreach ($timedOut as $record) {
+            $this->recordTimeOut($session, (int) $record->student_id, $closedAt, [
+                'skip_audit' => true,
+            ]);
+        }
 
         $marked = $session->records()->pluck('student_id')->all();
 
@@ -97,7 +115,7 @@ class AttendanceService
             app(ExcuseRequestService::class)->evaluateAfterMark((int) $studentId);
         }
 
-        if ($unmarked->isNotEmpty()) {
+        if ($unmarked->isNotEmpty() || $timedOut->isNotEmpty()) {
             $this->audit->log(
                 action: 'attendance_session_closed',
                 userId: null,
@@ -106,12 +124,14 @@ class AttendanceService
                 newValues: [
                     'status' => 'closed',
                     'auto_absent_count' => $unmarked->count(),
+                    'auto_time_out_count' => $timedOut->count(),
                 ],
             );
         }
 
-        // On the school PC only: stop recognition when no sessions remain open.
-        $this->stopRecognitionIfIdle();
+        if (empty($opts['skip_stop_recognition'])) {
+            $this->stopRecognitionIfIdle();
+        }
     }
 
     /**
@@ -256,28 +276,38 @@ class AttendanceService
         }
 
         $record->save();
-        $this->audit->log(
-            action: 'attendance_time_out_recorded',
-            userId: $opts['marked_by'] ?? null,
-            entity: $record,
-            oldValues: [
-                'time_out' => $beforeTimeOut?->toDateTimeString(),
-            ],
-            newValues: [
-                'time_out' => $record->time_out?->toDateTimeString(),
-            ],
-            ipAddress: $opts['ip_address'] ?? null,
-            userAgent: $opts['user_agent'] ?? null
-        );
+
+        if (empty($opts['skip_audit'])) {
+            $this->audit->log(
+                action: 'attendance_time_out_recorded',
+                userId: $opts['marked_by'] ?? null,
+                entity: $record,
+                oldValues: [
+                    'time_out' => $beforeTimeOut?->toDateTimeString(),
+                ],
+                newValues: [
+                    'time_out' => $record->time_out?->toDateTimeString(),
+                ],
+                ipAddress: $opts['ip_address'] ?? null,
+                userAgent: $opts['user_agent'] ?? null
+            );
+        }
 
         return $record;
     }
 
     /**
-     * Decide present vs late from an arrival time against a schedule window.
+     * Face scans become late this many minutes after the session opened.
      */
-    public function statusForArrival(?Schedule $schedule, Carbon $time): string
+    public function statusForArrival(?Schedule $schedule, Carbon $time, ?AttendanceSession $session = null): string
     {
+        $minutes = (int) config('attendance.late_after_minutes', 30);
+        $openedAt = $session?->opened_at;
+
+        if ($openedAt && $minutes > 0 && $time->gte($openedAt->copy()->addMinutes($minutes))) {
+            return 'late';
+        }
+
         if ($schedule?->late_after && $time->format('H:i:s') > $schedule->late_after) {
             return 'late';
         }
