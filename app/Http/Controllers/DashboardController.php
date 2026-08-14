@@ -150,6 +150,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Parent/ExcuseRequests', [
             'excuseRequests' => $this->parentExcusePayload($guardian),
+            'eligibleAbsences' => $guardian ? $this->excuses->eligibleAbsences($guardian) : collect(),
         ]);
     }
 
@@ -195,6 +196,27 @@ class DashboardController extends Controller
 
         return redirect()->route('parent.excuse-requests.index')
             ->with('success', 'Explanation letter submitted. A teacher will review it.');
+    }
+
+    public function createExcuseRequest(Request $request): RedirectResponse
+    {
+        $guardian = $request->user()->guardian;
+        if (! $guardian) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'attendance_record_id' => ['required', 'integer', 'exists:attendance_records,id'],
+        ]);
+
+        try {
+            $this->excuses->openOptional($guardian, (int) $data['attendance_record_id']);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('parent.excuse-requests.index')
+            ->with('success', 'You can now type or upload the explanation letter.');
     }
 
     public function excuseLetterFile(Request $request, AttendanceExcuseRequest $excuseRequest, string $type): StreamedResponse
@@ -605,6 +627,7 @@ class DashboardController extends Controller
                 'student_id' => $r->student_id,
                 'streak_count' => $r->streak_count,
                 'streak_summary' => $r->streak_summary,
+                'is_required' => $r->isRequired(),
                 'status' => $r->status,
                 'letter_body' => $r->letter_body,
                 ...$r->attachmentMeta(),
@@ -628,6 +651,8 @@ class DashboardController extends Controller
             return collect();
         }
 
+        $covered = $this->excuses->coveredRecordIds($studentIds);
+
         return AttendanceRecord::with([
             'student:id,first_name,last_name',
             'session:id,session_date,section_id',
@@ -649,6 +674,8 @@ class DashboardController extends Controller
                 'time_in' => $r->time_in?->toDateTimeString(),
                 'time_out' => $r->time_out?->toDateTimeString(),
                 'method' => $r->method,
+                'can_explain' => in_array($r->status, ['absent', 'late'], true)
+                    && ! in_array((int) $r->id, $covered, true),
             ])
             ->values();
     }

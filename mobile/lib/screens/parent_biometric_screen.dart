@@ -84,7 +84,7 @@ class _ParentBiometricScreenState extends State<ParentBiometricScreen> {
           'student_id': '$studentId',
           'consent_acknowledged': '1',
         },
-        files: multipartFiles,
+        multipartFiles: multipartFiles,
       );
 
       if (!mounted) return;

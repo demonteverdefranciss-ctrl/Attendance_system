@@ -104,6 +104,8 @@ Route::middleware('auth')->group(function () {
 
         Route::post('enrollment-requests', [DashboardController::class, 'createEnrollmentRequest'])->name('enrollment-requests.store');
         Route::post('biometric-photos', [ParentBiometricPhotoController::class, 'store'])->name('biometric-photos.store');
+        Route::post('excuse-requests', [DashboardController::class, 'createExcuseRequest'])
+            ->name('excuse-requests.store');
         Route::post('excuse-requests/{excuseRequest}', [DashboardController::class, 'submitExcuseLetter'])
             ->name('excuse-requests.submit');
         Route::post('notifications/{notification}/read', [DashboardController::class, 'markParentNotificationRead'])

@@ -102,7 +102,7 @@ class _TeacherExcuseScreenState extends State<TeacherExcuseScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text(
-                    'Parents submit explanation letters after 3 consecutive absences or late marks. '
+                    'Parents may explain any absence. Letters after 3 consecutive absences are a warning. '
                     'Accepting excuses those attendance records.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
                   ),
@@ -116,6 +116,7 @@ class _TeacherExcuseScreenState extends State<TeacherExcuseScreen> {
                   ..._items.map((item) {
                     final streak = (item['streak_summary'] as List?)?.cast<Map<String, dynamic>>() ?? [];
                     final phone = item['guardian_phone']?.toString();
+                    final required = item['is_required'] == true;
                     return Card(
                       child: Padding(
                         padding: const EdgeInsets.all(12),
@@ -132,8 +133,13 @@ class _TeacherExcuseScreenState extends State<TeacherExcuseScreen> {
                               '${phone != null && phone.isNotEmpty ? ' · $phone' : ''}',
                             ),
                             Text(
-                              'Streak: ${item['streak_count'] ?? 0} · Submitted: ${item['submitted_at'] ?? '—'}',
-                              style: Theme.of(context).textTheme.bodySmall,
+                              required
+                                  ? 'Warning: 3 consecutive absences · ${item['streak_count'] ?? 0} days · Submitted: ${item['submitted_at'] ?? '—'}'
+                                  : 'Optional explanation · ${item['streak_count'] ?? 0} day(s) · Submitted: ${item['submitted_at'] ?? '—'}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: required ? const Color(0xFF991B1B) : null,
+                                    fontWeight: required ? FontWeight.w700 : null,
+                                  ),
                             ),
                             if (streak.isNotEmpty) ...[
                               const SizedBox(height: 8),

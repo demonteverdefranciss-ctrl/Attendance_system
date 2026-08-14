@@ -48,6 +48,7 @@ Route::prefix('v1')->group(function () {
             Route::post('enrollment-requests', [ParentController::class, 'storeEnrollmentRequest']);
             Route::post('notification-preference', [ParentController::class, 'updateNotificationPreference']);
             Route::get('excuse-requests', [ParentController::class, 'excuseRequests']);
+            Route::post('excuse-requests', [ParentController::class, 'openExcuseRequest']);
             Route::get('excuse-requests/{excuseRequest}/file/{type}', [ParentController::class, 'excuseLetterFile'])
                 ->whereIn('type', ['pdf', 'photo']);
             Route::post('excuse-requests/{excuseRequest}', [ParentController::class, 'submitExcuseLetter']);

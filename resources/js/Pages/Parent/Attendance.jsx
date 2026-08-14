@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import ParentLayout from '@/Layouts/ParentLayout';
 import { formatDateTime } from '@/Pages/Parent/shared';
@@ -57,7 +57,7 @@ export default function AttendanceIndex({ children = [], records = [] }) {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                {['Date', 'Child', 'Section', 'Status', 'Time In', 'Time Out'].map((h) => (
+                                {['Date', 'Child', 'Section', 'Status', 'Time In', 'Time Out', ''].map((h) => (
                                     <th
                                         key={h}
                                         className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
@@ -70,7 +70,7 @@ export default function AttendanceIndex({ children = [], records = [] }) {
                         <tbody className="divide-y divide-gray-100">
                             {filtered.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
+                                    <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                                         No attendance records yet.
                                     </td>
                                 </tr>
@@ -85,6 +85,21 @@ export default function AttendanceIndex({ children = [], records = [] }) {
                                     </td>
                                     <td className="px-4 py-2 text-sm text-gray-700">{r.time_in ? formatDateTime(r.time_in) : '—'}</td>
                                     <td className="px-4 py-2 text-sm text-gray-700">{r.time_out ? formatDateTime(r.time_out) : '—'}</td>
+                                    <td className="px-4 py-2 text-right">
+                                        {r.can_explain ? (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    router.post(route('parent.excuse-requests.store'), {
+                                                        attendance_record_id: r.id,
+                                                    })
+                                                }
+                                                className="text-xs font-semibold text-blue-700 hover:underline"
+                                            >
+                                                Explain
+                                            </button>
+                                        ) : null}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

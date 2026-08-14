@@ -64,4 +64,9 @@ class AttendanceExcuseRequest extends Model
             'photo_name' => $this->photo_name,
         ];
     }
+
+    public function isRequired(): bool
+    {
+        return (int) $this->streak_count >= 3;
+    }
 }

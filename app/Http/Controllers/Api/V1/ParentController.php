@@ -249,13 +249,36 @@ class ParentController extends ApiController
                 'status' => $r->status,
                 'letter_body' => $r->letter_body,
                 ...$r->attachmentMeta(),
+                'is_required' => $r->isRequired(),
                 'notes' => $r->notes,
                 'submitted_at' => $r->submitted_at?->toDateTimeString(),
                 'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
                 'created_at' => $r->created_at?->toDateTimeString(),
             ]);
 
-        return $this->ok($items);
+        return $this->ok([
+            'requests' => $items,
+            'eligible_absences' => $this->excuses->eligibleAbsences($guardian),
+        ]);
+    }
+
+    public function openExcuseRequest(Request $request): JsonResponse
+    {
+        $guardian = $this->guardianOrFail($request);
+        $data = $request->validate([
+            'attendance_record_id' => ['required', 'integer', 'exists:attendance_records,id'],
+        ]);
+
+        try {
+            $opened = $this->excuses->openOptional($guardian, (int) $data['attendance_record_id']);
+        } catch (\InvalidArgumentException $e) {
+            return $this->fail($e->getMessage(), 'INVALID', 422);
+        }
+
+        return $this->ok([
+            'message' => 'You can now submit the explanation letter.',
+            'id' => $opened->id,
+        ], 201);
     }
 
     public function submitExcuseLetter(SubmitExcuseLetterRequest $request, AttendanceExcuseRequest $excuseRequest): JsonResponse
