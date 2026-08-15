@@ -23,6 +23,7 @@ class _TeacherMarkScreenState extends State<TeacherMarkScreen> {
   Map<String, dynamic> _session = {};
   List<Map<String, dynamic>> _students = [];
   final Map<int, String> _statuses = {};
+  String _engine = 'lbph';
 
   static const _statusesList = ['present', 'late', 'absent', 'excused'];
 
@@ -51,9 +52,12 @@ class _TeacherMarkScreenState extends State<TeacherMarkScreen> {
         statuses[id] = record?['status'] as String? ?? 'absent';
       }
 
+      final recognition = Map<String, dynamic>.from(data['recognition'] as Map? ?? {});
+
       setState(() {
         _session = data['session'] as Map<String, dynamic>;
         _students = students;
+        _engine = recognition['engine'] as String? ?? 'lbph';
         _statuses
           ..clear()
           ..addAll(statuses);
@@ -64,6 +68,27 @@ class _TeacherMarkScreenState extends State<TeacherMarkScreen> {
         _error = e.message;
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _setEngine(String engine) async {
+    if (engine == _engine) return;
+    try {
+      final response = await widget.api.post('/teacher/recognition/engine', {
+        'engine': engine,
+      });
+      final data = response['data'] as Map<String, dynamic>? ?? {};
+      if (!mounted) return;
+      setState(() {
+        _engine = data['engine'] as String? ?? engine;
+      });
+      final message = data['message'] as String?;
+      if (message != null && message.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -181,19 +206,36 @@ class _TeacherMarkScreenState extends State<TeacherMarkScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: Row(
                     children: [
-                      Chip(
-                        label: Text(isOpen ? 'Session open' : 'Session closed'),
-                        backgroundColor: isOpen ? Colors.green.shade50 : Colors.grey.shade200,
-                      ),
-                      const Spacer(),
-                      if (isOpen)
-                        FilledButton.tonal(
-                          onPressed: _closeSession,
-                          child: const Text('Close session'),
-                        ),
-                    ],
+                  Chip(
+                    label: Text(isOpen ? 'Session open' : 'Session closed'),
+                    backgroundColor: isOpen ? Colors.green.shade50 : Colors.grey.shade200,
                   ),
-                ),
+                  const Spacer(),
+                  if (isOpen)
+                    FilledButton.tonal(
+                      onPressed: _closeSession,
+                      child: const Text('Close session'),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                children: [
+                  const Text('Camera matcher'),
+                  const Spacer(),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'lbph', label: Text('LBPH')),
+                      ButtonSegment(value: 'arcface', label: Text('ArcFace')),
+                    ],
+                    selected: {_engine},
+                    onSelectionChanged: (value) => _setEngine(value.first),
+                  ),
+                ],
+              ),
+            ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _load,

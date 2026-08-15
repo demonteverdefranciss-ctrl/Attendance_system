@@ -17,6 +17,7 @@ use App\Services\AuditService;
 use App\Services\BiometricPhotoService;
 use App\Services\ExcuseRequestService;
 use App\Services\RecognitionProcessService;
+use App\Support\RecognitionEngine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -186,6 +187,24 @@ class TeacherController extends ApiController
             'students' => $students,
             'records' => $records,
             'recognition' => $this->recognition->snapshot(),
+        ]);
+    }
+
+    public function updateRecognitionEngine(Request $request): JsonResponse
+    {
+        $this->teacherOrFail($request);
+        $data = $request->validate([
+            'engine' => ['required', 'in:lbph,arcface'],
+        ]);
+
+        $engine = RecognitionEngine::set($data['engine']);
+
+        return $this->ok([
+            'engine' => $engine,
+            'recognition' => $this->recognition->snapshot(),
+            'message' => $engine === 'arcface'
+                ? 'Camera matcher set to ArcFace.'
+                : 'Camera matcher set to LBPH.',
         ]);
     }
 

@@ -103,13 +103,14 @@ class RecognitionProcessService
     }
 
     /**
-     * @return array{enabled: bool, status: string}
+     * @return array{enabled: bool, status: string, engine: string}
      */
     public function snapshot(): array
     {
         return [
             'enabled' => $this->isEnabled(),
             'status' => $this->status(),
+            'engine' => \App\Support\RecognitionEngine::current(),
         ];
     }
 

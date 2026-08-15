@@ -6,18 +6,45 @@ const LABELS = {
     unavailable: { text: 'Face recognition not available on this server', className: 'bg-gray-50 text-gray-600' },
 };
 
-export default function RecognitionStatus({ enabled, status, onStart, starting }) {
+const ENGINES = [
+    { id: 'lbph', label: 'LBPH' },
+    { id: 'arcface', label: 'ArcFace' },
+];
+
+export default function RecognitionStatus({ enabled, status, engine = 'lbph', onStart, onEngineChange, starting, switching }) {
+    const label = LABELS[status] ?? LABELS.stopped;
+
+    const switcher = (
+        <div className="flex rounded-lg bg-white p-0.5 ring-1 ring-gray-200">
+            {ENGINES.map((item) => {
+                const active = (engine || 'lbph') === item.id;
+                return (
+                    <button
+                        key={item.id}
+                        type="button"
+                        disabled={switching}
+                        onClick={() => onEngineChange?.(item.id)}
+                        className={`rounded-md px-3 py-1 text-xs font-semibold ${
+                            active ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+                        } disabled:opacity-50`}
+                    >
+                        {item.label}
+                    </button>
+                );
+            })}
+        </div>
+    );
+
     if (!enabled) {
         return (
-            <div className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-900 ring-1 ring-blue-200">
-                Face recognition is controlled on the school PC. Leave{' '}
-                <code className="rounded bg-blue-100 px-1">run_recognition.ps1</code> running — it starts the
-                camera when you open a session here and stops it when you close.
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-900 ring-1 ring-blue-200">
+                <p>
+                    Face recognition runs on the school PC. Choose the matcher here — the camera follows this setting.
+                </p>
+                {switcher}
             </div>
         );
     }
-
-    const label = LABELS[status] ?? LABELS.stopped;
 
     return (
         <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm ring-1 ring-gray-200 ${label.className}`}>
@@ -27,16 +54,19 @@ export default function RecognitionStatus({ enabled, status, onStart, starting }
                 )}
                 <span>{label.text}</span>
             </div>
-            {status === 'stopped' && onStart && (
-                <button
-                    type="button"
-                    onClick={onStart}
-                    disabled={starting}
-                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                    {starting ? 'Starting…' : 'Start recognition'}
-                </button>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+                {switcher}
+                {status === 'stopped' && onStart && (
+                    <button
+                        type="button"
+                        onClick={onStart}
+                        disabled={starting}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                        {starting ? 'Starting…' : 'Start recognition'}
+                    </button>
+                )}
+            </div>
         </div>
     );
 }
@@ -52,6 +82,17 @@ export async function startRecognition() {
     const { data } = await axios.post(
         route('teacher.recognition.start'),
         {},
+        token ? { headers: { 'X-CSRF-TOKEN': token } } : undefined,
+    );
+
+    return data;
+}
+
+export async function setRecognitionEngine(engine) {
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const { data } = await axios.post(
+        route('teacher.recognition.engine'),
+        { engine },
         token ? { headers: { 'X-CSRF-TOKEN': token } } : undefined,
     );
 

@@ -128,6 +128,7 @@ class AttendanceController extends ApiController
         return $this->ok([
             'open' => $count > 0,
             'count' => $count,
+            'engine' => \App\Support\RecognitionEngine::current(),
         ]);
     }
 

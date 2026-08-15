@@ -1,18 +1,26 @@
-# Recognition Service (Phase 6a — LBPH demo)
+# Recognition Service
 
 Python service that runs on the school PC: it watches the camera, recognizes
-enrolled students with **OpenCV LBPH**, and posts attendance to the backend's
-device-authenticated endpoint `POST /api/v1/attendance/recognitions`.
+enrolled students, and posts attendance to `POST /api/v1/attendance/recognitions`.
 
-> This is the **Phase 6a demo**. Phase 6b upgrades recognition to ArcFace
-> embeddings + liveness and adds an offline store-and-forward buffer.
+**Engine switch** (in `.env`):
+
+| `RECOGNITION_ENGINE` | Matcher |
+|---|---|
+| `lbph` (default) | OpenCV LBPH — current live setup |
+| `arcface` | OpenCV SFace (ArcFace-trained) + YuNet detector |
+
+LBPH stays the default. To switch, set `RECOGNITION_ENGINE=arcface`, run
+`python train.py` once (downloads ONNX models + builds a gallery from existing
+enrollment photos), then `python recognize.py`. Set it back to `lbph` to return
+to the old matcher. Do not run both at once.
 
 ## Pipeline
 
 ```
 Camera (webcam / Tapo RTSP)
-  -> detect faces (Haar cascade)
-  -> recognize (LBPH)  -> confidence gate + N consecutive frames + cooldown
+  -> detect faces
+  -> match (LBPH or ArcFace)  -> confidence gate + N consecutive frames + cooldown
   -> POST /api/v1/attendance/recognitions  (X-Camera-Id + X-Device-Key)
   -> backend finds the open session, dedupes, records attendance
 ```
@@ -63,17 +71,22 @@ python test_api.py 1
 | `API_BASE_URL` | Backend API base, e.g. `http://localhost/attendance_system/public/api/v1` |
 | `CAMERA_ID` / `DEVICE_KEY` | Device credentials matching a `cameras` row |
 | `VIDEO_SOURCE` | Webcam index (`0`) or Tapo RTSP URL |
+| `RECOGNITION_ENGINE` | `lbph` (default) or `arcface` |
+| `ARCFACE_THRESHOLD` | Cosine similarity to accept (ArcFace only, ~0.36) |
 | `LBPH_THRESHOLD` | Max LBPH distance to accept (lower = stricter, ~70 typical) |
 | `MIN_CONSEC_FRAMES` | Consecutive confident frames required before recording |
 | `COOLDOWN_SECONDS` | Per-student gap to avoid duplicate posts |
 | `SAMPLES_PER_STUDENT` | Face samples captured during enrollment |
 | `SHOW_WINDOW` | `1` to show a preview window, `0` for headless |
 
-## Notes & limitations (LBPH)
+## Notes & limitations
 
-- LBPH is sensitive to lighting/pose and must be **retrained** to add students.
+- **LBPH** is sensitive to lighting/pose and must be **retrained** to add students.
+- **ArcFace** uses the same enrollment photos; it is more stable across lighting
+  and pose. First `train.py` with `arcface` needs internet to download YuNet/SFace
+  models into `models/`.
 - Recording only succeeds when an **attendance session is open** for the
   student's section (auto-opened by schedule, or opened by the teacher).
 - Attendance is **deduplicated** by the backend (`unique(session, student)`),
   so re-recognitions are harmless.
-- No anti-spoofing yet — that arrives in Phase 6b.
+- No anti-spoofing / liveness yet.

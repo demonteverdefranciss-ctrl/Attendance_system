@@ -1,8 +1,10 @@
 """
-Train the LBPH model from dataset/<student_id>/*.png.
+Train the selected recognition engine from dataset/<student_id>/*.png.
 
-The student's backend id is used directly as the LBPH label, so recognition
-returns the student id with no extra lookup. Re-run after enrolling new students.
+  RECOGNITION_ENGINE=lbph     (default) writes models/lbph.yml
+  RECOGNITION_ENGINE=arcface  writes models/arcface_gallery.npz
+
+The student's backend id is used as the label. Re-run after enrolling new students.
 """
 import json
 import os
@@ -13,7 +15,7 @@ import numpy as np
 import config
 
 
-def main():
+def train_lbph():
     if not os.path.isdir(config.DATASET_DIR):
         print("No dataset directory found. Run enroll.py first.")
         return
@@ -29,7 +31,7 @@ def main():
             if img is None:
                 continue
             images.append(cv2.resize(img, config.FACE_SIZE))
-            labels.append(int(sid))  # student id == LBPH label
+            labels.append(int(sid))
 
     if not images:
         print("No training images found. Enroll students first.")
@@ -43,10 +45,21 @@ def main():
 
     trained = sorted(set(labels))
     with open(config.LABELS_PATH, "w") as fh:
-        json.dump({"student_ids": trained, "samples": len(images)}, fh, indent=2)
+        json.dump({"engine": "lbph", "student_ids": trained, "samples": len(images)}, fh, indent=2)
 
     print(f"Trained on {len(images)} images for {len(trained)} student(s): {trained}")
     print(f"Model saved to {config.MODEL_PATH}")
+
+
+def main():
+    print(f"Recognition engine: {config.RECOGNITION_ENGINE}")
+    if config.RECOGNITION_ENGINE == "arcface":
+        from engine_arcface import build_gallery
+
+        build_gallery()
+        return
+
+    train_lbph()
 
 
 if __name__ == "__main__":
