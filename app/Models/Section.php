@@ -10,6 +10,7 @@ class Section extends Model
 {
     protected $fillable = [
         'adviser_id',
+        'camera_id',
         'name',
         'grade_level',
         'school_year',
@@ -19,6 +20,11 @@ class Section extends Model
     public function adviser(): BelongsTo
     {
         return $this->belongsTo(Teacher::class, 'adviser_id');
+    }
+
+    public function camera(): BelongsTo
+    {
+        return $this->belongsTo(Camera::class);
     }
 
     public function students(): HasMany

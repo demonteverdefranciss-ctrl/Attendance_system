@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\GuardianController;
 use App\Http\Controllers\Admin\ScheduleController;
+use App\Http\Controllers\Admin\CameraController;
 use App\Http\Controllers\Admin\SectionController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\TeacherController;
@@ -43,6 +44,7 @@ Route::middleware('auth')->group(function () {
 
         Route::resource('teachers', TeacherController::class)->except('show');
         Route::resource('guardians', GuardianController::class)->except('show');
+        Route::resource('cameras', CameraController::class)->except('show');
         Route::resource('sections', SectionController::class)->except('show');
         Route::resource('students', StudentController::class)->except('show');
         Route::resource('schedules', ScheduleController::class)->except('show');

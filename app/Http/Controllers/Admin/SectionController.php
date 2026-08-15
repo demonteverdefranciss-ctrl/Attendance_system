@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Camera;
 use App\Models\Section;
 use App\Models\Teacher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,7 +15,10 @@ class SectionController extends Controller
 {
     public function index(): Response
     {
-        $sections = Section::with('adviser:id,first_name,last_name')
+        $sections = Section::with([
+            'adviser:id,first_name,last_name',
+            'camera:id,name,location',
+        ])
             ->withCount('students')
             ->orderBy('name')
             ->get();
@@ -25,7 +28,10 @@ class SectionController extends Controller
 
     public function create(): Response
     {
-        return Inertia::render('Admin/Sections/Form', ['teachers' => $this->teacherOptions()]);
+        return Inertia::render('Admin/Sections/Form', [
+            'teachers' => $this->teacherOptions(),
+            'cameras' => $this->cameraOptions(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -40,6 +46,7 @@ class SectionController extends Controller
         return Inertia::render('Admin/Sections/Form', [
             'section' => $section,
             'teachers' => $this->teacherOptions(),
+            'cameras' => $this->cameraOptions(),
         ]);
     }
 
@@ -62,11 +69,17 @@ class SectionController extends Controller
      */
     private function validateData(Request $request, ?Section $section = null): array
     {
+        $request->merge([
+            'camera_id' => $request->input('camera_id') ?: null,
+            'adviser_id' => $request->input('adviser_id') ?: null,
+        ]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'grade_level' => ['required', 'string', 'max:20'],
             'school_year' => ['required', 'string', 'max:20'],
             'adviser_id' => ['nullable', 'exists:teachers,id'],
+            'camera_id' => ['nullable', 'exists:cameras,id'],
             'session_max_hours' => ['required', 'numeric', 'min:0.5', 'max:12'],
         ]);
 
@@ -80,5 +93,11 @@ class SectionController extends Controller
     {
         return Teacher::orderBy('last_name')
             ->get(['id', 'first_name', 'last_name']);
+    }
+
+    private function cameraOptions()
+    {
+        return Camera::orderBy('name')
+            ->get(['id', 'name', 'location', 'is_active']);
     }
 }

@@ -3,13 +3,14 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import TextField from '@/Components/TextField';
 import SelectField from '@/Components/SelectField';
 
-export default function SectionForm({ section, teachers }) {
+export default function SectionForm({ section, teachers, cameras = [] }) {
     const editing = !!section;
     const { data, setData, post, put, processing, errors } = useForm({
         name: section?.name ?? '',
         grade_level: section?.grade_level ?? 'Grade 6',
         school_year: section?.school_year ?? '',
         adviser_id: section?.adviser_id ?? '',
+        camera_id: section?.camera_id ?? '',
         session_max_hours: section?.session_max_minutes
             ? String(Math.round((section.session_max_minutes / 60) * 10) / 10)
             : '6',
@@ -37,6 +38,14 @@ export default function SectionForm({ section, teachers }) {
                             <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
                         ))}
                     </SelectField>
+                    <SelectField label="Camera" value={data.camera_id} onChange={(e) => setData('camera_id', e.target.value)} error={errors.camera_id}>
+                        <option value="">— None (shared / unassigned) —</option>
+                        {cameras.map((c) => (
+                            <option key={c.id} value={c.id}>
+                                {c.name}{c.location ? ` (${c.location})` : ''}{c.is_active ? '' : ' — inactive'}
+                            </option>
+                        ))}
+                    </SelectField>
                     <TextField
                         label="Auto-close session after (hours)"
                         type="number"
@@ -51,6 +60,10 @@ export default function SectionForm({ section, teachers }) {
                 <p className="-mt-3 text-xs text-gray-500">
                     Attendance for this section auto-closes this many hours after it opens (default 6).
                     Schedule end time can still close it earlier.
+                </p>
+                <p className="-mt-2 text-xs text-gray-500">
+                    Assign a camera so that device turns on only when this section’s session is open.
+                    Add cameras under Admin → Cameras first.
                 </p>
 
                 <div className="flex items-center gap-3">
