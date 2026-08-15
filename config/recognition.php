@@ -29,4 +29,11 @@ return [
     |
     */
     'python' => env('RECOGNITION_PYTHON'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default matcher until a teacher picks one in Attendance
+    |--------------------------------------------------------------------------
+    */
+    'engine' => env('RECOGNITION_ENGINE', 'lbph'),
 ];

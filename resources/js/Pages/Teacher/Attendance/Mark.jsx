@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import CameraPreview from '@/Components/CameraPreview';
-import RecognitionStatus, { fetchRecognitionStatus, startRecognition } from '@/Components/RecognitionStatus';
+import RecognitionStatus, { fetchRecognitionStatus, setRecognitionEngine, startRecognition } from '@/Components/RecognitionStatus';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
 const LIVE_REFRESH_MS = 5000;
@@ -16,7 +16,9 @@ const COLORS = {
 
 export default function Mark({ session, students, records, cameraStreamUrl, recognition }) {
     const [recognitionStatus, setRecognitionStatus] = useState(recognition?.status ?? 'unavailable');
+    const [recognitionEngine, setRecognitionEngineState] = useState(recognition?.engine ?? 'lbph');
     const [startingRecognition, setStartingRecognition] = useState(false);
+    const [switchingEngine, setSwitchingEngine] = useState(false);
     const [closing, setClosing] = useState(false);
     const [closeSlow, setCloseSlow] = useState(false);
     const [liveNotice, setLiveNotice] = useState('');
@@ -82,12 +84,15 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
     }, [records]);
 
     useEffect(() => {
-        if (!recognition?.enabled || session.status === 'closed') return;
-
         const poll = async () => {
             try {
                 const data = await fetchRecognitionStatus();
-                setRecognitionStatus(data.status);
+                if (data.status) {
+                    setRecognitionStatus(data.status);
+                }
+                if (data.engine) {
+                    setRecognitionEngineState(data.engine);
+                }
             } catch {
                 // ignore transient network errors
             }
@@ -96,7 +101,21 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
         poll();
         const timer = setInterval(poll, 10000);
         return () => clearInterval(timer);
-    }, [recognition?.enabled, session.status]);
+    }, [session.status]);
+
+    const handleEngineChange = async (engine) => {
+        if (engine === recognitionEngine || switchingEngine) return;
+        setSwitchingEngine(true);
+        try {
+            const data = await setRecognitionEngine(engine);
+            setRecognitionEngineState(data.engine ?? engine);
+            if (data.status) {
+                setRecognitionStatus(data.status);
+            }
+        } finally {
+            setSwitchingEngine(false);
+        }
+    };
 
     const handleStartRecognition = async () => {
         setStartingRecognition(true);
@@ -227,8 +246,11 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                 <RecognitionStatus
                     enabled={recognition?.enabled}
                     status={recognitionStatus}
+                    engine={recognitionEngine}
                     onStart={handleStartRecognition}
+                    onEngineChange={handleEngineChange}
                     starting={startingRecognition}
+                    switching={switchingEngine}
                 />
                 <CameraPreview
                     streamUrl={cameraStreamUrl}

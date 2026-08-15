@@ -91,6 +91,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('recognition/status', [TeacherRecognitionController::class, 'status'])->name('recognition.status');
         Route::post('recognition/start', [TeacherRecognitionController::class, 'start'])->name('recognition.start');
+        Route::post('recognition/engine', [TeacherRecognitionController::class, 'updateEngine'])->name('recognition.engine');
     });
 
     Route::middleware('role:parent')->prefix('parent')->name('parent.')->group(function () {

@@ -3,7 +3,7 @@ Live recognition loop: read the video source, identify enrolled students, and
 push attendance to the backend.
 
 Validation safeguards before recording:
-  * LBPH distance must be within LBPH_THRESHOLD (confidence gate)
+  * the engine (LBPH or ArcFace) must accept the match
   * the same student must be seen for MIN_CONSEC_FRAMES consecutive frames
   * a per-student COOLDOWN_SECONDS prevents duplicate posts
 The backend additionally enforces an open session + unique(session, student).
@@ -18,7 +18,8 @@ import cv2
 import numpy as np
 
 import config
-from api_client import get_open_sessions, lbph_distance_to_confidence, post_recognition
+from api_client import get_open_sessions, post_recognition
+from engine import load_engine
 from preview import for_display
 
 LOCK_FILE = os.path.join(config.BASE_DIR, ".recognize.lock")
@@ -136,9 +137,8 @@ class FrameGrabber:
             self._frame = None
 
 
-def record(student_id, distance, session_state=None):
+def record(student_id, confidence, session_state=None):
     """Post attendance in a background thread so RTSP reading stays live."""
-    confidence = lbph_distance_to_confidence(distance)
     captured_at = datetime.now().astimezone().isoformat()
     client_uuid = str(uuid.uuid4())
     set_post_status(f"Posting #{student_id}…", seconds=30.0)
@@ -224,7 +224,7 @@ def maybe_start_stream_server():
 def session_is_open(previous=False, timeout=8):
     """Ask the backend whether any attendance session is open.
 
-    Returns (open_now, reached_api).
+    Returns (open_now, reached_api, engine_name).
     A successful `open: false` always turns the camera off.
     Network errors keep the previous state so a brief Railway blip does not
     flicker the camera.
@@ -232,31 +232,37 @@ def session_is_open(previous=False, timeout=8):
     try:
         resp = get_open_sessions(timeout=timeout)
         if resp.status_code == 200:
-            open_now = bool(resp.json().get("data", {}).get("open"))
+            payload = resp.json().get("data", {}) or {}
+            open_now = bool(payload.get("open"))
+            engine_name = payload.get("engine")
+            if engine_name not in ("lbph", "arcface"):
+                engine_name = None
             if open_now:
                 set_hud("Session open · camera live", ok=True)
             else:
                 set_hud("Session closed — camera off", ok=False)
                 if previous:
                     print("[INFO] Backend reports no open session — releasing camera.")
-            return open_now, True
+            return open_now, True, engine_name
         print(f"[WARN] session check: HTTP {resp.status_code} {resp.text[:120]}")
         set_hud(f"API HTTP {resp.status_code} — keeping last state", ok=previous)
     except Exception as exc:
         print(f"[WARN] session check failed (keeping previous state): {exc}")
         set_hud("Railway unreachable — press O to force camera ON", ok=False)
-    return previous, False
+    return previous, False, None
 
 
 def check_session_async(state, timeout=8):
     def _check():
         try:
-            open_now, reached = session_is_open(
+            open_now, reached, engine_name = session_is_open(
                 previous=bool(state["session_open"]),
                 timeout=timeout,
             )
             state["session_open"] = open_now
             state["api_ok"] = reached
+            if engine_name:
+                state["wanted_engine"] = engine_name
             # Website Close always wins over a previous manual O override.
             if reached and not open_now:
                 state["force_open"] = False
@@ -269,6 +275,24 @@ def check_session_async(state, timeout=8):
         return
     state["checking"] = True
     threading.Thread(target=_check, daemon=True).start()
+
+
+def switch_engine(current, wanted_name):
+    if not wanted_name or wanted_name == current.name:
+        return current
+    candidate = load_engine(wanted_name)
+    if not candidate.ready():
+        print(f"[WARN] teacher asked for {wanted_name} but it is not trained. Staying on {current.name}.")
+        set_hud(f"{wanted_name.upper()} not trained — using {current.name.upper()}", ok=False)
+        return current
+    try:
+        candidate.load()
+    except Exception as exc:
+        print(f"[WARN] could not switch to {wanted_name}: {exc}")
+        return current
+    print(f"[INFO] matcher is now {candidate.name}")
+    set_hud(f"Matcher: {candidate.name.upper()}", ok=True)
+    return candidate
 
 
 def acquire_lock():
@@ -309,18 +333,9 @@ def release_lock():
 
 
 def prepare_detection_frame(frame):
-    height, width = frame.shape[:2]
-    max_width = max(1, config.PROCESS_MAX_WIDTH)
-    if width <= max_width:
-        return frame, 1.0
+    from engine import prepare_detection_frame as _prepare
 
-    scale = max_width / width
-    resized = cv2.resize(
-        frame,
-        (max_width, int(height * scale)),
-        interpolation=cv2.INTER_AREA,
-    )
-    return resized, scale
+    return _prepare(frame)
 
 
 def draw_hud(frame):
@@ -359,8 +374,10 @@ def idle_frame(message, hint="q / Esc / close window to quit"):
 
 
 def main():
-    if not os.path.exists(config.MODEL_PATH):
-        print("No trained model. Run enroll.py then train.py first.")
+    engine = load_engine()
+    print(f"Recognition engine: {engine.name}")
+    if not engine.ready():
+        print(engine.missing_message())
         return
 
     if not acquire_lock():
@@ -368,9 +385,12 @@ def main():
 
     maybe_start_stream_server()
 
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
-    recognizer.read(config.MODEL_PATH)
-    cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    try:
+        engine.load()
+    except Exception as exc:
+        print(f"ERROR: could not load {engine.name} engine: {exc}")
+        release_lock()
+        return
 
     session_gated = config.SESSION_POLL_SECONDS > 0
     grabber = FrameGrabber()
@@ -397,7 +417,11 @@ def main():
         print("Keys: O = force camera ON | C = force OFF | q/Esc = quit")
         set_hud("Checking Railway for open session…", ok=False)
         # Blocking first check with a longer timeout so a slow Railway still works.
-        session_state["session_open"] = session_is_open(previous=False, timeout=15)[0]
+        open_now, _, api_engine = session_is_open(previous=False, timeout=15)
+        session_state["session_open"] = open_now
+        if api_engine:
+            session_state["wanted_engine"] = api_engine
+            engine = switch_engine(engine, api_engine)
         last_session_check = time.time()
     else:
         print("Recognizing (camera always on). Keys: q/Esc = quit")
@@ -428,11 +452,15 @@ def main():
             else:
                 poll_every = 15
 
-            if session_gated and now - last_session_check >= poll_every:
+            if now - last_session_check >= poll_every:
                 # Longer timeout while waiting to open; shorter while already open.
                 to = 12 if not session_state["session_open"] else 5
                 check_session_async(session_state, timeout=to)
                 last_session_check = now
+
+            wanted = session_state.get("wanted_engine")
+            if wanted and wanted != engine.name:
+                engine = switch_engine(engine, wanted)
 
             session_open = True
             if session_gated:
@@ -503,57 +531,41 @@ def main():
                 continue
 
             no_frame_since = None
+            matcher = engine.name.upper()
             if session_state.get("force_open"):
-                set_hud("Forced ON · camera live (C = off)", ok=True)
+                set_hud(f"Forced ON · {matcher} (C = off)", ok=True)
             else:
-                set_hud("Session open · camera live", ok=True)
+                set_hud(f"Session open · {matcher}", ok=True)
 
             if publish_frame is not None:
                 publish_frame(frame)
 
-            detect_frame, scale = prepare_detection_frame(frame)
-            gray_small = cv2.cvtColor(detect_frame, cv2.COLOR_BGR2GRAY)
-            faces = cascade.detectMultiScale(
-                gray_small,
-                1.1,
-                5,
-                minSize=(config.MIN_FACE_SIZE, config.MIN_FACE_SIZE),
-            )
-            gray_full = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            detections = engine.identify(frame)
             seen = set()
 
-            for (x, y, w, h) in faces:
-                if scale != 1.0:
-                    x = int(x / scale)
-                    y = int(y / scale)
-                    w = int(w / scale)
-                    h = int(h / scale)
-
-                x = max(0, x)
-                y = max(0, y)
-                w = min(w, gray_full.shape[1] - x)
-                h = min(h, gray_full.shape[0] - y)
-                if w <= 0 or h <= 0:
-                    continue
-
-                face_roi = gray_full[y:y + h, x:x + w]
-                label, distance = recognizer.predict(cv2.resize(face_roi, config.FACE_SIZE))
-                matched = distance <= config.LBPH_THRESHOLD
-
+            for det in detections:
                 if config.SHOW_WINDOW:
-                    color = (0, 255, 0) if matched else (0, 0, 255)
-                    text = f"#{label} ({distance:.0f})" if matched else "unknown"
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                    cv2.putText(frame, text, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                    color = (0, 255, 0) if det.matched else (0, 0, 255)
+                    cv2.rectangle(frame, (det.x, det.y), (det.x + det.w, det.y + det.h), color, 2)
+                    cv2.putText(
+                        frame,
+                        det.label,
+                        (det.x, max(20, det.y - 8)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        color,
+                        2,
+                    )
 
-                if matched:
-                    seen.add(label)
-                    consecutive[label] = consecutive.get(label, 0) + 1
-                    if consecutive[label] >= config.MIN_CONSEC_FRAMES:
-                        if now - last_posted.get(label, 0) >= config.COOLDOWN_SECONDS:
-                            record(label, distance, session_state=session_state)
-                            last_posted[label] = now
-                        consecutive[label] = 0
+                if det.matched and det.student_id is not None:
+                    sid = det.student_id
+                    seen.add(sid)
+                    consecutive[sid] = consecutive.get(sid, 0) + 1
+                    if consecutive[sid] >= config.MIN_CONSEC_FRAMES:
+                        if now - last_posted.get(sid, 0) >= config.COOLDOWN_SECONDS:
+                            record(sid, det.confidence, session_state=session_state)
+                            last_posted[sid] = now
+                        consecutive[sid] = 0
 
             for sid in list(consecutive.keys()):
                 if sid not in seen:

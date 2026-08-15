@@ -15,7 +15,7 @@
 | 4 | Attendance (Sessions & Marking) | ✅ |
 | 5 | REST API (Sanctum) | ✅ |
 | 6a | Facial Recognition — LBPH demo | ✅ |
-| 6b | Facial Recognition — ArcFace + Liveness | 🔜 |
+| 6b | Facial Recognition — ArcFace switch (+ liveness later) | ⏳ |
 | 7 | Parent Notifications (FCM) | ✅ |
 | 8 | Analytics, Reports & Dashboards | ✅ |
 | 9 | Audit Logs & Security Hardening | ⏳ |
@@ -40,7 +40,20 @@
 
 ---
 
-## Phase 9 — Audit Logs & Security Hardening ⏳
+## Phase 6b — Facial Recognition (ArcFace switch) ⏳
+
+**Delivered:**
+- `RECOGNITION_ENGINE=lbph|arcface` on the school PC (default remains LBPH)
+- ArcFace path uses OpenCV SFace (ArcFace-trained) + YuNet; gallery from existing enrollment photos
+- Switch back to LBPH by setting the env var and running the usual `recognize.py`
+
+**Teacher switch:** Attendance mark page (web + app) has **LBPH | ArcFace**. The school PC
+picks this up from `GET /api/v1/attendance/sessions/open`. Train both engines once
+(`RECOGNITION_ENGINE=lbph` then `arcface` with `python train.py`) so either choice works.
+
+**Remaining:** liveness / anti-spoofing, offline store-and-forward buffer.
+
+---
 
 **Delivered:**
 - Centralized `AuditService` + admin audit log viewer

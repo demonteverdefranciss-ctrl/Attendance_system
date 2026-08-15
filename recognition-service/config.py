@@ -12,7 +12,14 @@ EVENT_TYPE_HINT = os.getenv("EVENT_TYPE_HINT", "").strip().lower() or None
 
 VIDEO_SOURCE = os.getenv("VIDEO_SOURCE", "0")
 
+# lbph (default, current school PC) or arcface (OpenCV SFace, ArcFace-trained).
+RECOGNITION_ENGINE = os.getenv("RECOGNITION_ENGINE", "lbph").strip().lower()
+if RECOGNITION_ENGINE not in ("lbph", "arcface"):
+    RECOGNITION_ENGINE = "lbph"
+
 LBPH_THRESHOLD = float(os.getenv("LBPH_THRESHOLD", "70"))
+# Cosine similarity for ArcFace/SFace (higher = stricter). OpenCV default ~0.363.
+ARCFACE_THRESHOLD = float(os.getenv("ARCFACE_THRESHOLD", "0.36"))
 MIN_CONSEC_FRAMES = int(os.getenv("MIN_CONSEC_FRAMES", "5"))
 COOLDOWN_SECONDS = int(os.getenv("COOLDOWN_SECONDS", "300"))
 SAMPLES_PER_STUDENT = int(os.getenv("SAMPLES_PER_STUDENT", "20"))
@@ -32,6 +39,9 @@ DATASET_DIR = os.path.join(BASE_DIR, "dataset")
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "lbph.yml")
 LABELS_PATH = os.path.join(MODEL_DIR, "labels.json")
+ARCFACE_GALLERY_PATH = os.path.join(MODEL_DIR, "arcface_gallery.npz")
+YUNET_MODEL_PATH = os.path.join(MODEL_DIR, "face_detection_yunet_2023mar.onnx")
+SFACE_MODEL_PATH = os.path.join(MODEL_DIR, "face_recognition_sface_2021dec.onnx")
 
 
 def resolved_video_source():

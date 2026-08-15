@@ -59,6 +59,7 @@ Route::prefix('v1')->group(function () {
             Route::get('dashboard', [TeacherController::class, 'dashboard']);
             Route::get('attendance', [TeacherController::class, 'attendanceIndex']);
             Route::post('attendance/open', [TeacherController::class, 'openSession']);
+            Route::post('recognition/engine', [TeacherController::class, 'updateRecognitionEngine']);
             Route::get('attendance/{session}', [TeacherController::class, 'showSession']);
             Route::post('attendance/{session}/records', [TeacherController::class, 'storeAttendance']);
             Route::post('attendance/{session}/close', [TeacherController::class, 'closeSession']);
