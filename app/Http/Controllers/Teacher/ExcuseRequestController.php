@@ -43,6 +43,7 @@ class ExcuseRequestController extends Controller
                 'guardian_phone' => $r->guardian?->phone,
                 'streak_count' => $r->streak_count,
                 'streak_summary' => $r->streak_summary,
+                'is_required' => $r->isRequired(),
                 'letter_body' => $r->letter_body,
                 ...$r->attachmentMeta(),
                 'submitted_at' => $r->submitted_at?->toDateTimeString(),

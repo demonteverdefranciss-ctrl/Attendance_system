@@ -25,7 +25,7 @@ export default function ExcuseRequestsIndex({ requests = [] }) {
     return (
         <TeacherLayout title="Explanation Letters">
             <p className="mb-4 text-sm text-gray-500">
-                Parents submit explanation letters after 3 consecutive absences or late marks.
+                Parents may explain any absence. Letters after 3 consecutive absences are flagged as a warning.
                 Accepting excuses those attendance records.
             </p>
 
@@ -48,8 +48,15 @@ export default function ExcuseRequestsIndex({ requests = [] }) {
                                 {item.guardian_phone ? ` · ${item.guardian_phone}` : ''}
                             </p>
                             <p className="mt-1 text-xs text-gray-500">
-                                Streak: {item.streak_count} consecutive absent/late · Submitted: {fmt(item.submitted_at)}
+                                {item.is_required ? 'Warning: 3 consecutive absences' : 'Optional explanation'}
+                                {' · '}
+                                {item.streak_count} day{item.streak_count === 1 ? '' : 's'} · Submitted: {fmt(item.submitted_at)}
                             </p>
+                            {item.is_required ? (
+                                <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 ring-1 ring-red-200">
+                                    This letter is required because of 3 consecutive absences.
+                                </p>
+                            ) : null}
                         </div>
 
                         <div className="mt-3 space-y-3 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">

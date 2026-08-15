@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\GuardianController;
 use App\Http\Controllers\Admin\ScheduleController;
+use App\Http\Controllers\Admin\CameraController;
 use App\Http\Controllers\Admin\SectionController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\TeacherController;
@@ -43,6 +44,7 @@ Route::middleware('auth')->group(function () {
 
         Route::resource('teachers', TeacherController::class)->except('show');
         Route::resource('guardians', GuardianController::class)->except('show');
+        Route::resource('cameras', CameraController::class)->except('show');
         Route::resource('sections', SectionController::class)->except('show');
         Route::resource('students', StudentController::class)->except('show');
         Route::resource('schedules', ScheduleController::class)->except('show');
@@ -104,6 +106,8 @@ Route::middleware('auth')->group(function () {
 
         Route::post('enrollment-requests', [DashboardController::class, 'createEnrollmentRequest'])->name('enrollment-requests.store');
         Route::post('biometric-photos', [ParentBiometricPhotoController::class, 'store'])->name('biometric-photos.store');
+        Route::post('excuse-requests', [DashboardController::class, 'createExcuseRequest'])
+            ->name('excuse-requests.store');
         Route::post('excuse-requests/{excuseRequest}', [DashboardController::class, 'submitExcuseLetter'])
             ->name('excuse-requests.submit');
         Route::post('notifications/{notification}/read', [DashboardController::class, 'markParentNotificationRead'])

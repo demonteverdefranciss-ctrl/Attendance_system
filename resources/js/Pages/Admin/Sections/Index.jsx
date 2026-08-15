@@ -7,6 +7,7 @@ export default function SectionsIndex({ sections }) {
         { key: 'name', label: 'Section', render: (s) => `${s.grade_level} - ${s.name}` },
         { key: 'school_year', label: 'School Year' },
         { key: 'adviser', label: 'Adviser', render: (s) => (s.adviser ? `${s.adviser.first_name} ${s.adviser.last_name}` : '—') },
+        { key: 'camera', label: 'Camera', render: (s) => s.camera?.name || '—' },
         { key: 'students_count', label: 'Students', render: (s) => s.students_count },
         {
             key: 'session_max_minutes',

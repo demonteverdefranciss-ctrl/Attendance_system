@@ -17,6 +17,8 @@ class _ParentExcuseScreenState extends State<ParentExcuseScreen> {
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _items = [];
+  List<Map<String, dynamic>> _eligible = [];
+  int? _selectedEligibleId;
   final Map<int, TextEditingController> _letters = {};
   final Map<int, String> _modes = {};
   final Map<int, String> _pdfPaths = {};
@@ -46,9 +48,19 @@ class _ParentExcuseScreenState extends State<ParentExcuseScreen> {
     });
     try {
       final response = await widget.api.get('/parent/excuse-requests');
-      final items = (response['data'] as List).cast<Map<String, dynamic>>();
+      final data = response['data'];
+      List<Map<String, dynamic>> items = [];
+      List<Map<String, dynamic>> eligible = [];
+      if (data is List) {
+        items = data.cast<Map<String, dynamic>>();
+      } else if (data is Map<String, dynamic>) {
+        items = ((data['requests'] as List?) ?? []).cast<Map<String, dynamic>>();
+        eligible = ((data['eligible_absences'] as List?) ?? []).cast<Map<String, dynamic>>();
+      }
       setState(() {
         _items = items;
+        _eligible = eligible;
+        _selectedEligibleId = eligible.isNotEmpty ? eligible.first['id'] as int? : null;
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -138,6 +150,27 @@ class _ParentExcuseScreenState extends State<ParentExcuseScreen> {
     }
   }
 
+  Future<void> _startLetter() async {
+    final recordId = _selectedEligibleId;
+    if (recordId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose an absence to explain.')),
+      );
+      return;
+    }
+    try {
+      await widget.api.post('/parent/excuse-requests', {'attendance_record_id': recordId});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Now fill in the explanation letter.')),
+      );
+      _load();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   String _statusLabel(String status) {
     return switch (status) {
       'awaiting_letter' => 'Needs letter',
@@ -180,11 +213,56 @@ class _ParentExcuseScreenState extends State<ParentExcuseScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text(
-                    'After 3 consecutive absences or late marks, you must submit an explanation letter. '
-                    'A teacher can accept it to mark those days excused.',
+                    'You can send a letter for any absence. After 3 consecutive absences, a required warning is shown.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
                   ),
                   const SizedBox(height: 12),
+                  if (_items.any((item) => item['is_required'] == true && item['status'] == 'awaiting_letter'))
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: const Text(
+                        'WARNING: 3 consecutive absences. An explanation letter is required.',
+                        style: TextStyle(color: Color(0xFF991B1B), fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  if (_eligible.isNotEmpty) ...[
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text('Explain an absence', style: TextStyle(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 8),
+                            DropdownButton<int>(
+                              isExpanded: true,
+                              value: _selectedEligibleId,
+                              items: _eligible.map((row) {
+                                final id = row['id'] as int;
+                                return DropdownMenuItem(
+                                  value: id,
+                                  child: Text('${row['student']} · ${row['date']} · ${row['status']}'),
+                                );
+                              }).toList(),
+                              onChanged: (value) => setState(() => _selectedEligibleId = value),
+                            ),
+                            FilledButton(
+                              onPressed: _startLetter,
+                              child: const Text('Start letter'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
                   if (_items.isEmpty)
                     const Padding(
@@ -196,6 +274,7 @@ class _ParentExcuseScreenState extends State<ParentExcuseScreen> {
                     final status = item['status'] as String? ?? '';
                     final mode = _modeFor(id);
                     final streak = (item['streak_summary'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                    final required = item['is_required'] == true;
                     return Card(
                       child: Padding(
                         padding: const EdgeInsets.all(12),
@@ -228,8 +307,27 @@ class _ParentExcuseScreenState extends State<ParentExcuseScreen> {
                               ],
                             ),
                             const SizedBox(height: 4),
+                            if (required)
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(8),
+                                margin: const EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Warning: 3 consecutive absences — explanation required',
+                                  style: TextStyle(color: Color(0xFF991B1B), fontWeight: FontWeight.w700, fontSize: 12),
+                                ),
+                              )
+                            else
+                              Text(
+                                'Optional explanation',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
                             Text(
-                              'Streak: ${item['streak_count'] ?? 0} consecutive absent/late',
+                              '${item['streak_count'] ?? 0} day(s)',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                             if (streak.isNotEmpty) ...[

@@ -7,14 +7,29 @@ function fileUrl(requestId, type) {
     return route('parent.excuse-requests.file', { excuseRequest: requestId, type });
 }
 
-export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
+export default function ExcuseRequestsIndex({ excuseRequests = [], eligibleAbsences = [] }) {
     const [modes, setModes] = useState({});
     const [letters, setLetters] = useState({});
     const [pdfs, setPdfs] = useState({});
     const [photos, setPhotos] = useState({});
     const [submittingId, setSubmittingId] = useState(null);
+    const [selectedAbsence, setSelectedAbsence] = useState(eligibleAbsences[0]?.id ?? '');
 
     const modeFor = (id) => modes[id] || 'text';
+    const requiredOpen = excuseRequests.filter((r) => r.is_required && r.status === 'awaiting_letter');
+
+    const startLetter = (e) => {
+        e.preventDefault();
+        if (!selectedAbsence) {
+            window.alert('Choose an absence to explain.');
+            return;
+        }
+        router.post(
+            route('parent.excuse-requests.store'),
+            { attendance_record_id: selectedAbsence },
+            { preserveScroll: true },
+        );
+    };
 
     const submitExcuseLetter = (e, requestId) => {
         e.preventDefault();
@@ -63,11 +78,53 @@ export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
         <ParentLayout title="Explanation Letters">
             <Head title="Explanation Letters" />
 
+            <div className="space-y-4">
+                {requiredOpen.length > 0 && (
+                    <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200">
+                        <p className="font-semibold">Warning: 3 consecutive absences</p>
+                        <p className="mt-1 text-xs">
+                            {requiredOpen.map((r) => r.student).join(', ')} must submit an explanation letter.
+                            This is separate from optional letters for a single absence.
+                        </p>
+                    </div>
+                )}
+
+                {eligibleAbsences.length > 0 && (
+                    <form
+                        onSubmit={startLetter}
+                        className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200"
+                    >
+                        <h2 className="text-sm font-semibold text-gray-900">Explain an absence</h2>
+                        <p className="mt-1 text-xs text-gray-500">
+                            You can send a letter for any absence or late mark. After 3 consecutive absences, a required warning appears below.
+                        </p>
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                            <select
+                                value={selectedAbsence}
+                                onChange={(e) => setSelectedAbsence(e.target.value)}
+                                className="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            >
+                                {eligibleAbsences.map((row) => (
+                                    <option key={row.id} value={row.id}>
+                                        {row.student} · {row.date} · {row.status}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="submit"
+                                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                            >
+                                Start letter
+                            </button>
+                        </div>
+                    </form>
+                )}
+
             <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
                 <div className="border-b border-gray-100 px-4 py-3">
                     <h2 className="text-base font-semibold text-gray-900">Explanation Letters</h2>
                     <p className="text-xs text-gray-500">
-                        After 3 consecutive absences or late marks, submit a typed letter or a PDF. You can also attach a photo.
+                        Submit a typed letter or PDF, and optionally attach a photo. A teacher can accept it to mark those days excused.
                     </p>
                 </div>
                 <div className="divide-y divide-gray-100">
@@ -94,8 +151,15 @@ export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
                                     {r.status === 'awaiting_letter' ? 'needs letter' : r.status}
                                 </span>
                             </div>
+                            {r.is_required ? (
+                                <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 ring-1 ring-red-200">
+                                    Warning: 3 consecutive absences — explanation required
+                                </div>
+                            ) : (
+                                <p className="mt-1 text-xs text-gray-500">Optional explanation for this absence/late</p>
+                            )}
                             <p className="mt-1 text-xs text-gray-500">
-                                {r.streak_count} consecutive absent/late
+                                {r.streak_count} day{r.streak_count === 1 ? '' : 's'}
                                 {Array.isArray(r.streak_summary) && r.streak_summary.length > 0
                                     ? ` · ${r.streak_summary.map((s) => `${s.date} (${s.status})`).join(', ')}`
                                     : ''}
@@ -203,6 +267,7 @@ export default function ExcuseRequestsIndex({ excuseRequests = [] }) {
                         </div>
                     ))}
                 </div>
+            </div>
             </div>
         </ParentLayout>
     );

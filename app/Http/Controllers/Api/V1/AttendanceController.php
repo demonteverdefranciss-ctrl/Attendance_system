@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Api\ApiController;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
+use App\Models\Camera;
 use App\Models\Student;
 use App\Services\AttendanceService;
 use Carbon\Carbon;
@@ -37,7 +38,7 @@ class AttendanceController extends ApiController
             return $this->ok($this->recordPayload($existing), 200);
         }
 
-        $student = Student::find($data['student_id']);
+        $student = Student::with('section:id,camera_id')->find($data['student_id']);
 
         if (! $student->is_active) {
             return $this->fail('Student account is inactive.', 'STUDENT_INACTIVE', 422);
@@ -53,6 +54,10 @@ class AttendanceController extends ApiController
 
         $capturedAt = isset($data['captured_at']) ? Carbon::parse($data['captured_at']) : now();
         $camera = $request->attributes->get('camera');
+
+        if ($camera instanceof Camera && ! $camera->coversSection((int) $student->section_id, $student->section?->camera_id)) {
+            return $this->fail('This camera is not assigned to the student\'s section.', 'WRONG_CAMERA', 422);
+        }
 
         $session = $this->attendance->currentOpenSession($student->section_id);
         if (! $session) {
@@ -100,15 +105,25 @@ class AttendanceController extends ApiController
     }
 
     /**
-     * Whether any attendance session is open today (device-authenticated).
-     * The recognition node polls this to turn the camera on/off with sessions.
+     * Whether this camera should run (device-authenticated).
+     * Dedicated cameras turn on only when one of their assigned sections is open.
+     * Unassigned cameras still follow any open session.
      */
-    public function openSessionsForDevice(): JsonResponse
+    public function openSessionsForDevice(Request $request): JsonResponse
     {
-        // Any currently open session should turn the school-PC camera on.
         // Do not filter by session_date only — timezone skew between Railway
         // and the device can hide a session that the website shows as open.
-        $count = AttendanceSession::where('status', 'open')->count();
+        $query = AttendanceSession::where('status', 'open');
+
+        $camera = $request->attributes->get('camera');
+        if ($camera instanceof Camera) {
+            $sectionIds = $camera->sections()->pluck('id');
+            if ($sectionIds->isNotEmpty()) {
+                $query->whereIn('section_id', $sectionIds);
+            }
+        }
+
+        $count = $query->count();
 
         return $this->ok([
             'open' => $count > 0,

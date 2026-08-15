@@ -70,8 +70,8 @@ class NotificationService
                 'student_id' => $student->id,
                 'channel' => 'push',
                 'type' => 'consecutive_absent_late',
-                'title' => 'Attendance concern — explanation needed',
-                'body' => "{$name} has been absent or late 3 times in a row ({$dates}). Please submit an explanation letter in the parent portal.",
+                'title' => 'WARNING: 3 consecutive absences',
+                'body' => "{$name} has been absent 3 days in a row ({$dates}). This is a formal attendance warning. Please submit an explanation letter now.",
                 'payload' => [
                     'excuse_request_id' => $request->id,
                     'streak_count' => $request->streak_count,

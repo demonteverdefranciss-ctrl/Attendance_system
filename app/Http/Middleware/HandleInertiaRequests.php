@@ -46,6 +46,7 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
+                'device_key' => fn () => $request->session()->get('device_key'),
             ],
             'teacherAlerts' => fn () => $this->teacherAlerts($request),
             'assetBase' => rtrim((string) env('ASSET_URL', ''), '/'),
