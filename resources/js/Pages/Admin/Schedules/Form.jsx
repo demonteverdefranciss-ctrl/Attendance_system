@@ -61,8 +61,15 @@ export default function ScheduleForm({ schedule, sections }) {
                         onChange={(e) => setData('is_active', e.target.checked)}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    Active (attendance auto-activates during this window)
+                    Active (attendance auto-activates during this window on school days)
                 </label>
+                <p className="text-sm text-gray-500">
+                    Sessions never auto-open on Saturday or Sunday. Mark holidays on the{' '}
+                    <Link href={route('admin.no-class-days.index')} className="text-blue-600 hover:underline">
+                        No-class days
+                    </Link>{' '}
+                    calendar. Teachers can still open a session by hand any day.
+                </p>
 
                 <div className="flex items-center gap-3">
                     <button type="submit" disabled={processing} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50">

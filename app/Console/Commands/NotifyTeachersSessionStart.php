@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Teacher;
 use App\Models\TeacherNotification;
+use App\Services\SchoolCalendar;
 use Illuminate\Console\Command;
 
 class NotifyTeachersSessionStart extends Command
@@ -12,8 +13,13 @@ class NotifyTeachersSessionStart extends Command
 
     protected $description = 'Notify teachers 30 minutes before the 6:00 AM attendance session';
 
-    public function handle(): int
+    public function handle(SchoolCalendar $calendar): int
     {
+        if (! $calendar->shouldAutoOpenSessions(now())) {
+            $this->info('Skipping session-start reminders (weekend or no-class day).');
+
+            return self::SUCCESS;
+        }
         $today = now()->toDateString();
         $teachers = Teacher::query()->orderBy('id')->get();
         $created = 0;

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\AttendanceSession;
 use App\Models\Schedule;
 use App\Services\AttendanceService;
+use App\Services\SchoolCalendar;
 use Illuminate\Console\Command;
 
 class ManageAttendanceSessions extends Command
@@ -13,19 +14,24 @@ class ManageAttendanceSessions extends Command
 
     protected $description = 'Auto-open/close attendance sessions from schedules and ad-hoc timeouts';
 
-    public function handle(AttendanceService $service): int
+    public function handle(AttendanceService $service, SchoolCalendar $calendar): int
     {
         $now = now();
         $today = $now->isoWeekday();      // 1 (Mon) .. 7 (Sun)
         $nowTime = $now->format('H:i:s');
+        $opened = 0;
+        $closed = 0;
 
         $schedules = Schedule::with('section')
             ->where('is_active', true)
             ->where('day_of_week', $today)
             ->get();
 
-        $opened = 0;
-        $closed = 0;
+        $autoOpen = $calendar->shouldAutoOpenSessions($now);
+        if (! $autoOpen) {
+            $reason = $calendar->isWeekend($now) ? 'weekend' : 'no-class day';
+            $this->info("Skipping auto-open ({$reason}).");
+        }
 
         foreach ($schedules as $schedule) {
             if (! $schedule->section) {
@@ -34,7 +40,7 @@ class ManageAttendanceSessions extends Command
 
             $withinWindow = $nowTime >= $schedule->start_time && $nowTime < $schedule->end_time;
 
-            if ($withinWindow) {
+            if ($autoOpen && $withinWindow) {
                 $before = AttendanceSession::where('section_id', $schedule->section_id)
                     ->where('schedule_id', $schedule->id)
                     ->whereDate('session_date', $now->toDateString())
