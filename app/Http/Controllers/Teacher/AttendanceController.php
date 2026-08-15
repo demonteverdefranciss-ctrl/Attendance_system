@@ -92,7 +92,8 @@ class AttendanceController extends Controller
         return Inertia::render('Teacher/Attendance/Index', [
             'rows' => $payloadRows,
             'today' => $today,
-            'adhocMaxMinutes' => $sessionMax,
+            'adhocMaxMinutes' => $sections->first()?->sessionMaxMinutes()
+                ?? (int) config('attendance.session_max_minutes', 360),
             'testClearEnabled' => (bool) config('attendance.test_clear_enabled', false),
             'recognition' => $this->recognition->snapshot(),
         ]);
