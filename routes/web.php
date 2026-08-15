@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\GuardianController;
+use App\Http\Controllers\Admin\NoClassDayController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\CameraController;
 use App\Http\Controllers\Admin\SectionController;
@@ -48,6 +49,9 @@ Route::middleware('auth')->group(function () {
         Route::resource('sections', SectionController::class)->except('show');
         Route::resource('students', StudentController::class)->except('show');
         Route::resource('schedules', ScheduleController::class)->except('show');
+        Route::get('no-class-days', [NoClassDayController::class, 'index'])->name('no-class-days.index');
+        Route::post('no-class-days', [NoClassDayController::class, 'store'])->name('no-class-days.store');
+        Route::delete('no-class-days/{noClassDay}', [NoClassDayController::class, 'destroy'])->name('no-class-days.destroy');
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     });
 
