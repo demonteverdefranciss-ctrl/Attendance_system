@@ -107,10 +107,16 @@ class RecognitionProcessService
      */
     public function snapshot(): array
     {
+        try {
+            $engine = \App\Support\RecognitionEngine::current();
+        } catch (\Throwable) {
+            $engine = 'lbph';
+        }
+
         return [
             'enabled' => $this->isEnabled(),
             'status' => $this->status(),
-            'engine' => \App\Support\RecognitionEngine::current(),
+            'engine' => $engine,
         ];
     }
 
