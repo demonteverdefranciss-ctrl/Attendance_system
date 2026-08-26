@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('schedules', ScheduleController::class)->except('show');
         Route::get('no-class-days', [NoClassDayController::class, 'index'])->name('no-class-days.index');
         Route::post('no-class-days', [NoClassDayController::class, 'store'])->name('no-class-days.store');
+        Route::post('no-class-days/sync-google', [NoClassDayController::class, 'syncGoogle'])->name('no-class-days.sync-google');
         Route::delete('no-class-days/{noClassDay}', [NoClassDayController::class, 'destroy'])->name('no-class-days.destroy');
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     });

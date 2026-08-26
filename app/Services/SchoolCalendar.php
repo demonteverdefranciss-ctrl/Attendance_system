@@ -28,6 +28,7 @@ class SchoolCalendar
 
     /**
      * Whether schedules should auto-open sessions on this date.
+     * Skips weekends and no-class days (manual or Google Calendar holidays).
      * Teachers can still open a session by hand.
      */
     public function shouldAutoOpenSessions(CarbonInterface $date): bool

@@ -16,5 +16,8 @@ Schedule::command('attendance:manage-sessions')->everyMinute();
 // Teacher reminder: 30 minutes before the 6:00 AM attendance window.
 Schedule::command('attendance:notify-session-start')->dailyAt('05:30');
 
+// Pull Philippine (or configured) Google Calendar holidays into no-class days.
+Schedule::command('attendance:sync-holidays')->dailyAt('01:15');
+
 // Purge biometric data without consent or past retention (RA 10173). Weekly on Sunday 02:00.
 Schedule::command('biometric:purge-stale')->weeklyOn(0, '02:00');
