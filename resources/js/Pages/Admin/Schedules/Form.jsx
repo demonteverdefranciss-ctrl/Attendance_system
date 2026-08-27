@@ -64,7 +64,8 @@ export default function ScheduleForm({ schedule, sections }) {
                     Active (attendance auto-activates during this window on school days)
                 </label>
                 <p className="text-sm text-gray-500">
-                    Sessions never auto-open on Saturday or Sunday. Mark holidays on the{' '}
+                    Sessions never auto-open on Saturday or Sunday, or on holidays from Google Calendar.
+                    Mark extra days off on the{' '}
                     <Link href={route('admin.no-class-days.index')} className="text-blue-600 hover:underline">
                         No-class days
                     </Link>{' '}

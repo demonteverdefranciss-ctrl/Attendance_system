@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\NoClassDay;
+use App\Services\GoogleHolidaySync;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class NoClassDayController extends Controller
 {
@@ -27,7 +29,7 @@ class NoClassDayController extends Controller
         $days = NoClassDay::query()
             ->whereYear('date', $year)
             ->orderBy('date')
-            ->get(['id', 'date', 'name']);
+            ->get(['id', 'date', 'name', 'source']);
 
         $byDate = $days
             ->filter(fn (NoClassDay $d) => (int) $d->date->month === $month)
@@ -35,6 +37,7 @@ class NoClassDayController extends Controller
                 $d->date->toDateString() => [
                     'id' => $d->id,
                     'name' => $d->name,
+                    'source' => $d->source ?: NoClassDay::SOURCE_MANUAL,
                 ],
             ]);
 
@@ -46,15 +49,21 @@ class NoClassDayController extends Controller
             'daysInMonth' => $start->daysInMonth,
             'today' => now()->toDateString(),
             'marked' => $byDate->all(),
+            'googleSyncEnabled' => (bool) config('school_calendar.google_sync_enabled', true),
+            'googleCalendarLabel' => (string) config(
+                'school_calendar.google_calendar_id',
+                'en.philippines.official#holiday@group.v.calendar.google.com'
+            ),
             'upcoming' => NoClassDay::query()
                 ->whereDate('date', '>=', now()->toDateString())
                 ->orderBy('date')
-                ->limit(20)
-                ->get(['id', 'date', 'name'])
+                ->limit(30)
+                ->get(['id', 'date', 'name', 'source'])
                 ->map(fn (NoClassDay $d) => [
                     'id' => $d->id,
                     'date' => $d->date->toDateString(),
                     'name' => $d->name,
+                    'source' => $d->source ?: NoClassDay::SOURCE_MANUAL,
                 ]),
         ]);
     }
@@ -73,7 +82,10 @@ class NoClassDayController extends Controller
 
         NoClassDay::query()->updateOrCreate(
             ['date' => $day->toDateString()],
-            ['name' => $data['name'] ?: null],
+            [
+                'name' => $data['name'] ?: null,
+                'source' => NoClassDay::SOURCE_MANUAL,
+            ],
         );
 
         return back()->with('success', 'No-class day saved. Sessions will not auto-open on that date.');
@@ -84,5 +96,25 @@ class NoClassDayController extends Controller
         $noClassDay->delete();
 
         return back()->with('success', 'No-class day removed.');
+    }
+
+    public function syncGoogle(GoogleHolidaySync $sync): RedirectResponse
+    {
+        try {
+            $result = $sync->sync();
+        } catch (Throwable $e) {
+            return back()->with('error', 'Google Calendar sync failed: '.$e->getMessage());
+        }
+
+        return back()->with(
+            'success',
+            sprintf(
+                'Synced Google holidays: %d total (%d new, %d updated, %d removed).',
+                $result['total'],
+                $result['imported'],
+                $result['updated'],
+                $result['removed'],
+            )
+        );
     }
 }

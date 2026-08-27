@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -27,7 +27,10 @@ export default function NoClassDaysIndex({
     today,
     marked = {},
     upcoming = [],
+    googleSyncEnabled = true,
+    googleCalendarLabel = '',
 }) {
+    const [syncing, setSyncing] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         date: today,
         name: '',
@@ -57,7 +60,7 @@ export default function NoClassDaysIndex({
     const next = shiftMonth(year, month, 1);
 
     const removeDay = (id) => {
-        if (!window.confirm('Remove this no-class day? Sessions can auto-open again on that date.')) {
+        if (!window.confirm('Remove this no-class day? Sessions can auto-open again on that date (Google holidays may return on the next sync).')) {
             return;
         }
         router.delete(route('admin.no-class-days.destroy', id), { preserveScroll: true });
@@ -86,14 +89,48 @@ export default function NoClassDaysIndex({
         });
     };
 
+    const syncGoogle = () => {
+        setSyncing(true);
+        router.post(
+            route('admin.no-class-days.sync-google'),
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setSyncing(false),
+            },
+        );
+    };
+
     return (
-        <AdminLayout title="No-class days">
+        <AdminLayout
+            title="No-class days"
+            actions={
+                googleSyncEnabled ? (
+                    <button
+                        type="button"
+                        onClick={syncGoogle}
+                        disabled={syncing}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                        {syncing ? 'Syncing…' : 'Sync Google holidays'}
+                    </button>
+                ) : null
+            }
+        >
             <Head title="No-class days" />
 
-            <p className="mb-6 max-w-3xl text-sm text-gray-600">
-                Sessions never auto-open on Saturday or Sunday. Click a weekday to mark a holiday or no-class date so
-                the camera session will not start by itself. Teachers can still open attendance by hand.
+            <p className="mb-4 max-w-3xl text-sm text-gray-600">
+                Sessions never auto-open on Saturday or Sunday. Holidays from Google Calendar are imported
+                automatically and also skip auto-open. You can still mark extra school days off by hand.
+                Teachers can open attendance manually any day.
             </p>
+
+            {googleSyncEnabled && (
+                <p className="mb-6 max-w-3xl text-xs text-gray-500">
+                    Source: Google Calendar{googleCalendarLabel ? ` (${googleCalendarLabel})` : ''}. Syncs daily at 1:15 AM,
+                    or use the button above.
+                </p>
+            )}
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
                 <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-6">
@@ -127,9 +164,12 @@ export default function NoClassDaysIndex({
                                 return <div key={`empty-${index}`} className="min-h-[4.5rem] rounded-lg" />;
                             }
 
+                            const fromGoogle = cell.mark?.source === 'google';
                             let classes = 'min-h-[4.5rem] rounded-lg border p-2 text-left text-sm transition ';
                             if (cell.weekend) {
                                 classes += 'cursor-default border-gray-100 bg-gray-50 text-gray-400';
+                            } else if (fromGoogle) {
+                                classes += 'cursor-pointer border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100';
                             } else if (cell.mark) {
                                 classes += 'cursor-pointer border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100';
                             } else {
@@ -156,7 +196,11 @@ export default function NoClassDaysIndex({
                                     <div className="font-semibold">{cell.day}</div>
                                     {cell.weekend && <div className="mt-1 text-[11px] leading-tight">Weekend</div>}
                                     {cell.mark && (
-                                        <div className="mt-1 line-clamp-2 text-[11px] leading-tight text-amber-800">
+                                        <div
+                                            className={`mt-1 line-clamp-2 text-[11px] leading-tight ${
+                                                fromGoogle ? 'text-sky-800' : 'text-amber-800'
+                                            }`}
+                                        >
                                             {cell.mark.name || 'No class'}
                                         </div>
                                     )}
@@ -167,7 +211,10 @@ export default function NoClassDaysIndex({
 
                     <div className="mt-4 flex flex-wrap gap-3 text-xs text-gray-500">
                         <span className="inline-flex items-center gap-1.5">
-                            <span className="h-3 w-3 rounded border border-amber-300 bg-amber-50" /> No class
+                            <span className="h-3 w-3 rounded border border-sky-300 bg-sky-50" /> Google holiday
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                            <span className="h-3 w-3 rounded border border-amber-300 bg-amber-50" /> Manual no class
                         </span>
                         <span className="inline-flex items-center gap-1.5">
                             <span className="h-3 w-3 rounded border border-gray-100 bg-gray-50" /> Weekend (always off)
@@ -215,14 +262,17 @@ export default function NoClassDaysIndex({
                     <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
                         <h3 className="font-semibold text-gray-900">Upcoming</h3>
                         {upcoming.length === 0 ? (
-                            <p className="mt-2 text-sm text-gray-500">No upcoming no-class days.</p>
+                            <p className="mt-2 text-sm text-gray-500">No upcoming no-class days. Sync Google holidays to load them.</p>
                         ) : (
                             <ul className="mt-3 space-y-2">
                                 {upcoming.map((day) => (
                                     <li key={day.id} className="flex items-start justify-between gap-2 text-sm">
                                         <div>
                                             <div className="font-medium text-gray-800">{formatLong(day.date)}</div>
-                                            <div className="text-gray-500">{day.name || 'No class'}</div>
+                                            <div className="text-gray-500">
+                                                {day.name || 'No class'}
+                                                {day.source === 'google' ? ' · Google' : ' · Manual'}
+                                            </div>
                                         </div>
                                         <button
                                             type="button"
