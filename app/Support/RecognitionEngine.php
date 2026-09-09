@@ -16,7 +16,7 @@ class RecognitionEngine
             $stored = null;
         }
 
-        return self::normalize($stored ?? config('recognition.engine', 'lbph'));
+        return self::normalize($stored ?? config('recognition.engine', 'arcface'));
     }
 
     public static function set(string $engine): string
@@ -33,6 +33,6 @@ class RecognitionEngine
 
     public static function normalize(?string $engine): string
     {
-        return $engine === 'arcface' ? 'arcface' : 'lbph';
+        return $engine === 'lbph' ? 'lbph' : 'arcface';
     }
 }

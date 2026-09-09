@@ -105,10 +105,10 @@ export default function ReportsIndex({
                     Apply
                 </button>
                 <div className="ml-auto flex gap-2">
-                    <a href={exportUrl('csv')} className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                    <a href={exportUrl('csv')} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100">
                         Export CSV
                     </a>
-                    <a href={exportUrl('pdf')} className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                    <a href={exportUrl('pdf')} className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-100">
                         Export PDF
                     </a>
                 </div>
@@ -149,7 +149,7 @@ export default function ReportsIndex({
                                     <td className="px-4 py-2 text-sm text-gray-700">{s.section}</td>
                                     <td className="px-4 py-2 text-sm capitalize text-gray-700">
                                         {s.status}
-                                        {s.is_adhoc ? ' · manual' : ''}
+                                        {s.is_adhoc ? ' Â· manual' : ''}
                                     </td>
                                     <td className="px-4 py-2 text-sm font-medium text-green-700">{s.present_count}</td>
                                     <td className="px-4 py-2 text-sm font-medium text-red-600">{s.absent_count}</td>
@@ -247,8 +247,8 @@ export default function ReportsIndex({
                                 >
                                     {r.status}
                                 </td>
-                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_in ?? '—'}</td>
-                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_out ?? '—'}</td>
+                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_in ?? 'â€”'}</td>
+                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_out ?? 'â€”'}</td>
                                 <td className="px-4 py-2 text-sm capitalize text-gray-500">{r.method}</td>
                             </tr>
                         ))}

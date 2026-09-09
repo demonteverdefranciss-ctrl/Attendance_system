@@ -96,7 +96,7 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 360, te
                                 <p className="text-sm text-gray-500">{section.students_count} students</p>
                             </div>
                             {session && (
-                                <span className={`rounded-full px-2 py-0.5 text-xs ${session.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                <span className={`rounded-full px-2 py-0.5 text-xs ${session.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200'}`}>
                                     {session.status}
                                     {session.is_adhoc ? ' · manual' : ' · schedule'}
                                 </span>
@@ -125,7 +125,7 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 360, te
                                     </Link>
                                     <Link
                                         href={route('reports.session', session.id)}
-                                        className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                                        className="rounded-lg bg-sky-50 px-4 py-2 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
                                     >
                                         View report
                                     </Link>
@@ -133,7 +133,7 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 360, te
                                         <button
                                             onClick={() => closeSession(session.id)}
                                             disabled={closingId === session.id}
-                                            className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                                            className="rounded-lg bg-rose-50 px-4 py-2 text-sm font-medium text-rose-800 ring-1 ring-inset ring-rose-200 hover:bg-rose-100 disabled:opacity-50"
                                         >
                                             {closingId === session.id ? 'Closing…' : 'Close session'}
                                         </button>

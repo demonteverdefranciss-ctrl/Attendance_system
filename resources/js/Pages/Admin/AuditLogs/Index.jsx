@@ -22,13 +22,13 @@ export default function AuditLogsIndex({ logs, actions, users, filters }) {
     };
 
     const fmt = (value) => {
-        if (!value) return '—';
+        if (!value) return 'â€”';
         const d = new Date(value);
         return Number.isNaN(d.getTime()) ? value : d.toLocaleString();
     };
 
     const preview = (values) => {
-        if (!values || Object.keys(values).length === 0) return '—';
+        if (!values || Object.keys(values).length === 0) return 'â€”';
         const text = JSON.stringify(values);
         return text.length > 120 ? `${text.slice(0, 120)}...` : text;
     };
@@ -76,7 +76,7 @@ export default function AuditLogsIndex({ logs, actions, users, filters }) {
                     <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
                         Apply
                     </button>
-                    <button type="button" onClick={resetFilters} className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                    <button type="button" onClick={resetFilters} className="rounded-lg bg-sky-50 px-4 py-2 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100">
                         Reset
                     </button>
                 </div>
@@ -108,8 +108,8 @@ export default function AuditLogsIndex({ logs, actions, users, filters }) {
                                     {log.user ? `${log.user.name} (${log.user.username})` : 'System'}
                                 </td>
                                 <td className="px-4 py-2 text-xs font-medium text-gray-800">{log.action}</td>
-                                <td className="px-4 py-2 text-xs text-gray-700">{log.entity ? `${log.entity} #${log.entity_id ?? '—'}` : '—'}</td>
-                                <td className="px-4 py-2 text-xs text-gray-700">{log.ip_address || '—'}</td>
+                                <td className="px-4 py-2 text-xs text-gray-700">{log.entity ? `${log.entity} #${log.entity_id ?? 'â€”'}` : 'â€”'}</td>
+                                <td className="px-4 py-2 text-xs text-gray-700">{log.ip_address || 'â€”'}</td>
                                 <td className="px-4 py-2 text-xs text-gray-600">{preview(log.old_values)}</td>
                                 <td className="px-4 py-2 text-xs text-gray-600">{preview(log.new_values)}</td>
                             </tr>

@@ -11,13 +11,13 @@ const ENGINES = [
     { id: 'arcface', label: 'ArcFace' },
 ];
 
-export default function RecognitionStatus({ enabled, status, engine = 'lbph', onStart, onEngineChange, starting, switching }) {
+export default function RecognitionStatus({ enabled, status, engine = 'arcface', onStart, onEngineChange, starting, switching }) {
     const label = LABELS[status] ?? LABELS.stopped;
 
     const switcher = (
         <div className="flex rounded-lg bg-white p-0.5 ring-1 ring-gray-200">
             {ENGINES.map((item) => {
-                const active = (engine || 'lbph') === item.id;
+                const active = (engine || 'arcface') === item.id;
                 return (
                     <button
                         key={item.id}
@@ -25,7 +25,7 @@ export default function RecognitionStatus({ enabled, status, engine = 'lbph', on
                         disabled={switching}
                         onClick={() => onEngineChange?.(item.id)}
                         className={`rounded-md px-3 py-1 text-xs font-semibold ${
-                            active ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+                            active ? 'bg-blue-600 text-white' : 'text-sky-700 hover:bg-sky-50'
                         } disabled:opacity-50`}
                     >
                         {item.label}

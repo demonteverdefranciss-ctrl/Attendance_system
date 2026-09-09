@@ -36,16 +36,16 @@ export default function ReportStudent({ student, summary, trend, filters }) {
         <Layout
             title={student.name}
             actions={
-                <Link href={route('reports.index')} className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
-                    ← Back to Reports
+                <Link href={route('reports.index')} className="rounded-lg bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100">
+                    â† Back to Reports
                 </Link>
             }
         >
-            <Head title={`${student.name} · Analytics`} />
+            <Head title={`${student.name} Â· Analytics`} />
 
             <p className="mb-4 text-sm text-gray-500">
                 {student.section ? `Section: ${student.section}` : 'No section'}
-                {student.lrn ? ` · LRN: ${student.lrn}` : ''}
+                {student.lrn ? ` Â· LRN: ${student.lrn}` : ''}
             </p>
 
             <form onSubmit={apply} className="mb-6 flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">

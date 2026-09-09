@@ -35,5 +35,5 @@ return [
     | Default matcher until a teacher picks one in Attendance
     |--------------------------------------------------------------------------
     */
-    'engine' => env('RECOGNITION_ENGINE', 'lbph'),
+    'engine' => env('RECOGNITION_ENGINE', 'arcface'),
 ];

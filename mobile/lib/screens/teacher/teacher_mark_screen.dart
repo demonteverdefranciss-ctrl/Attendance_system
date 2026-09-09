@@ -23,7 +23,7 @@ class _TeacherMarkScreenState extends State<TeacherMarkScreen> {
   Map<String, dynamic> _session = {};
   List<Map<String, dynamic>> _students = [];
   final Map<int, String> _statuses = {};
-  String _engine = 'lbph';
+  String _engine = 'arcface';
 
   static const _statusesList = ['present', 'late', 'absent', 'excused'];
 

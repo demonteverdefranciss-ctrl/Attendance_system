@@ -27,7 +27,7 @@ export default function AuthenticatedLayout({ title, children }) {
                             </div>
                             <button
                                 onClick={logout}
-                                className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                                className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
                             >
                                 Logout
                             </button>

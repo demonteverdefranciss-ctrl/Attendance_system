@@ -54,8 +54,8 @@ export default function TeacherDashboard({ stats, summary, trend, atRisk = [], m
             </div>
 
             <p className="mb-3 text-sm text-gray-500">
-                Attendance overview · {range.from} to {range.to}
-                {' · '}
+                Attendance overview Â· {range.from} to {range.to}
+                {' Â· '}
                 <Link href={route('reports.index')} className="text-blue-600 hover:underline">Open Reports</Link>
             </p>
 
@@ -88,7 +88,7 @@ export default function TeacherDashboard({ stats, summary, trend, atRisk = [], m
                                 <div className="flex items-center gap-2">
                                     <h3 className="text-sm font-semibold text-gray-900">{n.title}</h3>
                                     {n.read_at ? (
-                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">Read</span>
+                                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">Read</span>
                                     ) : (
                                         <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">New</span>
                                     )}
@@ -99,7 +99,7 @@ export default function TeacherDashboard({ stats, summary, trend, atRisk = [], m
                                 <button
                                     type="button"
                                     onClick={() => router.post(route('teacher.notifications.read', n.id), {}, { preserveScroll: true })}
-                                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                                    className="rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
                                 >
                                     Dismiss
                                 </button>
