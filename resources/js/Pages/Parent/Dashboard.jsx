@@ -31,6 +31,11 @@ export default function ParentDashboard({
                             </Link>
                         </li>
                         <li>
+                            <Link href={route('parent.no-class-days.index')} className="text-blue-600 hover:underline">
+                                No-class days / holidays
+                            </Link>
+                        </li>
+                        <li>
                             <Link href={route('parent.biometrics.index')} className="text-blue-600 hover:underline">
                                 Biometric face photos
                             </Link>
