@@ -1,8 +1,11 @@
 import { router } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import TeacherReviewActions from '@/Components/TeacherReviewActions';
+import Pagination, { usePageRows } from '@/Components/Pagination';
 
 export default function BiometricPhotosIndex({ submissions }) {
+    const { rows, paginator } = usePageRows(submissions);
+
     const review = (id, action, notes) => {
         const routeName = action === 'approve'
             ? 'teacher.biometric-photos.approve'
@@ -31,13 +34,13 @@ export default function BiometricPhotosIndex({ submissions }) {
             </p>
 
             <div className="space-y-4">
-                {submissions.length === 0 && (
+                {rows.length === 0 && (
                     <div className="rounded-xl bg-white p-8 text-center text-sm text-gray-400 shadow-sm ring-1 ring-gray-200">
                         No pending biometric photo submissions.
                     </div>
                 )}
 
-                {submissions.map((item) => (
+                {rows.map((item) => (
                     <div key={item.id} className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
                         <div>
                             <h2 className="text-lg font-semibold text-gray-900">{item.student}</h2>
@@ -76,6 +79,7 @@ export default function BiometricPhotosIndex({ submissions }) {
                     </div>
                 ))}
             </div>
+            <Pagination paginator={paginator} />
         </TeacherLayout>
     );
 }

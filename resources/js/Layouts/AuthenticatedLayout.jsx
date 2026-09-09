@@ -1,7 +1,8 @@
 import { router, usePage } from '@inertiajs/react';
+import FlashMessages from '@/Components/FlashMessages';
 
 export default function AuthenticatedLayout({ title, children }) {
-    const { auth, flash } = usePage().props;
+    const { auth } = usePage().props;
 
     const logout = (e) => {
         e.preventDefault();
@@ -10,6 +11,7 @@ export default function AuthenticatedLayout({ title, children }) {
 
     return (
         <div className="min-h-screen bg-gray-100">
+            <FlashMessages />
             <nav className="bg-white shadow-sm">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 items-center justify-between">
@@ -37,17 +39,6 @@ export default function AuthenticatedLayout({ title, children }) {
             </nav>
 
             <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-                {flash?.success && (
-                    <div className="mb-4 rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">
-                        {flash.success}
-                    </div>
-                )}
-                {flash?.error && (
-                    <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">
-                        {flash.error}
-                    </div>
-                )}
-
                 {title && (
                     <h1 className="mb-6 text-2xl font-bold text-gray-900">{title}</h1>
                 )}

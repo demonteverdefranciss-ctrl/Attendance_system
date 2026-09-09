@@ -1,11 +1,10 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
 export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 360, testClearEnabled = false }) {
     const [closingId, setClosingId] = useState(null);
     const [clearing, setClearing] = useState(false);
-    const flash = usePage().props.flash ?? {};
 
     const openSession = (sectionId) => {
         router.post(route('teacher.attendance.open'), { section_id: sectionId });
@@ -47,11 +46,6 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 360, te
         <TeacherLayout title="Mark Attendance">
             <Head title="Mark Attendance" />
 
-            {flash.success && (
-                <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800 ring-1 ring-green-200">
-                    {flash.success}
-                </div>
-            )}
 
             <p className="mb-2 text-sm text-gray-500">Today: {today}</p>
             <p className="mb-4 text-xs text-gray-500">

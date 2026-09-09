@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import FlashMessages from '@/Components/FlashMessages';
 
 export default function RegisterParent() {
     const { assetBase } = usePage().props;
@@ -44,6 +45,7 @@ export default function RegisterParent() {
     return (
         <>
             <Head title="Parent Registration" />
+            <FlashMessages />
 
             <div
                 className="relative min-h-screen flex items-center justify-center p-6 bg-cover bg-center bg-no-repeat"
@@ -99,6 +101,11 @@ export default function RegisterParent() {
                                         </button>
                                     </div>
                                     {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+                                    {!errors.password && (
+                                        <p className="mt-1 text-xs text-blue-800/70">
+                                            At least 10 characters, with uppercase, lowercase, a number, and a symbol.
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>

@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import { StatCard } from '@/Components/AppSidebarLayout';
 import { Doughnut, ChartCard, noAspect } from '@/Components/Charts';
+import Pagination, { usePageRows } from '@/Components/Pagination';
 
 const STATUS_COLORS = {
     present: 'text-green-700',
@@ -14,6 +15,7 @@ const STATUS_COLORS = {
 export default function ReportsSession({ session, summary, methodBreakdown, records }) {
     const { auth } = usePage().props;
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
+    const { rows: recordRows, paginator: recordsPaginator } = usePageRows(records);
 
     const methodData = {
         labels: ['Face', 'Manual', 'Other'],
@@ -34,7 +36,7 @@ export default function ReportsSession({ session, summary, methodBreakdown, reco
             title="Session Report"
             actions={
                 <Link href={route('reports.index')} className="text-sm text-gray-500 hover:underline">
-                    â† All reports
+                    ← All reports
                 </Link>
             }
         >
@@ -46,9 +48,9 @@ export default function ReportsSession({ session, summary, methodBreakdown, reco
                         <h2 className="text-lg font-semibold text-gray-900">{session.section}</h2>
                         <p className="text-sm text-gray-500">
                             {session.session_date}
-                            {' Â· '}
+                            {' · '}
                             <span className="capitalize">{session.status}</span>
-                            {session.is_adhoc ? ' Â· manual' : ' Â· schedule'}
+                            {session.is_adhoc ? ' · manual' : ' · schedule'}
                         </p>
                     </div>
                     <div className="flex gap-2">
@@ -114,14 +116,14 @@ export default function ReportsSession({ session, summary, methodBreakdown, reco
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {records.length === 0 && (
+                        {recordRows.length === 0 && (
                             <tr>
                                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
                                     No records in this session.
                                 </td>
                             </tr>
                         )}
-                        {records.map((r, i) => (
+                        {recordRows.map((r, i) => (
                             <tr key={i} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-sm text-gray-700">
                                     {r.student_id ? (
@@ -140,14 +142,15 @@ export default function ReportsSession({ session, summary, methodBreakdown, reco
                                 >
                                     {r.status}
                                 </td>
-                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_in ?? 'â€”'}</td>
-                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_out ?? 'â€”'}</td>
+                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_in ?? '—'}</td>
+                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_out ?? '—'}</td>
                                 <td className="px-4 py-2 text-sm capitalize text-gray-500">{r.method}</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+            <Pagination paginator={recordsPaginator} />
         </Layout>
     );
 }

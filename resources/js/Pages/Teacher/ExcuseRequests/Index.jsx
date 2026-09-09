@@ -1,8 +1,11 @@
 import { router } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import TeacherReviewActions from '@/Components/TeacherReviewActions';
+import Pagination, { usePageRows } from '@/Components/Pagination';
 
 export default function ExcuseRequestsIndex({ requests = [] }) {
+    const { rows, paginator } = usePageRows(requests);
+
     const review = (item, action, notes) => {
         const routeName = action === 'approve'
             ? 'teacher.excuse-requests.approve'
@@ -30,13 +33,13 @@ export default function ExcuseRequestsIndex({ requests = [] }) {
             </p>
 
             <div className="space-y-4">
-                {requests.length === 0 && (
+                {rows.length === 0 && (
                     <div className="rounded-xl bg-white px-4 py-8 text-center text-sm text-gray-400 shadow-sm ring-1 ring-gray-200">
                         No pending explanation letters.
                     </div>
                 )}
 
-                {requests.map((item) => (
+                {rows.map((item) => (
                     <div key={item.id} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
                         <div>
                             <h3 className="text-base font-semibold text-gray-900">{item.student}</h3>
@@ -110,6 +113,7 @@ export default function ExcuseRequestsIndex({ requests = [] }) {
                     </div>
                 ))}
             </div>
+            <Pagination paginator={paginator} />
         </TeacherLayout>
     );
 }

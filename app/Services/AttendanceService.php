@@ -104,7 +104,6 @@ class AttendanceService
         foreach ($unmarked as $studentId) {
             $this->mark($session, (int) $studentId, 'absent', [
                 'method' => 'manual',
-                'skip_notification' => true,
                 'skip_audit' => true,
                 // Defer streak checks until after all absents are written.
                 'skip_excuse_check' => true,
@@ -326,6 +325,7 @@ class AttendanceService
                 || $beforeStatus !== $record->status
                 || ($beforeTimeIn === null && $record->time_in !== null),
             'absent' => $isNew || $beforeStatus !== 'absent',
+            'excused' => $isNew || $beforeStatus !== 'excused',
             default => false,
         };
 

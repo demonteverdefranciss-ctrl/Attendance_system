@@ -7,6 +7,7 @@ use App\Models\Guardian;
 use App\Models\Section;
 use App\Models\Student;
 use App\Services\BiometricPrivacyService;
+use App\Support\SoftDeleteUnique;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -23,7 +24,8 @@ class StudentController extends Controller
     {
         $students = Student::with('section:id,name')
             ->orderBy('last_name')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Admin/Students/Index', ['students' => $students]);
     }
@@ -76,9 +78,11 @@ class StudentController extends Controller
 
     public function destroy(Student $student): RedirectResponse
     {
+        SoftDeleteUnique::archive($student, ['lrn']);
+        $student->update(['is_active' => false]);
         $student->delete();
 
-        return redirect()->route('admin.students.index')->with('success', 'Student deleted.');
+        return redirect()->route('admin.students.index')->with('success', 'Student moved to archive.');
     }
 
     /**

@@ -37,8 +37,9 @@ class BiometricPhotoController extends Controller
             ->where('status', 'pending')
             ->whereHas('student', fn ($q) => $q->whereIn('section_id', $sectionIds))
             ->latest('id')
-            ->get()
-            ->map(fn ($s) => [
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn ($s) => [
                 'id' => $s->id,
                 'student' => $s->student?->full_name,
                 'lrn' => $s->student?->lrn,

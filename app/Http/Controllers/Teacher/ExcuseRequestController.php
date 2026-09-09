@@ -31,8 +31,9 @@ class ExcuseRequestController extends Controller
             ->where('status', 'pending')
             ->whereHas('student', fn ($q) => $q->whereIn('section_id', $sectionIds))
             ->latest('id')
-            ->get()
-            ->map(fn ($r) => [
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn ($r) => [
                 'id' => $r->id,
                 'student' => $r->student?->full_name,
                 'lrn' => $r->student?->lrn,

@@ -5,6 +5,7 @@ import TeacherLayout from '@/Layouts/TeacherLayout';
 import AtRiskStudentsTable from '@/Components/AtRiskStudentsTable';
 import { StatCard } from '@/Components/AppSidebarLayout';
 import { Doughnut, ChartCard, noAspect } from '@/Components/Charts';
+import Pagination, { usePageRows } from '@/Components/Pagination';
 
 const STATUS_COLORS = {
     present: 'text-green-700',
@@ -24,6 +25,8 @@ export default function ReportsIndex({
 }) {
     const { auth } = usePage().props;
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
+    const { rows: sessionRows, paginator: sessionsPaginator } = usePageRows(sessions);
+    const { rows: recordRows, paginator: recordsPaginator } = usePageRows(records);
 
     const [form, setForm] = useState({
         from: filters.from,
@@ -136,20 +139,20 @@ export default function ReportsIndex({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {sessions.length === 0 && (
+                            {sessionRows.length === 0 && (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                                         No sessions found for this filter.
                                     </td>
                                 </tr>
                             )}
-                            {sessions.map((s) => (
+                            {sessionRows.map((s) => (
                                 <tr key={s.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-2 text-sm text-gray-700">{s.session_date}</td>
                                     <td className="px-4 py-2 text-sm text-gray-700">{s.section}</td>
                                     <td className="px-4 py-2 text-sm capitalize text-gray-700">
                                         {s.status}
-                                        {s.is_adhoc ? ' Â· manual' : ''}
+                                        {s.is_adhoc ? ' · manual' : ''}
                                     </td>
                                     <td className="px-4 py-2 text-sm font-medium text-green-700">{s.present_count}</td>
                                     <td className="px-4 py-2 text-sm font-medium text-red-600">{s.absent_count}</td>
@@ -166,6 +169,9 @@ export default function ReportsIndex({
                             ))}
                         </tbody>
                     </table>
+                </div>
+                <div className="px-4 pb-4">
+                    <Pagination paginator={sessionsPaginator} />
                 </div>
             </div>
 
@@ -219,14 +225,14 @@ export default function ReportsIndex({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {records.length === 0 && (
+                        {recordRows.length === 0 && (
                             <tr>
                                 <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                                     No records for this period.
                                 </td>
                             </tr>
                         )}
-                        {records.map((r, i) => (
+                        {recordRows.map((r, i) => (
                             <tr key={i} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.date}</td>
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.section}</td>
@@ -247,14 +253,15 @@ export default function ReportsIndex({
                                 >
                                     {r.status}
                                 </td>
-                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_in ?? 'â€”'}</td>
-                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_out ?? 'â€”'}</td>
+                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_in ?? '—'}</td>
+                                <td className="px-4 py-2 text-sm text-gray-700">{r.time_out ?? '—'}</td>
                                 <td className="px-4 py-2 text-sm capitalize text-gray-500">{r.method}</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+            <Pagination paginator={recordsPaginator} />
         </Layout>
     );
 }

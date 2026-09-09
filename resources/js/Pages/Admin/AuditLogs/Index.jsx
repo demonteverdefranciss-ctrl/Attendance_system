@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import Pagination, { usePageRows } from '@/Components/Pagination';
 
 export default function AuditLogsIndex({ logs, actions, users, filters }) {
+    const { rows, paginator } = usePageRows(logs);
     const [form, setForm] = useState({
         action: filters.action ?? '',
         user_id: filters.user_id ?? '',
@@ -22,13 +24,13 @@ export default function AuditLogsIndex({ logs, actions, users, filters }) {
     };
 
     const fmt = (value) => {
-        if (!value) return 'â€”';
+        if (!value) return '—';
         const d = new Date(value);
         return Number.isNaN(d.getTime()) ? value : d.toLocaleString();
     };
 
     const preview = (values) => {
-        if (!values || Object.keys(values).length === 0) return 'â€”';
+        if (!values || Object.keys(values).length === 0) return '—';
         const text = JSON.stringify(values);
         return text.length > 120 ? `${text.slice(0, 120)}...` : text;
     };
@@ -94,22 +96,22 @@ export default function AuditLogsIndex({ logs, actions, users, filters }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {logs.length === 0 && (
+                        {rows.length === 0 && (
                             <tr>
                                 <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                                     No audit logs found for the selected filters.
                                 </td>
                             </tr>
                         )}
-                        {logs.map((log) => (
+                        {rows.map((log) => (
                             <tr key={log.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-xs text-gray-700">{fmt(log.created_at)}</td>
                                 <td className="px-4 py-2 text-xs text-gray-700">
                                     {log.user ? `${log.user.name} (${log.user.username})` : 'System'}
                                 </td>
                                 <td className="px-4 py-2 text-xs font-medium text-gray-800">{log.action}</td>
-                                <td className="px-4 py-2 text-xs text-gray-700">{log.entity ? `${log.entity} #${log.entity_id ?? 'â€”'}` : 'â€”'}</td>
-                                <td className="px-4 py-2 text-xs text-gray-700">{log.ip_address || 'â€”'}</td>
+                                <td className="px-4 py-2 text-xs text-gray-700">{log.entity ? `${log.entity} #${log.entity_id ?? '—'}` : '—'}</td>
+                                <td className="px-4 py-2 text-xs text-gray-700">{log.ip_address || '—'}</td>
                                 <td className="px-4 py-2 text-xs text-gray-600">{preview(log.old_values)}</td>
                                 <td className="px-4 py-2 text-xs text-gray-600">{preview(log.new_values)}</td>
                             </tr>
@@ -117,6 +119,7 @@ export default function AuditLogsIndex({ logs, actions, users, filters }) {
                     </tbody>
                 </table>
             </div>
+            <Pagination paginator={paginator} />
         </AdminLayout>
     );
 }

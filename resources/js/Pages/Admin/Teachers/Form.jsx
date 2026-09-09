@@ -45,6 +45,8 @@ export default function TeacherForm({ teacher }) {
                         value={data.password}
                         onChange={(e) => setData('password', e.target.value)}
                         error={errors.password}
+                        hint="At least 10 characters, with uppercase, lowercase, a number, and a symbol (e.g. Teacher@2026)."
+                        autoComplete="new-password"
                     />
                 </div>
 

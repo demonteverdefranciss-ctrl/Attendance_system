@@ -24,7 +24,7 @@ class ReportController extends Controller
         [$scopeIds, $sections, $from, $to, $sectionId, $sessionId] = $this->context($request);
 
         $effective = $sectionId ? [$sectionId] : $scopeIds;
-        $sessions = $this->analytics->recentSessions($scopeIds, $sectionId);
+        $sessions = $this->analytics->paginatedRecentSessions($scopeIds, $sectionId);
 
         return Inertia::render('Reports/Index', [
             'sections' => $sections,
@@ -40,7 +40,7 @@ class ReportController extends Controller
             'atRisk' => $sessionId
                 ? []
                 : $this->analytics->atRiskStudents($effective, $from, $to),
-            'records' => $this->analytics->records($scopeIds, $from, $to, $sectionId, $sessionId)->values(),
+            'records' => $this->analytics->paginatedRecords($scopeIds, $from, $to, $sectionId, $sessionId),
         ]);
     }
 
@@ -55,7 +55,7 @@ class ReportController extends Controller
 
         $summary = $this->analytics->summary([$session->section_id], $from, $to, $session->id);
         $methodBreakdown = $this->analytics->methodBreakdown([$session->section_id], $from, $to, $session->id);
-        $records = $this->analytics->records([$session->section_id], $from, $to, null, $session->id)->values();
+        $records = $this->analytics->paginatedRecords([$session->section_id], $from, $to, null, $session->id);
 
         return Inertia::render('Reports/Session', [
             'session' => [
