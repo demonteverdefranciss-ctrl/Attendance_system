@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
 import ParentLayout from '@/Layouts/ParentLayout';
+import Pagination, { usePageRows } from '@/Components/Pagination';
 import { formatDateTime } from '@/Pages/Parent/shared';
 
 const STATUS_COLORS = {
@@ -10,11 +10,14 @@ const STATUS_COLORS = {
     excused: 'text-blue-600',
 };
 
-export default function AttendanceIndex({ children = [], records = [] }) {
-    const [studentId, setStudentId] = useState('all');
-    const filtered = studentId === 'all'
-        ? records
-        : records.filter((r) => String(r.student_id) === String(studentId));
+export default function AttendanceIndex({ children = [], records = [], filters = {} }) {
+    const { rows, paginator } = usePageRows(records);
+    const studentId = filters.student_id ?? 'all';
+
+    const selectChild = (id) => {
+        const params = id === 'all' ? {} : { student_id: id };
+        router.get(route('parent.attendance.index'), params, { preserveState: true, preserveScroll: true });
+    };
 
     return (
         <ParentLayout title="Attendance">
@@ -27,7 +30,7 @@ export default function AttendanceIndex({ children = [], records = [] }) {
                     <div className="mt-3 flex flex-wrap gap-2">
                         <button
                             type="button"
-                            onClick={() => setStudentId('all')}
+                            onClick={() => selectChild('all')}
                             className={`rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ${
                                 studentId === 'all'
                                     ? 'bg-blue-600 text-white ring-blue-600'
@@ -40,7 +43,7 @@ export default function AttendanceIndex({ children = [], records = [] }) {
                             <button
                                 key={child.id}
                                 type="button"
-                                onClick={() => setStudentId(child.id)}
+                                onClick={() => selectChild(child.id)}
                                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ${
                                     String(studentId) === String(child.id)
                                         ? 'bg-blue-600 text-white ring-blue-600'
@@ -68,14 +71,14 @@ export default function AttendanceIndex({ children = [], records = [] }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filtered.length === 0 && (
+                            {rows.length === 0 && (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                                         No attendance records yet.
                                     </td>
                                 </tr>
                             )}
-                            {filtered.map((r) => (
+                            {rows.map((r) => (
                                 <tr key={r.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-2 text-sm text-gray-700">{r.date || '—'}</td>
                                     <td className="px-4 py-2 text-sm text-gray-700">{r.student}</td>
@@ -106,6 +109,7 @@ export default function AttendanceIndex({ children = [], records = [] }) {
                     </table>
                 </div>
             </div>
+            <Pagination paginator={paginator} />
         </ParentLayout>
     );
 }

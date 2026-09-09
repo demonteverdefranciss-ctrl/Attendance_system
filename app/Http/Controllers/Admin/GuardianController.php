@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Guardian;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\SoftDeleteUnique;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,7 +22,8 @@ class GuardianController extends Controller
         $guardians = Guardian::with('user:id,username,email,is_active')
             ->withCount('students')
             ->orderBy('last_name')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Admin/Guardians/Index', ['guardians' => $guardians]);
     }
@@ -87,9 +90,19 @@ class GuardianController extends Controller
 
     public function destroy(Guardian $guardian): RedirectResponse
     {
-        $guardian->user->delete();
+        DB::transaction(function () use ($guardian) {
+            $user = $guardian->user;
+            if ($user) {
+                SoftDeleteUnique::archive($user, ['username', 'email']);
+                $user->update(['is_active' => false]);
+                $guardian->delete();
+                $user->delete();
+            } else {
+                $guardian->delete();
+            }
+        });
 
-        return redirect()->route('admin.guardians.index')->with('success', 'Parent/guardian deleted.');
+        return redirect()->route('admin.guardians.index')->with('success', 'Parent/guardian moved to archive.');
     }
 
     /**
@@ -99,6 +112,10 @@ class GuardianController extends Controller
     {
         $userId = $guardian?->user_id;
 
+        if ($request->input('password') === '') {
+            $request->merge(['password' => null]);
+        }
+
         return $request->validate([
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
@@ -106,7 +123,7 @@ class GuardianController extends Controller
             'notify_pref' => ['required', Rule::in(['push', 'email', 'sms', 'none'])],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($userId)],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
-            'password' => [$guardian ? 'nullable' : 'required', 'string', 'min:8'],
+            'password' => [$guardian ? 'nullable' : 'required', 'string', Password::defaults()],
         ]);
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Camera;
 use App\Models\Section;
 use App\Models\Teacher;
+use App\Support\SoftDeleteUnique;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,7 +22,8 @@ class SectionController extends Controller
         ])
             ->withCount('students')
             ->orderBy('name')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Admin/Sections/Index', ['sections' => $sections]);
     }
@@ -59,9 +61,10 @@ class SectionController extends Controller
 
     public function destroy(Section $section): RedirectResponse
     {
+        SoftDeleteUnique::archive($section, ['name']);
         $section->delete();
 
-        return redirect()->route('admin.sections.index')->with('success', 'Section deleted.');
+        return redirect()->route('admin.sections.index')->with('success', 'Section moved to archive.');
     }
 
     /**

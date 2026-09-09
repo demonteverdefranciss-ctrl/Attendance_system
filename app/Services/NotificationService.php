@@ -132,6 +132,7 @@ class NotificationService
             'present' => 'arrival',
             'late' => 'late',
             'absent' => 'absent',
+            'excused' => 'excused',
             default => null,
         };
     }
@@ -145,6 +146,7 @@ class NotificationService
             'arrival' => ['Student Arrival', "{$studentName} has arrived at school."],
             'late' => ['Late Arrival', "{$studentName} has been marked late today."],
             'absent' => ['Absent Notice', "{$studentName} has been marked absent today."],
+            'excused' => ['Excused Absence', "{$studentName} has been marked excused today."],
             default => ['Attendance Update', "{$studentName} has a new attendance update."],
         };
     }

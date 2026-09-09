@@ -60,7 +60,7 @@ export default function NoClassDaysIndex({
     const next = shiftMonth(year, month, 1);
 
     const removeDay = (id) => {
-        if (!window.confirm('Remove this no-class day? Sessions can auto-open again on that date (Google holidays may return on the next sync).')) {
+        if (!window.confirm('Move this no-class day to the archive? You can restore it later from Archive.')) {
             return;
         }
         router.delete(route('admin.no-class-days.destroy', id), { preserveScroll: true });
@@ -279,7 +279,7 @@ export default function NoClassDaysIndex({
                                             onClick={() => removeDay(day.id)}
                                             className="text-xs text-red-600 hover:underline"
                                         >
-                                            Remove
+                                            Archive
                                         </button>
                                     </li>
                                 ))}

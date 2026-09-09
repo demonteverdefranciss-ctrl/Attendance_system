@@ -80,13 +80,25 @@ class NoClassDayController extends Controller
             return back()->with('error', 'Weekends already skip auto-open. Mark a weekday instead.');
         }
 
-        NoClassDay::query()->updateOrCreate(
-            ['date' => $day->toDateString()],
-            [
+        $existing = NoClassDay::withTrashed()
+            ->whereDate('date', $day->toDateString())
+            ->first();
+
+        if ($existing) {
+            if ($existing->trashed()) {
+                $existing->restore();
+            }
+            $existing->update([
                 'name' => $data['name'] ?: null,
                 'source' => NoClassDay::SOURCE_MANUAL,
-            ],
-        );
+            ]);
+        } else {
+            NoClassDay::create([
+                'date' => $day->toDateString(),
+                'name' => $data['name'] ?: null,
+                'source' => NoClassDay::SOURCE_MANUAL,
+            ]);
+        }
 
         return back()->with('success', 'No-class day saved. Sessions will not auto-open on that date.');
     }
@@ -95,7 +107,7 @@ class NoClassDayController extends Controller
     {
         $noClassDay->delete();
 
-        return back()->with('success', 'No-class day removed.');
+        return back()->with('success', 'No-class day moved to archive.');
     }
 
     public function syncGoogle(GoogleHolidaySync $sync): RedirectResponse

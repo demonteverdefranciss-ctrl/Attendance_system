@@ -154,14 +154,18 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function parentAttendance(): Response
+    public function parentAttendance(Request $request): Response
     {
         $guardian = Guardian::where('user_id', Auth::id())->first();
         $children = $this->parentChildrenPayload($guardian);
+        $studentId = $request->integer('student_id') ?: null;
 
         return Inertia::render('Parent/Attendance', [
             'children' => $children,
-            'records' => $this->parentAttendancePayload($guardian),
+            'records' => $this->parentAttendancePayload($guardian, $studentId),
+            'filters' => [
+                'student_id' => $studentId ? (string) $studentId : 'all',
+            ],
         ]);
     }
 
@@ -352,8 +356,9 @@ class DashboardController extends Controller
                     ->orWhereHas('student', fn ($s) => $s->whereIn('section_id', $sectionIds));
             })
             ->latest('id')
-            ->get()
-            ->map(fn ($r) => [
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn ($r) => [
                 'id' => $r->id,
                 'student' => $r->full_name,
                 'lrn' => $r->lrn,
@@ -640,15 +645,19 @@ class DashboardController extends Controller
             ->values();
     }
 
-    private function parentAttendancePayload(?Guardian $guardian)
+    private function parentAttendancePayload(?Guardian $guardian, ?int $studentId = null)
     {
         if (! $guardian) {
-            return collect();
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
         }
 
         $studentIds = $guardian->students()->pluck('students.id')->all();
         if ($studentIds === []) {
-            return collect();
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
+        }
+
+        if ($studentId && ! in_array($studentId, $studentIds, true)) {
+            $studentId = null;
         }
 
         $covered = $this->excuses->coveredRecordIds($studentIds);
@@ -658,11 +667,11 @@ class DashboardController extends Controller
             'session:id,session_date,section_id',
             'session.section:id,name,grade_level',
         ])
-            ->whereIn('student_id', $studentIds)
+            ->whereIn('student_id', $studentId ? [$studentId] : $studentIds)
             ->latest('id')
-            ->limit(200)
-            ->get()
-            ->map(fn ($r) => [
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn ($r) => [
                 'id' => $r->id,
                 'student_id' => $r->student_id,
                 'student' => $r->student?->full_name,
@@ -676,8 +685,7 @@ class DashboardController extends Controller
                 'method' => $r->method,
                 'can_explain' => in_array($r->status, ['absent', 'late'], true)
                     && ! in_array((int) $r->id, $covered, true),
-            ])
-            ->values();
+            ]);
     }
 
     private function teacherNotificationsPayload(?int $teacherId)

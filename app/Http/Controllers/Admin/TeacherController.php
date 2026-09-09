@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\Teacher;
 use App\Models\User;
+use App\Support\SoftDeleteUnique;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,7 +21,8 @@ class TeacherController extends Controller
     {
         $teachers = Teacher::with('user:id,username,email,is_active')
             ->orderBy('last_name')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Admin/Teachers/Index', ['teachers' => $teachers]);
     }
@@ -86,10 +89,20 @@ class TeacherController extends Controller
 
     public function destroy(Teacher $teacher): RedirectResponse
     {
-        // Deleting the user cascades to the teacher profile.
-        $teacher->user->delete();
+        DB::transaction(function () use ($teacher) {
+            $user = $teacher->user;
+            SoftDeleteUnique::archive($teacher, ['employee_no']);
+            if ($user) {
+                SoftDeleteUnique::archive($user, ['username', 'email']);
+                $user->update(['is_active' => false]);
+                $teacher->delete();
+                $user->delete();
+            } else {
+                $teacher->delete();
+            }
+        });
 
-        return redirect()->route('admin.teachers.index')->with('success', 'Teacher deleted.');
+        return redirect()->route('admin.teachers.index')->with('success', 'Teacher moved to archive.');
     }
 
     /**
@@ -99,6 +112,10 @@ class TeacherController extends Controller
     {
         $userId = $teacher?->user_id;
 
+        if ($request->input('password') === '') {
+            $request->merge(['password' => null]);
+        }
+
         return $request->validate([
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
@@ -106,7 +123,7 @@ class TeacherController extends Controller
             'phone' => ['nullable', 'string', 'max:20'],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($userId)],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
-            'password' => [$teacher ? 'nullable' : 'required', 'string', 'min:8'],
+            'password' => [$teacher ? 'nullable' : 'required', 'string', Password::defaults()],
         ]);
     }
 }

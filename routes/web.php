@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\SectionController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\TeacherController;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\ArchiveController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ParentRegistrationController;
 use App\Http\Controllers\Parent\BiometricPhotoController as ParentBiometricPhotoController;
@@ -54,6 +55,13 @@ Route::middleware('auth')->group(function () {
         Route::post('no-class-days/sync-google', [NoClassDayController::class, 'syncGoogle'])->name('no-class-days.sync-google');
         Route::delete('no-class-days/{noClassDay}', [NoClassDayController::class, 'destroy'])->name('no-class-days.destroy');
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+        Route::get('archive', [ArchiveController::class, 'index'])->name('archive.index');
+        Route::post('archive/{category}/{id}/restore', [ArchiveController::class, 'restore'])
+            ->whereNumber('id')
+            ->name('archive.restore');
+        Route::delete('archive/{category}/{id}', [ArchiveController::class, 'forceDestroy'])
+            ->whereNumber('id')
+            ->name('archive.destroy');
     });
 
     Route::middleware('role:teacher')->prefix('teacher')->name('teacher.')->group(function () {

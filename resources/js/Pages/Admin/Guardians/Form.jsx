@@ -51,6 +51,8 @@ export default function GuardianForm({ guardian }) {
                         value={data.password}
                         onChange={(e) => setData('password', e.target.value)}
                         error={errors.password}
+                        hint="At least 10 characters, with uppercase, lowercase, a number, and a symbol (e.g. Parent@2026)."
+                        autoComplete="new-password"
                     />
                 </div>
 

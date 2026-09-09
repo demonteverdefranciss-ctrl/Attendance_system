@@ -1,8 +1,9 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import FlashMessages from '@/Components/FlashMessages';
 
 export default function AppSidebarLayout({ nav = [], title, actions, children }) {
-    const { auth, flash, teacherAlerts = [] } = usePage().props;
+    const { auth, teacherAlerts = [] } = usePage().props;
     const [open, setOpen] = useState(false);
 
     const logout = (e) => {
@@ -123,15 +124,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                     </header>
 
                     <main className="p-4 sm:p-6">
-                        {flash?.success && (
-                            <div className="mb-4 rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">{flash.success}</div>
-                        )}
-                        {flash?.error && (
-                            <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{flash.error}</div>
-                        )}
-                        {flash?.warning && (
-                            <div className="mb-4 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800">{flash.warning}</div>
-                        )}
+                        <FlashMessages />
 
                         {Array.isArray(teacherAlerts) && teacherAlerts.length > 0 && (
                             <div className="mb-4 space-y-2">

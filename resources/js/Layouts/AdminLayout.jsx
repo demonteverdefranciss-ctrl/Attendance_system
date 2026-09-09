@@ -10,6 +10,7 @@ const nav = [
     { label: 'Schedules', route: 'admin.schedules.index' },
     { label: 'No-class days', route: 'admin.no-class-days.index' },
     { label: 'Audit Logs', route: 'admin.audit-logs.index' },
+    { label: 'Archive', route: 'admin.archive.index' },
     { label: 'Reports', route: 'reports.index' },
 ];
 

@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import TeacherReviewActions from '@/Components/TeacherReviewActions';
+import Pagination, { usePageRows } from '@/Components/Pagination';
 
 export default function EnrollmentRequestsIndex({ requests, sections = [] }) {
+    const { rows, paginator } = usePageRows(requests);
     const [sectionByRequest, setSectionByRequest] = useState({});
 
     const review = (item, action, notes) => {
@@ -55,14 +57,14 @@ export default function EnrollmentRequestsIndex({ requests, sections = [] }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {requests.length === 0 && (
+                        {rows.length === 0 && (
                             <tr>
                                 <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">
                                     No pending enrollment requests.
                                 </td>
                             </tr>
                         )}
-                        {requests.map((item) => (
+                        {rows.map((item) => (
                             <tr key={item.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-sm text-gray-700">
                                     {item.student ?? 'Unknown student'}
@@ -111,6 +113,7 @@ export default function EnrollmentRequestsIndex({ requests, sections = [] }) {
                     </tbody>
                 </table>
             </div>
+            <Pagination paginator={paginator} />
         </TeacherLayout>
     );
 }

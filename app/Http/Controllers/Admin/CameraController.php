@@ -18,7 +18,8 @@ class CameraController extends Controller
         $cameras = Camera::with(['sections:id,camera_id,name,grade_level'])
             ->withCount('sections')
             ->orderBy('name')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Admin/Cameras/Index', ['cameras' => $cameras]);
     }
@@ -82,9 +83,11 @@ class CameraController extends Controller
 
     public function destroy(Camera $camera): RedirectResponse
     {
+        $camera->sections()->update(['camera_id' => null]);
+        $camera->update(['is_active' => false]);
         $camera->delete();
 
-        return redirect()->route('admin.cameras.index')->with('success', 'Camera deleted. Assigned sections now have no camera.');
+        return redirect()->route('admin.cameras.index')->with('success', 'Camera moved to archive. Assigned sections now have no camera.');
     }
 
     /**
