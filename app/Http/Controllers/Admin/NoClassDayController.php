@@ -71,11 +71,14 @@ class NoClassDayController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'date' => ['required', 'date'],
+            'date' => ['required', 'date', 'after_or_equal:today'],
             'name' => ['nullable', 'string', 'max:150'],
         ]);
 
-        $day = Carbon::parse($data['date']);
+        $day = Carbon::parse($data['date'])->startOfDay();
+        if ($day->lt(now()->startOfDay())) {
+            return back()->with('error', 'Past dates cannot be marked as no-class days.');
+        }
         if ($day->isoWeekday() >= 6) {
             return back()->with('error', 'Weekends already skip auto-open. Mark a weekday instead.');
         }

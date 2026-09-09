@@ -48,6 +48,7 @@ export default function NoClassDaysIndex({
                 day,
                 date,
                 weekend: isoWeekday >= 6,
+                past: date < today,
                 today: date === today,
                 mark: marked[date] || null,
             });
@@ -71,7 +72,11 @@ export default function NoClassDaysIndex({
             return;
         }
         if (cell.mark) {
+            // Past marked days can still be archived/removed; only new marks are blocked.
             removeDay(cell.mark.id);
+            return;
+        }
+        if (cell.past) {
             return;
         }
         router.post(
@@ -168,6 +173,8 @@ export default function NoClassDaysIndex({
                             let classes = 'min-h-[4.5rem] rounded-lg border p-2 text-left text-sm transition ';
                             if (cell.weekend) {
                                 classes += 'cursor-default border-gray-100 bg-gray-50 text-gray-400';
+                            } else if (cell.past && !cell.mark) {
+                                classes += 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400';
                             } else if (fromGoogle) {
                                 classes += 'cursor-pointer border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100';
                             } else if (cell.mark) {
@@ -184,13 +191,16 @@ export default function NoClassDaysIndex({
                                     key={cell.date}
                                     type="button"
                                     onClick={() => onDayClick(cell)}
+                                    disabled={cell.weekend || (cell.past && !cell.mark)}
                                     className={classes}
                                     title={
                                         cell.weekend
                                             ? 'Weekends already skip auto-open'
-                                            : cell.mark
-                                              ? 'Click to remove no-class day'
-                                              : 'Click to mark no class'
+                                            : cell.past && !cell.mark
+                                              ? 'Past dates cannot be marked as no class'
+                                              : cell.mark
+                                                ? 'Click to remove no-class day'
+                                                : 'Click to mark no class'
                                     }
                                 >
                                     <div className="font-semibold">{cell.day}</div>
@@ -217,7 +227,7 @@ export default function NoClassDaysIndex({
                             <span className="h-3 w-3 rounded border border-amber-300 bg-amber-50" /> Manual no class
                         </span>
                         <span className="inline-flex items-center gap-1.5">
-                            <span className="h-3 w-3 rounded border border-gray-100 bg-gray-50" /> Weekend (always off)
+                            <span className="h-3 w-3 rounded border border-gray-100 bg-gray-50" /> Weekend / past (not markable)
                         </span>
                         <span className="inline-flex items-center gap-1.5">
                             <span className="h-3 w-3 rounded ring-2 ring-blue-500" /> Today
@@ -233,10 +243,12 @@ export default function NoClassDaysIndex({
                             <input
                                 type="date"
                                 value={data.date}
+                                min={today}
                                 onChange={(e) => setData('date', e.target.value)}
                                 className="mt-1 w-full rounded-lg border-gray-300 text-sm"
                             />
                             {errors.date && <p className="mt-1 text-xs text-red-600">{errors.date}</p>}
+                            <p className="mt-1 text-xs text-gray-500">Today or a future date only.</p>
                         </label>
                         <label className="mt-3 block text-sm text-gray-700">
                             Name (optional)

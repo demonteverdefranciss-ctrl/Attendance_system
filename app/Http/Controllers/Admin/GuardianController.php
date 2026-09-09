@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Guardian;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\InputRules;
 use App\Support\SoftDeleteUnique;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -117,13 +118,13 @@ class GuardianController extends Controller
         }
 
         return $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'first_name' => InputRules::personName(),
+            'last_name' => InputRules::personName(),
+            'phone' => InputRules::phone(),
             'notify_pref' => ['required', Rule::in(['push', 'email', 'sms', 'none'])],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($userId)],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'password' => [$guardian ? 'nullable' : 'required', 'string', Password::defaults()],
-        ]);
+        ], InputRules::messages());
     }
 }

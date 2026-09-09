@@ -2,6 +2,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TextField from '@/Components/TextField';
 import SelectField from '@/Components/SelectField';
+import { personName, phoneChars } from '@/lib/inputFilters';
 
 export default function GuardianForm({ guardian }) {
     const editing = !!guardian;
@@ -28,9 +29,28 @@ export default function GuardianForm({ guardian }) {
 
             <form onSubmit={submit} className="max-w-2xl space-y-5 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <TextField label="First Name" value={data.first_name} onChange={(e) => setData('first_name', e.target.value)} error={errors.first_name} />
-                    <TextField label="Last Name" value={data.last_name} onChange={(e) => setData('last_name', e.target.value)} error={errors.last_name} />
-                    <TextField label="Phone" value={data.phone} onChange={(e) => setData('phone', e.target.value)} error={errors.phone} />
+                    <TextField
+                        label="First Name"
+                        value={data.first_name}
+                        onChange={(e) => setData('first_name', personName(e.target.value))}
+                        error={errors.first_name}
+                        hint="Letters only (no numbers)."
+                    />
+                    <TextField
+                        label="Last Name"
+                        value={data.last_name}
+                        onChange={(e) => setData('last_name', personName(e.target.value))}
+                        error={errors.last_name}
+                        hint="Letters only (no numbers)."
+                    />
+                    <TextField
+                        label="Phone"
+                        value={data.phone}
+                        onChange={(e) => setData('phone', phoneChars(e.target.value))}
+                        error={errors.phone}
+                        hint="Numbers only (and optional +)."
+                        inputMode="tel"
+                    />
                     <SelectField label="Notification Preference" value={data.notify_pref} onChange={(e) => setData('notify_pref', e.target.value)} error={errors.notify_pref}>
                         <option value="push">Push (app)</option>
                         <option value="email">Email</option>

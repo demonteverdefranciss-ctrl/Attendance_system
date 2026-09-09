@@ -15,6 +15,7 @@ use App\Models\TeacherNotification;
 use App\Services\AnalyticsService;
 use App\Services\AuditService;
 use App\Services\ExcuseRequestService;
+use App\Support\InputRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -277,13 +278,13 @@ class DashboardController extends Controller
         }
 
         $data = $request->validate([
-            'lrn' => ['required', 'string', 'max:20'],
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
+            'lrn' => InputRules::lrn(true),
+            'first_name' => InputRules::personName(),
+            'last_name' => InputRules::personName(),
             'gender' => ['nullable', 'in:male,female'],
             'grade_level' => ['nullable', 'string', 'max:50'],
-            'relationship' => ['nullable', 'string', 'max:50'],
-        ]);
+            'relationship' => ['nullable', 'string', 'max:50', InputRules::PERSON_NAME],
+        ], InputRules::messages());
 
         $student = Student::where('lrn', $data['lrn'])->first();
 

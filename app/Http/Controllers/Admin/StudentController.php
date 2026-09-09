@@ -7,6 +7,7 @@ use App\Models\Guardian;
 use App\Models\Section;
 use App\Models\Student;
 use App\Services\BiometricPrivacyService;
+use App\Support\InputRules;
 use App\Support\SoftDeleteUnique;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -91,16 +92,16 @@ class StudentController extends Controller
     private function validateData(Request $request, ?Student $student = null): array
     {
         return $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'lrn' => ['nullable', 'string', 'max:20', Rule::unique('students', 'lrn')->ignore($student?->id)],
+            'first_name' => InputRules::personName(),
+            'last_name' => InputRules::personName(),
+            'lrn' => InputRules::lrn(false, Rule::unique('students', 'lrn')->ignore($student?->id)),
             'gender' => ['nullable', Rule::in(['male', 'female'])],
             'birthdate' => ['nullable', 'date'],
             'section_id' => ['nullable', 'exists:sections,id'],
             'consent_biometric' => ['boolean'],
             'guardian_ids' => ['array'],
             'guardian_ids.*' => ['exists:guardians,id'],
-        ]);
+        ], InputRules::messages());
     }
 
     /**

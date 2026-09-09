@@ -27,6 +27,7 @@ export default function ReportsIndex({
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
     const { rows: sessionRows, paginator: sessionsPaginator } = usePageRows(sessions);
     const { rows: recordRows, paginator: recordsPaginator } = usePageRows(records);
+    const today = filters.today ?? new Date().toISOString().slice(0, 10);
 
     const [form, setForm] = useState({
         from: filters.from,
@@ -34,6 +35,20 @@ export default function ReportsIndex({
         section_id: filters.section_id ?? '',
         session_id: filters.session_id ?? '',
     });
+
+    const setDate = (key, value) => {
+        const clamped = value && value > today ? today : value;
+        setForm((prev) => {
+            const next = { ...prev, [key]: clamped, session_id: '' };
+            if (key === 'from' && next.to && next.from > next.to) {
+                next.to = next.from;
+            }
+            if (key === 'to' && next.from && next.to < next.from) {
+                next.from = next.to;
+            }
+            return next;
+        });
+    };
 
     const apply = (e) => {
         e.preventDefault();
@@ -76,7 +91,8 @@ export default function ReportsIndex({
                     <input
                         type="date"
                         value={form.from}
-                        onChange={(e) => setForm({ ...form, from: e.target.value, session_id: '' })}
+                        max={today}
+                        onChange={(e) => setDate('from', e.target.value)}
                         className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                 </div>
@@ -85,7 +101,8 @@ export default function ReportsIndex({
                     <input
                         type="date"
                         value={form.to}
-                        onChange={(e) => setForm({ ...form, to: e.target.value, session_id: '' })}
+                        max={today}
+                        onChange={(e) => setDate('to', e.target.value)}
                         className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                 </div>
