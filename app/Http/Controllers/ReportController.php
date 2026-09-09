@@ -33,6 +33,7 @@ class ReportController extends Controller
                 'to' => $to,
                 'section_id' => $sectionId,
                 'session_id' => $sessionId,
+                'today' => now()->toDateString(),
             ],
             'sessions' => $sessions,
             'summary' => $this->analytics->summary($effective, $from, $to, $sessionId),
@@ -80,13 +81,15 @@ class ReportController extends Controller
     {
         $this->authorizeStudent($request, $student);
 
-        $from = $request->query('from', now()->subDays(29)->toDateString());
-        $to = $request->query('to', now()->toDateString());
+        [$from, $to] = $this->clampDateRange(
+            $request->query('from', now()->subDays(29)->toDateString()),
+            $request->query('to', now()->toDateString()),
+        );
 
         $analytics = $this->analytics->studentAnalytics($student, $from, $to);
 
         return Inertia::render('Reports/Student', [
-            'filters' => ['from' => $from, 'to' => $to],
+            'filters' => ['from' => $from, 'to' => $to, 'today' => now()->toDateString()],
             ...$analytics,
         ]);
     }
@@ -151,6 +154,8 @@ class ReportController extends Controller
         $sectionId = $request->query('section_id') ? (int) $request->query('section_id') : null;
         $sessionId = $request->query('session_id') ? (int) $request->query('session_id') : null;
 
+        [$from, $to] = $this->clampDateRange($from, $to);
+
         // Prevent a teacher from querying a section outside their scope.
         if ($sectionId && $scopeIds !== null && ! in_array($sectionId, $scopeIds, true)) {
             abort(403, 'You cannot access this section.');
@@ -162,6 +167,28 @@ class ReportController extends Controller
         }
 
         return [$scopeIds, $sections, $from, $to, $sectionId, $sessionId];
+    }
+
+    /**
+     * Keep report ranges on or before today, and ensure from <= to.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function clampDateRange(string $from, string $to): array
+    {
+        $today = now()->toDateString();
+
+        if ($from > $today) {
+            $from = $today;
+        }
+        if ($to > $today) {
+            $to = $today;
+        }
+        if ($from > $to) {
+            return [$to, $from];
+        }
+
+        return [$from, $to];
     }
 
     private function authorizeSession(Request $request, AttendanceSession $session): void

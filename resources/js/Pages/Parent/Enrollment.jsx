@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import ParentLayout from '@/Layouts/ParentLayout';
 import { formatDateTime } from '@/Pages/Parent/shared';
+import { digitsOnly, personName } from '@/lib/inputFilters';
 
 export default function EnrollmentIndex({ enrollmentRequests = [] }) {
     const [lrn, setLrn] = useState('');
@@ -51,24 +52,25 @@ export default function EnrollmentIndex({ enrollmentRequests = [] }) {
                     <input
                         type="text"
                         value={lrn}
-                        onChange={(e) => setLrn(e.target.value)}
-                        placeholder="LRN *"
+                        onChange={(e) => setLrn(digitsOnly(e.target.value))}
+                        placeholder="LRN * (numbers only)"
+                        inputMode="numeric"
                         className="rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         required
                     />
                     <input
                         type="text"
                         value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        placeholder="First name *"
+                        onChange={(e) => setFirstName(personName(e.target.value))}
+                        placeholder="First name * (letters only)"
                         className="rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         required
                     />
                     <input
                         type="text"
                         value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        placeholder="Last name *"
+                        onChange={(e) => setLastName(personName(e.target.value))}
+                        placeholder="Last name * (letters only)"
                         className="rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         required
                     />
@@ -91,7 +93,7 @@ export default function EnrollmentIndex({ enrollmentRequests = [] }) {
                     <input
                         type="text"
                         value={relationship}
-                        onChange={(e) => setRelationship(e.target.value)}
+                        onChange={(e) => setRelationship(personName(e.target.value))}
                         placeholder="Relationship (e.g. mother)"
                         className="rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />

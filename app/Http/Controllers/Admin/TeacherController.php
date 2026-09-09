@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\Teacher;
 use App\Models\User;
+use App\Support\InputRules;
 use App\Support\SoftDeleteUnique;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -117,13 +118,13 @@ class TeacherController extends Controller
         }
 
         return $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'employee_no' => ['nullable', 'string', 'max:50', Rule::unique('teachers', 'employee_no')->ignore($teacher?->id)],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'first_name' => InputRules::personName(),
+            'last_name' => InputRules::personName(),
+            'employee_no' => InputRules::employeeNo(Rule::unique('teachers', 'employee_no')->ignore($teacher?->id)),
+            'phone' => InputRules::phone(),
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($userId)],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'password' => [$teacher ? 'nullable' : 'required', 'string', Password::defaults()],
-        ]);
+        ], InputRules::messages());
     }
 }

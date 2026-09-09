@@ -12,6 +12,7 @@ use App\Models\Student;
 use App\Services\AuditService;
 use App\Services\BiometricPhotoService;
 use App\Services\ExcuseRequestService;
+use App\Support\InputRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -163,13 +164,13 @@ class ParentController extends ApiController
         $guardian = $this->guardianOrFail($request);
 
         $data = $request->validate([
-            'lrn' => ['required', 'string', 'max:20'],
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
+            'lrn' => InputRules::lrn(true),
+            'first_name' => InputRules::personName(),
+            'last_name' => InputRules::personName(),
             'gender' => ['nullable', 'in:male,female'],
             'grade_level' => ['nullable', 'string', 'max:50'],
-            'relationship' => ['nullable', 'string', 'max:50'],
-        ]);
+            'relationship' => ['nullable', 'string', 'max:50', InputRules::PERSON_NAME],
+        ], InputRules::messages());
 
         $student = Student::where('lrn', $data['lrn'])->first();
 
