@@ -4,8 +4,12 @@ namespace App\Services;
 
 use App\Jobs\SendPushNotificationJob;
 use App\Models\AttendanceRecord;
+use App\Models\Guardian;
+use App\Models\NoClassDay;
 use App\Models\Notification;
 use App\Models\Student;
+use App\Models\Teacher;
+use App\Models\TeacherNotification;
 
 class NotificationService
 {
@@ -124,6 +128,66 @@ class NotificationService
         } else {
             $notification->update(['status' => 'sent', 'sent_at' => now()]);
         }
+    }
+
+    /**
+     * Notify all parents and teachers that a no-class day was marked.
+     */
+    public function queueNoClassDayNotice(NoClassDay $day): void
+    {
+        $dateLabel = $day->date?->format('F j, Y (l)') ?? 'the selected date';
+        $label = $day->name ? trim((string) $day->name) : 'No class';
+        $title = 'No class day announced';
+        $body = "School will have no class on {$dateLabel}".($day->name ? " — {$label}" : '').'. Attendance will not auto-open that day.';
+
+        Guardian::query()
+            ->orderBy('id')
+            ->select(['id', 'notify_pref'])
+            ->chunkById(100, function ($guardians) use ($day, $title, $body) {
+                foreach ($guardians as $guardian) {
+                    $notification = Notification::create([
+                        'guardian_id' => $guardian->id,
+                        'student_id' => null,
+                        'channel' => 'push',
+                        'type' => 'no_class_day',
+                        'title' => $title,
+                        'body' => $body,
+                        'payload' => [
+                            'no_class_day_id' => $day->id,
+                            'date' => $day->date?->toDateString(),
+                            'name' => $day->name,
+                            'source' => $day->source,
+                        ],
+                        'status' => 'pending',
+                    ]);
+
+                    if ($guardian->notify_pref === 'push') {
+                        SendPushNotificationJob::dispatch($notification->id);
+                    } else {
+                        $notification->update(['status' => 'sent', 'sent_at' => now()]);
+                    }
+                }
+            });
+
+        Teacher::query()
+            ->orderBy('id')
+            ->select(['id'])
+            ->chunkById(100, function ($teachers) use ($day, $title, $body) {
+                foreach ($teachers as $teacher) {
+                    TeacherNotification::create([
+                        'teacher_id' => $teacher->id,
+                        'type' => 'no_class_day',
+                        'title' => $title,
+                        'body' => $body,
+                        'payload' => [
+                            'no_class_day_id' => $day->id,
+                            'date' => $day->date?->toDateString(),
+                            'name' => $day->name,
+                            'source' => $day->source,
+                        ],
+                    ]);
+                }
+            });
     }
 
     private function eventTypeForStatus(string $status): ?string

@@ -18,6 +18,7 @@ use App\Http\Controllers\Teacher\RecognitionController as TeacherRecognitionCont
 use App\Http\Controllers\Teacher\ExcuseRequestController as TeacherExcuseRequestController;
 use App\Http\Controllers\CameraStreamController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NoClassDayListController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
@@ -84,6 +85,7 @@ Route::middleware('auth')->group(function () {
             ->name('excuse-requests.reject');
 
         Route::get('biometric-photos', [TeacherBiometricPhotoController::class, 'index'])->name('biometric-photos.index');
+        Route::get('no-class-days', [NoClassDayListController::class, 'teacher'])->name('no-class-days.index');
         Route::post('biometric-photos/{submission}/approve', [TeacherBiometricPhotoController::class, 'approve'])
             ->name('biometric-photos.approve');
         Route::post('biometric-photos/{submission}/reject', [TeacherBiometricPhotoController::class, 'reject'])
@@ -117,6 +119,7 @@ Route::middleware('auth')->group(function () {
             ->whereIn('type', ['pdf', 'photo'])
             ->name('excuse-requests.file');
         Route::get('notifications', [DashboardController::class, 'parentNotifications'])->name('notifications.index');
+        Route::get('no-class-days', [NoClassDayListController::class, 'parent'])->name('no-class-days.index');
 
         Route::post('enrollment-requests', [DashboardController::class, 'createEnrollmentRequest'])->name('enrollment-requests.store');
         Route::post('biometric-photos', [ParentBiometricPhotoController::class, 'store'])->name('biometric-photos.store');

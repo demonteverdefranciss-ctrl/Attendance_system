@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\NoClassDay;
 use App\Services\GoogleHolidaySync;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,10 @@ use Throwable;
 
 class NoClassDayController extends Controller
 {
+    public function __construct(private NotificationService $notifications)
+    {
+    }
+
     public function index(Request $request): Response
     {
         $year = (int) $request->integer('year', now()->year);
@@ -87,23 +92,38 @@ class NoClassDayController extends Controller
             ->whereDate('date', $day->toDateString())
             ->first();
 
+        $shouldNotify = false;
+
         if ($existing) {
-            if ($existing->trashed()) {
+            $wasTrashed = $existing->trashed();
+            if ($wasTrashed) {
                 $existing->restore();
+                $shouldNotify = true;
             }
             $existing->update([
                 'name' => $data['name'] ?: null,
                 'source' => NoClassDay::SOURCE_MANUAL,
             ]);
+            $record = $existing->fresh();
         } else {
-            NoClassDay::create([
+            $record = NoClassDay::create([
                 'date' => $day->toDateString(),
                 'name' => $data['name'] ?: null,
                 'source' => NoClassDay::SOURCE_MANUAL,
             ]);
+            $shouldNotify = true;
         }
 
-        return back()->with('success', 'No-class day saved. Sessions will not auto-open on that date.');
+        if ($shouldNotify && $record) {
+            $this->notifications->queueNoClassDayNotice($record);
+        }
+
+        return back()->with(
+            'success',
+            $shouldNotify
+                ? 'No-class day saved. Parents and teachers were notified.'
+                : 'No-class day updated.'
+        );
     }
 
     public function destroy(NoClassDay $noClassDay): RedirectResponse

@@ -54,9 +54,11 @@ export default function TeacherDashboard({ stats, summary, trend, atRisk = [], m
             </div>
 
             <p className="mb-3 text-sm text-gray-500">
-                Attendance overview Â· {range.from} to {range.to}
-                {' Â· '}
+                Attendance overview · {range.from} to {range.to}
+                {' · '}
                 <Link href={route('reports.index')} className="text-blue-600 hover:underline">Open Reports</Link>
+                {' · '}
+                <Link href={route('teacher.no-class-days.index')} className="text-blue-600 hover:underline">No-class days</Link>
             </p>
 
             <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
