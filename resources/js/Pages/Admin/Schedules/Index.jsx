@@ -18,7 +18,7 @@ export default function SchedulesIndex({ schedules }) {
                 s.is_active ? (
                     <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">Yes</span>
                 ) : (
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">No</span>
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">No</span>
                 ),
         },
     ];

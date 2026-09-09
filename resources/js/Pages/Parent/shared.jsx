@@ -63,7 +63,7 @@ export function ChildBiometricUpload({ child }) {
                 {child.consent_biometric ? (
                     <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">Consent on file</span>
                 ) : (
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">No consent yet</span>
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">No consent yet</span>
                 )}
             </div>
 

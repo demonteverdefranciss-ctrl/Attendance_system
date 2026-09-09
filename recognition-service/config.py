@@ -12,10 +12,10 @@ EVENT_TYPE_HINT = os.getenv("EVENT_TYPE_HINT", "").strip().lower() or None
 
 VIDEO_SOURCE = os.getenv("VIDEO_SOURCE", "0")
 
-# lbph (default, current school PC) or arcface (OpenCV SFace, ArcFace-trained).
-RECOGNITION_ENGINE = os.getenv("RECOGNITION_ENGINE", "lbph").strip().lower()
+# arcface (default, OpenCV SFace) or lbph.
+RECOGNITION_ENGINE = os.getenv("RECOGNITION_ENGINE", "arcface").strip().lower()
 if RECOGNITION_ENGINE not in ("lbph", "arcface"):
-    RECOGNITION_ENGINE = "lbph"
+    RECOGNITION_ENGINE = "arcface"
 
 LBPH_THRESHOLD = float(os.getenv("LBPH_THRESHOLD", "70"))
 # Cosine similarity for ArcFace/SFace (higher = stricter). OpenCV default ~0.363.

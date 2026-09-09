@@ -31,7 +31,7 @@ export default function AttendanceIndex({ children = [], records = [] }) {
                             className={`rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ${
                                 studentId === 'all'
                                     ? 'bg-blue-600 text-white ring-blue-600'
-                                    : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'
+                                    : 'bg-sky-50 text-sky-800 ring-sky-200 hover:bg-sky-100'
                             }`}
                         >
                             All children
@@ -44,7 +44,7 @@ export default function AttendanceIndex({ children = [], records = [] }) {
                                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ${
                                     String(studentId) === String(child.id)
                                         ? 'bg-blue-600 text-white ring-blue-600'
-                                        : 'bg-white text-gray-700 ring-gray-200 hover:bg-gray-50'
+                                        : 'bg-sky-50 text-sky-800 ring-sky-200 hover:bg-sky-100'
                                 }`}
                             >
                                 {child.name}

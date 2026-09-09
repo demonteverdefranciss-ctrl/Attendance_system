@@ -16,7 +16,7 @@ const COLORS = {
 
 export default function Mark({ session, students, records, cameraStreamUrl, recognition }) {
     const [recognitionStatus, setRecognitionStatus] = useState(recognition?.status ?? 'unavailable');
-    const [recognitionEngine, setRecognitionEngineState] = useState(recognition?.engine ?? 'lbph');
+    const [recognitionEngine, setRecognitionEngineState] = useState(recognition?.engine ?? 'arcface');
     const [startingRecognition, setStartingRecognition] = useState(false);
     const [switchingEngine, setSwitchingEngine] = useState(false);
     const [closing, setClosing] = useState(false);
@@ -198,7 +198,7 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                         View report
                     </Link>
                     <Link href={route('teacher.attendance.index')} className="text-sm text-gray-500 hover:underline">
-                        ← Back
+                        â† Back
                     </Link>
                 </div>
             }
@@ -207,12 +207,12 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
 
             <div className="mb-4 flex items-center justify-between">
                 <p className="text-sm text-gray-500">
-                    Session {sessionDate} ·{' '}
+                    Session {sessionDate} Â·{' '}
                     <span className={closed ? 'text-gray-500' : 'text-green-600'}>{session.status}</span>
                     {!closed && (
                         <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">
                             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
-                            live updates · every 5s
+                            live updates Â· every 5s
                         </span>
                     )}
                 </p>
@@ -286,7 +286,7 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                                                         disabled={closed}
                                                         onClick={() => setStatus(s.id, status)}
                                                         className={`rounded-lg px-3 py-1 text-xs font-medium capitalize ${
-                                                            active ? `${COLORS[status]} text-white` : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                            active ? `${COLORS[status]} text-white` : 'bg-sky-50 text-sky-700 hover:bg-sky-100'
                                                         } disabled:opacity-50`}
                                                     >
                                                         {status}
@@ -302,7 +302,7 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                                             <button
                                                 type="button"
                                                 onClick={() => recordTimeOutNow(s.id)}
-                                                className="rounded-lg bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                                                className="rounded-lg bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900 ring-1 ring-inset ring-amber-200 hover:bg-amber-100"
                                             >
                                                 Record time-out now
                                             </button>
@@ -325,7 +325,7 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                         <button type="submit" disabled={processing || closing} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
                             Save Attendance
                         </button>
-                        <button type="button" onClick={closeSession} disabled={closing} className="rounded-lg bg-gray-100 px-4 py-2 font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50">
+                        <button type="button" onClick={closeSession} disabled={closing} className="rounded-lg bg-rose-50 px-4 py-2 font-medium text-rose-800 ring-1 ring-inset ring-rose-200 hover:bg-rose-100 disabled:opacity-50">
                             {closing ? 'Closing…' : 'Close session'}
                         </button>
                         {closeSlow && (

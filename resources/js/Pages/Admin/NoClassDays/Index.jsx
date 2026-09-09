@@ -137,14 +137,14 @@ export default function NoClassDaysIndex({
                     <div className="mb-4 flex items-center justify-between gap-3">
                         <Link
                             href={monthHref(prev.year, prev.month)}
-                            className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                            className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
                         >
                             ← Prev
                         </Link>
                         <h2 className="text-lg font-semibold text-gray-900">{monthLabel}</h2>
                         <Link
                             href={monthHref(next.year, next.month)}
-                            className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                            className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
                         >
                             Next →
                         </Link>

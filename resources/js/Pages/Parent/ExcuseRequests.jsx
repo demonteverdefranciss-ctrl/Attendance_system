@@ -176,7 +176,7 @@ export default function ExcuseRequestsIndex({ excuseRequests = [], eligibleAbsen
                                             className={`flex flex-col items-center gap-2 rounded-xl px-3 py-4 text-center ring-1 transition ${
                                                 modeFor(r.id) === 'text'
                                                     ? 'bg-blue-50 ring-2 ring-blue-600'
-                                                    : 'bg-white ring-gray-200 hover:bg-gray-50'
+                                                    : 'bg-sky-50 ring-sky-200 hover:bg-sky-100'
                                             }`}
                                         >
                                             <svg viewBox="0 0 48 48" className="h-10 w-10" fill="none" aria-hidden="true">

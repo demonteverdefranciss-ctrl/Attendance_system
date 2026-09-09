@@ -71,7 +71,7 @@ export default function FilePickButton({
             className={`relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl px-3 py-4 text-center ring-1 transition ${
                 selected
                     ? 'bg-blue-50 ring-2 ring-blue-600'
-                    : 'bg-white ring-gray-200 hover:bg-gray-50 hover:ring-blue-300'
+                    : 'bg-sky-50 ring-sky-200 hover:bg-sky-100 hover:ring-blue-300'
             }`}
         >
             <input

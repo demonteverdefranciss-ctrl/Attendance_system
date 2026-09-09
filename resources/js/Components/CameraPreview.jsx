@@ -62,7 +62,7 @@ export default function CameraPreview({ streamUrl, recognitionEnabled = false, s
                             setError(false);
                             setStreamKey((k) => k + 1);
                         }}
-                        className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-600"
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500"
                     >
                         Retry preview
                     </button>
