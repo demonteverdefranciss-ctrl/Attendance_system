@@ -551,12 +551,7 @@ class DashboardController extends Controller
                         ? "{$student->section->grade_level} - {$student->section->name}"
                         : '—',
                     'consent_biometric' => $student->consent_biometric,
-                    'biometric_submission' => $latestSubmission ? [
-                        'status' => $latestSubmission->status,
-                        'created_at' => $latestSubmission->created_at?->toDateTimeString(),
-                        'reviewed_at' => $latestSubmission->reviewed_at?->toDateTimeString(),
-                        'notes' => $latestSubmission->notes,
-                    ] : null,
+                    'biometric_submission' => $latestSubmission?->parentPayload(),
                 ];
             })
             ->values();

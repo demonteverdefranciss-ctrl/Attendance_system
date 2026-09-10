@@ -28,8 +28,8 @@ export default function BiometricPhotosIndex({ submissions }) {
     return (
         <TeacherLayout title="Biometric Photo Reviews">
             <p className="mb-4 text-sm text-gray-500">
-                Parents upload face photos with consent. Accept only if the photos clearly show the
-                correct student. Accepted photos can be imported on the school PC with{' '}
+                The system already checked that each photo has one usable face. Confirm this is the
+                correct student, then accept. Accepted photos can be imported on the school PC with{' '}
                 <code className="rounded bg-gray-100 px-1">python sync_enrollment.py</code>.
             </p>
 
@@ -52,6 +52,14 @@ export default function BiometricPhotosIndex({ submissions }) {
                                 {item.guardian_phone ? ` (${item.guardian_phone})` : ''}
                             </p>
                             <p className="text-xs text-gray-400">Submitted {fmt(item.created_at)}</p>
+                            {item.system_validated ? (
+                                <p className="mt-1 text-xs font-medium text-blue-700">
+                                    System validated
+                                    {Array.isArray(item.validation_summary) && item.validation_summary.some((row) => row.descriptor)
+                                        ? ' · facial descriptor generated'
+                                        : ''}
+                                </p>
+                            ) : null}
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-3">

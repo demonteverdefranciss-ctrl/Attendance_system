@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\EnrollmentPhotoRejectedException;
 use App\Http\Controllers\Api\ApiController;
 use App\Http\Requests\SubmitExcuseLetterRequest;
 use App\Models\AttendanceExcuseRequest;
@@ -63,12 +64,7 @@ class ParentController extends ApiController
                         ? "{$student->section->grade_level} - {$student->section->name}"
                         : '—',
                     'consent_biometric' => (bool) $student->consent_biometric,
-                    'biometric_submission' => $latestSubmission ? [
-                        'status' => $latestSubmission->status,
-                        'created_at' => $latestSubmission->created_at?->toDateTimeString(),
-                        'reviewed_at' => $latestSubmission->reviewed_at?->toDateTimeString(),
-                        'notes' => $latestSubmission->notes,
-                    ] : null,
+                    'biometric_submission' => $latestSubmission?->parentPayload(),
                 ];
             })
             ->values();
@@ -110,12 +106,16 @@ class ParentController extends ApiController
             return $this->fail('Approved photos for this child are awaiting import at school.', 'AWAITING_SYNC', 422);
         }
 
-        $submission = $this->photos->createSubmission(
-            $student,
-            $guardian->id,
-            $data['photos'],
-            true
-        );
+        try {
+            $submission = $this->photos->createSubmission(
+                $student,
+                $guardian->id,
+                $data['photos'],
+                true
+            );
+        } catch (EnrollmentPhotoRejectedException $e) {
+            return $this->fail($e->getMessage(), $e->reasonCode, 422);
+        }
 
         $this->audit->log(
             action: 'biometric_photos_submitted',
@@ -130,7 +130,7 @@ class ParentController extends ApiController
             userAgent: $request->userAgent()
         );
 
-        return $this->ok(['message' => 'Face photos submitted for teacher review.'], 201);
+        return $this->ok(['message' => 'Photos passed system validation. A teacher will confirm this is the correct student.'], 201);
     }
 
     public function enrollmentRequests(Request $request): JsonResponse

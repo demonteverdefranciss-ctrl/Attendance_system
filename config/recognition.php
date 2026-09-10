@@ -36,4 +36,16 @@ return [
     |--------------------------------------------------------------------------
     */
     'engine' => env('RECOGNITION_ENGINE', 'arcface'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Parent enrollment photo validation
+    |--------------------------------------------------------------------------
+    |
+    | auto     = OpenCV checks when Python is available; otherwise size checks
+    | required = reject uploads if the Python validator cannot run
+    | off      = skip face checks (not for defense demos)
+    |
+    */
+    'photo_validation' => env('FACE_PHOTO_VALIDATION', 'auto'),
 ];

@@ -3,9 +3,18 @@ import { router } from '@inertiajs/react';
 import FilePickButton from '@/Components/FilePickButton';
 
 export function submissionBadge(status) {
-    if (status === 'approved') return 'bg-green-100 text-green-700';
+    if (status === 'active' || status === 'approved') return 'bg-green-100 text-green-700';
     if (status === 'rejected') return 'bg-red-100 text-red-700';
     return 'bg-amber-100 text-amber-700';
+}
+
+export function enrollmentLabel(submission) {
+    const status = submission?.enrollment_status || submission?.status;
+    if (status === 'active') return 'Active';
+    if (status === 'approved') return 'Approved';
+    if (status === 'rejected') return 'Rejected — recapture';
+    if (status === 'pending') return 'Pending teacher review';
+    return status || '';
 }
 
 export function formatDateTime(value) {
@@ -69,9 +78,12 @@ export function ChildBiometricUpload({ child }) {
 
             {submission && (
                 <div className="mt-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-                    <span className={`mr-2 rounded-full px-2 py-0.5 capitalize ${submissionBadge(submission.status)}`}>
-                        {submission.status}
+                    <span className={`mr-2 rounded-full px-2 py-0.5 capitalize ${submissionBadge(submission.enrollment_status || submission.status)}`}>
+                        {enrollmentLabel(submission)}
                     </span>
+                    {submission.system_validated ? (
+                        <span className="mr-2 rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">System validated</span>
+                    ) : null}
                     Submitted {submission.created_at || '—'}
                     {submission.notes ? <p className="mt-1">Teacher note: {submission.notes}</p> : null}
                 </div>
@@ -80,14 +92,16 @@ export function ChildBiometricUpload({ child }) {
             {!canUpload ? (
                 <p className="mt-3 text-xs text-gray-500">
                     {submission?.status === 'approved'
-                        ? 'Photos approved. The school will import them for face enrollment.'
-                        : 'Your submission is pending teacher review.'}
+                        ? (submission?.enrollment_status === 'active'
+                            ? 'Photos are active for face enrollment.'
+                            : 'Photos approved. The school will import them for face enrollment.')
+                        : 'The system already accepted these photos. Waiting for a teacher to confirm this is the correct student.'}
                 </p>
             ) : (
                 <form onSubmit={submit} className="mt-3 space-y-3">
                     <p className="text-xs text-gray-500">
-                        Upload 1–3 clear front-facing photos (JPEG/PNG, max 2 MB each). A teacher must
-                        approve them before they are used for face recognition.
+                        Upload 1–3 clear front-facing photos (JPEG/PNG, max 2 MB each). The system
+                        rejects unusable photos first. A teacher only confirms identity after that.
                     </p>
                     <FilePickButton
                         kind="photo"
@@ -117,7 +131,7 @@ export function ChildBiometricUpload({ child }) {
                         disabled={uploading || !files.length || !consent}
                         className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                     >
-                        {uploading ? 'Uploading…' : 'Submit photos for review'}
+                        {uploading ? 'Validating…' : 'Submit photos'}
                     </button>
                 </form>
             )}
