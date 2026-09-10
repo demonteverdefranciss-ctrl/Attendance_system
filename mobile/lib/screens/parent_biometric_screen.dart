@@ -121,7 +121,7 @@ class _ParentBiometricScreenState extends State<ParentBiometricScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text(
-                    'Upload 1–3 clear front-facing photos (JPEG/PNG). A teacher must approve them before face enrollment.',
+                    'Upload 1–3 clear front-facing photos (JPEG/PNG). The system checks the photo first. Unusable photos are rejected so you can recapture. A teacher then confirms it is the correct student.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
                   ),
                   const SizedBox(height: 12),
@@ -167,9 +167,14 @@ class _ParentBiometricScreenState extends State<ParentBiometricScreen> {
                             if (submission != null) ...[
                               const SizedBox(height: 8),
                               Text(
-                                'Status: ${submission['status']} · ${submission['created_at'] ?? ''}',
+                                'Status: ${submission['enrollment_status'] ?? submission['status']} · ${submission['created_at'] ?? ''}',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
+                              if (submission['system_validated'] == true)
+                                Text(
+                                  'System validated',
+                                  style: TextStyle(color: Colors.blue.shade700, fontSize: 12),
+                                ),
                               if (submission['notes'] != null)
                                 Text(
                                   'Teacher note: ${submission['notes']}',
@@ -182,7 +187,7 @@ class _ParentBiometricScreenState extends State<ParentBiometricScreen> {
                                 child: Text(
                                   submission?['status'] == 'approved'
                                       ? 'Photos approved. The school will import them for face enrollment.'
-                                      : 'Your submission is pending teacher review.',
+                                      : 'The system already accepted these photos. Waiting for teacher confirmation.',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               )
@@ -217,7 +222,7 @@ class _ParentBiometricScreenState extends State<ParentBiometricScreen> {
                                         height: 18,
                                         child: CircularProgressIndicator(strokeWidth: 2),
                                       )
-                                    : const Text('Submit photos for review'),
+                                    : const Text('Submit photos'),
                               ),
                             ],
                           ],

@@ -154,6 +154,21 @@ class RecognitionProcessService
         return $this->serviceDir().DIRECTORY_SEPARATOR.'.recognize.lock';
     }
 
+    public function pythonAvailable(): bool
+    {
+        return is_file($this->pythonExecutable());
+    }
+
+    public function pythonBinary(): string
+    {
+        return $this->pythonExecutable();
+    }
+
+    public function directory(): string
+    {
+        return $this->serviceDir();
+    }
+
     private function serviceDir(): string
     {
         return rtrim((string) config('recognition.service_dir'), '/\\');

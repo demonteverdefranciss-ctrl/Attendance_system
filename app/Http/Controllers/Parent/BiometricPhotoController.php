@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Parent;
 
+use App\Exceptions\EnrollmentPhotoRejectedException;
 use App\Http\Controllers\Controller;
 use App\Models\BiometricPhotoSubmission;
 use App\Models\Student;
@@ -58,12 +59,17 @@ class BiometricPhotoController extends Controller
                 ->with('error', 'Approved photos for this child are awaiting import at school.');
         }
 
-        $submission = $this->photos->createSubmission(
-            $student,
-            $guardian->id,
-            $data['photos'],
-            true
-        );
+        try {
+            $submission = $this->photos->createSubmission(
+                $student,
+                $guardian->id,
+                $data['photos'],
+                true
+            );
+        } catch (EnrollmentPhotoRejectedException $e) {
+            return redirect()->route('parent.biometrics.index')
+                ->with('error', $e->getMessage());
+        }
 
         $this->audit->log(
             action: 'biometric_photos_submitted',
@@ -79,6 +85,6 @@ class BiometricPhotoController extends Controller
         );
 
         return redirect()->route('parent.biometrics.index')
-            ->with('success', 'Face photos submitted. A teacher will review them before enrollment.');
+            ->with('success', 'Photos passed system validation. A teacher will confirm this is the correct student.');
     }
 }

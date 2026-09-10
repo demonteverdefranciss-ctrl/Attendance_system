@@ -83,6 +83,13 @@ class _TeacherBiometricScreenState extends State<TeacherBiometricScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'These photos already passed system validation. Confirm this is the correct student.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
                   if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
                   if (_submissions.isEmpty)
                     const Padding(

@@ -464,6 +464,8 @@ class TeacherController extends ApiController
                     'name' => $p->original_name,
                 ]),
                 'created_at' => $s->created_at?->toDateTimeString(),
+                'system_validated' => $s->system_validated_at !== null,
+                'validation_summary' => $s->validation_summary,
             ]);
 
         return $this->ok($items);
