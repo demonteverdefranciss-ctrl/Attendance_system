@@ -12,6 +12,8 @@ import requests
 
 import config
 from engine import Detection, prepare_detection_frame
+from face_validation import crop_bgr, reason_label, validate_detected_face
+from identity_match import decide_similarity
 
 YUNET_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
 SFACE_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
@@ -105,8 +107,13 @@ class ArcFaceEngine:
         return np.asarray(feat, dtype=np.float32).reshape(-1)
 
     def _match(self, feat):
+        """Compare the 128-D descriptor with every enrolled student.
+
+        Returns (best_id, best_score, second_id, second_score).
+        Scores are cosine similarity: 1.0 is identical, threshold is ~0.36.
+        """
         if self._embeddings.size == 0:
-            return None, 0.0
+            return None, 0.0, None, 0.0
         scores = np.array(
             [
                 self._recognizer.match(feat, other, COSINE)
@@ -114,8 +121,13 @@ class ArcFaceEngine:
             ],
             dtype=np.float32,
         )
-        best = int(np.argmax(scores))
-        return int(self._ids[best]), float(scores[best])
+        order = np.argsort(scores)[::-1]
+        best = int(order[0])
+        second_id, second_score = None, 0.0
+        if len(order) > 1:
+            runner = int(order[1])
+            second_id, second_score = int(self._ids[runner]), float(scores[runner])
+        return int(self._ids[best]), float(scores[best]), second_id, second_score
 
     def identify(self, frame):
         detect_frame, scale = prepare_detection_frame(frame)
@@ -124,22 +136,67 @@ class ArcFaceEngine:
 
         for face in faces:
             x, y, w, h = [int(v) for v in face[:4]]
+            landmarks = face[4:14] if len(face) >= 14 else None
+            det_score = float(face[14]) if len(face) >= 15 else None
+            roi = crop_bgr(detect_frame, x, y, w, h)
+            ok, reason = validate_detected_face(
+                roi,
+                w,
+                h,
+                landmarks=landmarks,
+                det_score=det_score,
+            )
+
             if scale != 1.0:
                 x, y, w, h = int(x / scale), int(y / scale), int(w / scale), int(h / scale)
 
+            x, y, w, h = max(0, x), max(0, y), max(1, w), max(1, h)
+            if not ok:
+                detections.append(
+                    Detection(
+                        x=x,
+                        y=y,
+                        w=w,
+                        h=h,
+                        student_id=None,
+                        matched=False,
+                        confidence=0.0,
+                        label=f"invalid: {reason_label(reason)}",
+                        stage="invalid",
+                        reason=reason,
+                    )
+                )
+                continue
+
             feat = self._feature(detect_frame, face)
-            student_id, score = self._match(feat)
-            matched = student_id is not None and score >= config.ARCFACE_THRESHOLD
+            student_id, score, rival_id, rival_score = self._match(feat)
+            matched, reason = decide_similarity(
+                student_id,
+                score,
+                rival_id,
+                rival_score,
+                config.ARCFACE_THRESHOLD,
+                config.ARCFACE_MIN_MARGIN,
+            )
+            if reason == "LOOKALIKE":
+                label = f"lookalike #{student_id}/#{rival_id} ({score:.2f}/{rival_score:.2f})"
+            elif matched:
+                label = f"#{student_id} ({score:.2f})"
+            else:
+                label = f"unknown ({score:.2f})"
             detections.append(
                 Detection(
-                    x=max(0, x),
-                    y=max(0, y),
-                    w=max(1, w),
-                    h=max(1, h),
+                    x=x,
+                    y=y,
+                    w=w,
+                    h=h,
                     student_id=student_id if matched else None,
                     matched=matched,
                     confidence=max(0.0, min(1.0, score)),
-                    label=f"#{student_id} ({score:.2f})" if matched else f"unknown ({score:.2f})",
+                    label=label,
+                    stage="matched" if matched else "unknown",
+                    reason=reason,
+                    rival_id=rival_id if reason == "LOOKALIKE" else None,
                 )
             )
 

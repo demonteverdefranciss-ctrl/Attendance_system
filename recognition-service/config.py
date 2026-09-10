@@ -20,12 +20,23 @@ if RECOGNITION_ENGINE not in ("lbph", "arcface"):
 LBPH_THRESHOLD = float(os.getenv("LBPH_THRESHOLD", "70"))
 # Cosine similarity for ArcFace/SFace (higher = stricter). OpenCV default ~0.363.
 ARCFACE_THRESHOLD = float(os.getenv("ARCFACE_THRESHOLD", "0.36"))
+# Reject when the runner-up cosine is this close to the best (lookalike / uncertain).
+ARCFACE_MIN_MARGIN = float(os.getenv("ARCFACE_MIN_MARGIN", "0.05"))
+# Reject when the runner-up LBPH distance is this close to the best.
+LBPH_MIN_MARGIN = float(os.getenv("LBPH_MIN_MARGIN", "8"))
 MIN_CONSEC_FRAMES = int(os.getenv("MIN_CONSEC_FRAMES", "5"))
 COOLDOWN_SECONDS = int(os.getenv("COOLDOWN_SECONDS", "300"))
 SAMPLES_PER_STUDENT = int(os.getenv("SAMPLES_PER_STUDENT", "20"))
 SHOW_WINDOW = os.getenv("SHOW_WINDOW", "1") == "1"
 PROCESS_MAX_WIDTH = int(os.getenv("PROCESS_MAX_WIDTH", "960"))
 MIN_FACE_SIZE = int(os.getenv("MIN_FACE_SIZE", "56"))
+# Reject unusable faces before matching. Conservative defaults so a normal
+# school camera still records attendance, but blur/dark/tiny crops do not.
+FACE_VALIDATION = os.getenv("FACE_VALIDATION", "1") == "1"
+FACE_BLUR_MIN_VARIANCE = float(os.getenv("FACE_BLUR_MIN_VARIANCE", "18"))
+FACE_BRIGHTNESS_MIN = float(os.getenv("FACE_BRIGHTNESS_MIN", "28"))
+FACE_BRIGHTNESS_MAX = float(os.getenv("FACE_BRIGHTNESS_MAX", "235"))
+FACE_FRONTAL_CHECK = os.getenv("FACE_FRONTAL_CHECK", "1") == "1"
 # Drop this many queued RTSP frames so we process the newest (reduces lag).
 FRAME_SKIP = int(os.getenv("FRAME_SKIP", "2"))
 # Poll the backend for open sessions every N seconds; the camera only runs
