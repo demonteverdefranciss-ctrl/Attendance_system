@@ -18,6 +18,8 @@ REASON_LABELS = {
     "TOO_DARK": "too dark",
     "TOO_BRIGHT": "too bright",
     "NOT_FRONTAL": "not frontal",
+    "BELOW_THRESHOLD": "below threshold",
+    "LOOKALIKE": "lookalike",
 }
 
 

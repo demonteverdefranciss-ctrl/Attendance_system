@@ -20,6 +20,10 @@ if RECOGNITION_ENGINE not in ("lbph", "arcface"):
 LBPH_THRESHOLD = float(os.getenv("LBPH_THRESHOLD", "70"))
 # Cosine similarity for ArcFace/SFace (higher = stricter). OpenCV default ~0.363.
 ARCFACE_THRESHOLD = float(os.getenv("ARCFACE_THRESHOLD", "0.36"))
+# Reject when the runner-up cosine is this close to the best (lookalike / uncertain).
+ARCFACE_MIN_MARGIN = float(os.getenv("ARCFACE_MIN_MARGIN", "0.05"))
+# Reject when the runner-up LBPH distance is this close to the best.
+LBPH_MIN_MARGIN = float(os.getenv("LBPH_MIN_MARGIN", "8"))
 MIN_CONSEC_FRAMES = int(os.getenv("MIN_CONSEC_FRAMES", "5"))
 COOLDOWN_SECONDS = int(os.getenv("COOLDOWN_SECONDS", "300"))
 SAMPLES_PER_STUDENT = int(os.getenv("SAMPLES_PER_STUDENT", "20"))

@@ -6,7 +6,7 @@ Scan pipeline (a detected face is never enough on its own):
   1. Face Detection
   2. Face Validation (size / blur / brightness / pose)
   3. Face Matching (descriptor vs enrolled gallery)
-  4. Identity Validation (threshold + consecutive frames)
+  4. Identity Validation (threshold + lookalike margin + consecutive frames)
   5. Attendance Validation (session, consent, student, camera, duplicate)
   6. Record
 """
@@ -465,6 +465,16 @@ def main():
     engine = load_engine()
     print(f"Recognition engine: {engine.name}")
     print("Scan pipeline: DETECT → VALIDATE → MATCH → IDENTITY → ATTEND → RECORD")
+    if engine.name == "arcface":
+        print(
+            f"Match rule: 128-D cosine >= {config.ARCFACE_THRESHOLD:g}; "
+            f"lookalike margin {config.ARCFACE_MIN_MARGIN:g}"
+        )
+    else:
+        print(
+            f"Match rule: LBPH distance <= {config.LBPH_THRESHOLD:g}; "
+            f"lookalike margin {config.LBPH_MIN_MARGIN:g}"
+        )
     if not engine.ready():
         print(engine.missing_message())
         return
@@ -642,8 +652,13 @@ def main():
                     log_scan(f"validation rejected: {why} — not matching", f"inv:{why}")
                 else:
                     matched_dets = [d for d in usable if d.matched and d.student_id is not None]
+                    lookalikes = [d for d in usable if getattr(d, "reason", "") == "LOOKALIKE"]
                     step = "MATCH"
-                    if not matched_dets:
+                    if lookalikes:
+                        step_ok = False
+                        detail = "lookalike — uncertain"
+                        log_scan("lookalike scores too close — no attendance", "lookalike")
+                    elif not matched_dets:
                         step_ok = False
                         detail = "below threshold"
                         log_scan("match below threshold — no attendance", "unknown")
@@ -655,6 +670,8 @@ def main():
                 stage = getattr(det, "stage", "")
                 if stage == "invalid":
                     color = (0, 165, 255)
+                elif getattr(det, "reason", "") == "LOOKALIKE":
+                    color = (255, 0, 255)
                 elif det.matched:
                     color = (0, 255, 0)
                 else:

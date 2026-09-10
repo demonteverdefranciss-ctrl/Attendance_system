@@ -23,14 +23,14 @@ A detected face is not attendance. The live loop is:
 1. Face Detection     — YuNet (ArcFace) or Haar (LBPH)
 2. Face Validation    — size, blur, brightness, coarse frontal pose
 3. Face Matching      — 128-D descriptor vs enrolled gallery
-4. Identity Validation — score threshold + N consecutive frames
+4. Identity Validation — threshold + lookalike margin + N consecutive frames
 5. Attendance Validation — open session, consent, active student,
                            assigned camera, duplicate cooldown
 6. Record             — Present / Late / time-out
 ```
 
-Invalid faces never go to matching. Below-threshold or duplicate scans are
-not recorded. The camera overlay shows which stage passed or failed.
+Invalid faces never go to matching. Below-threshold, lookalike, or duplicate
+scans are not recorded. The camera overlay shows which stage passed or failed.
 
 ```
 Camera (webcam / Tapo RTSP)
@@ -38,6 +38,18 @@ Camera (webcam / Tapo RTSP)
   -> POST /api/v1/attendance/recognitions  (X-Camera-Id + X-Device-Key)
   -> backend attendance checks → record
 ```
+
+## Algorithm (how a face becomes a match)
+
+The system does not decide by “they look like that student.” It compares numbers.
+
+1. A valid face is turned into a **128-dimension descriptor**.
+2. That descriptor is compared with every enrolled student’s stored descriptor.
+3. **ArcFace** uses cosine similarity (higher is closer). A match needs **0.36 or above**.
+4. **LBPH** uses distance (lower is closer). A match needs **70 or below**.
+5. If the **best** and **second-best** students are too close, the result is **lookalike / uncertain** and **no attendance** is recorded.
+
+Defense answer for “what if they have a kamukha?”: the algorithm compares numerical descriptors. If two identities pass the threshold or sit within the margin, the system refuses to guess.
 
 ## Setup
 
@@ -87,7 +99,9 @@ python test_api.py 1
 | `VIDEO_SOURCE` | Webcam index (`0`) or Tapo RTSP URL |
 | `RECOGNITION_ENGINE` | `lbph` (default) or `arcface` |
 | `ARCFACE_THRESHOLD` | Cosine similarity to accept (ArcFace only, ~0.36) |
+| `ARCFACE_MIN_MARGIN` | Minimum gap vs runner-up; closer = lookalike, no attendance |
 | `LBPH_THRESHOLD` | Max LBPH distance to accept (lower = stricter, ~70 typical) |
+| `LBPH_MIN_MARGIN` | Minimum LBPH gap vs runner-up to accept a unique identity |
 | `MIN_CONSEC_FRAMES` | Consecutive confident frames required before recording |
 | `COOLDOWN_SECONDS` | Per-student gap to avoid duplicate posts |
 | `SAMPLES_PER_STUDENT` | Face samples captured during enrollment |

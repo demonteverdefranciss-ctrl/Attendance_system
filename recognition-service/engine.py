@@ -18,6 +18,7 @@ class Detection:
     label: str
     stage: str = "detected"  # invalid | unknown | matched
     reason: str = ""
+    rival_id: int | None = None
 
 
 def prepare_detection_frame(frame):
