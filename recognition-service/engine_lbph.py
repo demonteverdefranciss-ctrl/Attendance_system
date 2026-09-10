@@ -6,6 +6,7 @@ import cv2
 import config
 from engine import Detection, prepare_detection_frame
 from api_client import lbph_distance_to_confidence
+from face_validation import crop_bgr, reason_label, validate_detected_face
 
 
 class LbphEngine:
@@ -54,6 +55,25 @@ class LbphEngine:
             if w <= 0 or h <= 0:
                 continue
 
+            roi = crop_bgr(frame, x, y, w, h)
+            ok, reason = validate_detected_face(roi, w, h)
+            if not ok:
+                detections.append(
+                    Detection(
+                        x=x,
+                        y=y,
+                        w=w,
+                        h=h,
+                        student_id=None,
+                        matched=False,
+                        confidence=0.0,
+                        label=f"invalid: {reason_label(reason)}",
+                        stage="invalid",
+                        reason=reason,
+                    )
+                )
+                continue
+
             face_roi = gray_full[y : y + h, x : x + w]
             label, distance = self._recognizer.predict(cv2.resize(face_roi, config.FACE_SIZE))
             matched = distance <= config.LBPH_THRESHOLD
@@ -68,6 +88,8 @@ class LbphEngine:
                     matched=matched,
                     confidence=confidence,
                     label=f"#{label} ({distance:.0f})" if matched else "unknown",
+                    stage="matched" if matched else "unknown",
+                    reason="OK" if matched else "BELOW_THRESHOLD",
                 )
             )
 

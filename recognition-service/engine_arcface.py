@@ -12,6 +12,7 @@ import requests
 
 import config
 from engine import Detection, prepare_detection_frame
+from face_validation import crop_bgr, reason_label, validate_detected_face
 
 YUNET_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
 SFACE_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
@@ -124,22 +125,53 @@ class ArcFaceEngine:
 
         for face in faces:
             x, y, w, h = [int(v) for v in face[:4]]
+            landmarks = face[4:14] if len(face) >= 14 else None
+            det_score = float(face[14]) if len(face) >= 15 else None
+            roi = crop_bgr(detect_frame, x, y, w, h)
+            ok, reason = validate_detected_face(
+                roi,
+                w,
+                h,
+                landmarks=landmarks,
+                det_score=det_score,
+            )
+
             if scale != 1.0:
                 x, y, w, h = int(x / scale), int(y / scale), int(w / scale), int(h / scale)
+
+            x, y, w, h = max(0, x), max(0, y), max(1, w), max(1, h)
+            if not ok:
+                detections.append(
+                    Detection(
+                        x=x,
+                        y=y,
+                        w=w,
+                        h=h,
+                        student_id=None,
+                        matched=False,
+                        confidence=0.0,
+                        label=f"invalid: {reason_label(reason)}",
+                        stage="invalid",
+                        reason=reason,
+                    )
+                )
+                continue
 
             feat = self._feature(detect_frame, face)
             student_id, score = self._match(feat)
             matched = student_id is not None and score >= config.ARCFACE_THRESHOLD
             detections.append(
                 Detection(
-                    x=max(0, x),
-                    y=max(0, y),
-                    w=max(1, w),
-                    h=max(1, h),
+                    x=x,
+                    y=y,
+                    w=w,
+                    h=h,
                     student_id=student_id if matched else None,
                     matched=matched,
                     confidence=max(0.0, min(1.0, score)),
                     label=f"#{student_id} ({score:.2f})" if matched else f"unknown ({score:.2f})",
+                    stage="matched" if matched else "unknown",
+                    reason="OK" if matched else "BELOW_THRESHOLD",
                 )
             )
 

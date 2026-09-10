@@ -2,11 +2,13 @@
 Live recognition loop: read the video source, identify enrolled students, and
 push attendance to the backend.
 
-Validation safeguards before recording:
-  * the engine (LBPH or ArcFace) must accept the match
-  * the same student must be seen for MIN_CONSEC_FRAMES consecutive frames
-  * a per-student COOLDOWN_SECONDS prevents duplicate posts
-The backend additionally enforces an open session + unique(session, student).
+Scan pipeline (a detected face is never enough on its own):
+  1. Face Detection
+  2. Face Validation (size / blur / brightness / pose)
+  3. Face Matching (descriptor vs enrolled gallery)
+  4. Identity Validation (threshold + consecutive frames)
+  5. Attendance Validation (session, consent, student, camera, duplicate)
+  6. Record
 """
 import os
 import threading
@@ -20,6 +22,7 @@ import numpy as np
 import config
 from api_client import get_open_sessions, post_recognition
 from engine import load_engine
+from face_validation import reason_label
 from preview import for_display
 
 LOCK_FILE = os.path.join(config.BASE_DIR, ".recognize.lock")
@@ -28,6 +31,19 @@ _post_status = {"text": "", "until": 0.0}
 _post_status_lock = threading.Lock()
 _hud = {"line": "Starting…", "ok": False}
 _hud_lock = threading.Lock()
+_pipeline = {"step": "DETECT", "ok": None, "detail": "", "until": 0.0}
+_pipeline_lock = threading.Lock()
+_reject_log_at = {}
+
+PIPELINE_STEPS = ("DETECT", "VALIDATE", "MATCH", "IDENTITY", "ATTEND", "RECORD")
+ATTEND_ERROR_LABELS = {
+    "STUDENT_INACTIVE": "inactive student",
+    "NO_BIOMETRIC_CONSENT": "no consent",
+    "NO_SECTION": "no section",
+    "WRONG_CAMERA": "wrong camera",
+    "NO_SESSION": "no session",
+    "INVALID_TIMEOUT": "invalid time-out",
+}
 
 
 def set_post_status(text, seconds=4.0):
@@ -52,6 +68,32 @@ def set_hud(line, ok=False):
 def current_hud():
     with _hud_lock:
         return _hud["line"], _hud["ok"]
+
+
+def set_pipeline(step, ok=None, detail="", hold=0.0):
+    with _pipeline_lock:
+        _pipeline["step"] = step
+        _pipeline["ok"] = ok
+        _pipeline["detail"] = detail
+        _pipeline["until"] = time.time() + hold if hold else 0.0
+
+
+def current_pipeline():
+    with _pipeline_lock:
+        return dict(_pipeline)
+
+
+def pipeline_is_holding():
+    with _pipeline_lock:
+        return time.time() < _pipeline["until"]
+
+
+def log_scan(message, key, every=2.0):
+    now = time.time()
+    if now - _reject_log_at.get(key, 0) < every:
+        return
+    _reject_log_at[key] = now
+    print(f"[SCAN] {message}")
 
 
 class FrameGrabber:
@@ -142,6 +184,7 @@ def record(student_id, confidence, session_state=None):
     captured_at = datetime.now().astimezone().isoformat()
     client_uuid = str(uuid.uuid4())
     set_post_status(f"Posting #{student_id}…", seconds=30.0)
+    set_pipeline("ATTEND", ok=None, detail=f"#{student_id} session/student checks", hold=8.0)
     print(f"[…] posting student {student_id}…")
 
     def _post():
@@ -166,14 +209,17 @@ def record(student_id, confidence, session_state=None):
                     pass
                 print(f"[OK]  student {student_id} {mode} (conf={confidence:.2f})")
                 set_post_status(f"OK #{student_id} {mode}", seconds=5.0)
+                set_pipeline("RECORD", ok=True, detail=f"#{student_id} {mode}", hold=5.0)
             else:
                 err_code = None
                 try:
                     err_code = (resp.json().get("error") or {}).get("code")
                 except Exception:
                     pass
+                why = ATTEND_ERROR_LABELS.get(err_code, f"HTTP {resp.status_code}")
                 print(f"[WARN] student {student_id}: HTTP {resp.status_code} {resp.text[:200]}")
-                set_post_status(f"Failed #{student_id} HTTP {resp.status_code}", seconds=6.0)
+                set_post_status(f"Blocked #{student_id}: {why}", seconds=6.0)
+                set_pipeline("ATTEND", ok=False, detail=why, hold=6.0)
                 # Backend says no open session → turn camera off immediately.
                 if err_code == "NO_SESSION" and session_state is not None:
                     session_state["session_open"] = False
@@ -183,6 +229,7 @@ def record(student_id, confidence, session_state=None):
         except Exception as exc:
             print(f"[ERR] student {student_id}: {exc}")
             set_post_status(f"Network error #{student_id}", seconds=6.0)
+            set_pipeline("ATTEND", ok=False, detail="network error", hold=6.0)
 
     threading.Thread(target=_post, daemon=True).start()
 
@@ -339,16 +386,57 @@ def prepare_detection_frame(frame):
 
 
 def draw_hud(frame):
+    height, width = frame.shape[:2]
+    cv2.rectangle(frame, (0, 0), (width, 68), (20, 20, 20), -1)
     line, ok = current_hud()
     color = (80, 200, 80) if ok else (80, 180, 255)
-    cv2.rectangle(frame, (0, 0), (frame.shape[1], 36), (20, 20, 20), -1)
-    cv2.putText(frame, line[:70], (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+    cv2.putText(frame, line[:48], (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+    pipe = current_pipeline()
+    detail = str(pipe.get("detail") or "")
+    if detail:
+        cv2.putText(
+            frame,
+            detail[:42],
+            (max(10, width - 320), 24),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (210, 210, 210),
+            1,
+        )
+
+    current = pipe.get("step") or "DETECT"
+    current_ok = pipe.get("ok")
+    try:
+        current_i = PIPELINE_STEPS.index(current)
+    except ValueError:
+        current_i = 0
+
+    labels = ("1 DETECT", "2 VALIDATE", "3 MATCH", "4 IDENTITY", "5 ATTEND", "6 RECORD")
+    box_w = max(72, width // 6)
+    for i, _name in enumerate(PIPELINE_STEPS):
+        x1 = i * box_w
+        x2 = min(width - 2, x1 + box_w - 3)
+        if i < current_i:
+            fill, text_c = (40, 90, 40), (190, 235, 190)
+        elif i == current_i:
+            if current_ok is False:
+                fill, text_c = (40, 40, 150), (210, 210, 255)
+            elif current_ok is True:
+                fill, text_c = (40, 140, 40), (190, 255, 190)
+            else:
+                fill, text_c = (70, 90, 40), (180, 220, 255)
+        else:
+            fill, text_c = (45, 45, 45), (140, 140, 140)
+        cv2.rectangle(frame, (x1 + 2, 38), (x2, 64), fill, -1)
+        cv2.putText(frame, labels[i], (x1 + 6, 56), cv2.FONT_HERSHEY_SIMPLEX, 0.42, text_c, 1)
+
     status = current_post_status()
     if status:
         cv2.putText(
             frame,
             status,
-            (10, frame.shape[0] - 16),
+            (10, height - 16),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.65,
             (0, 255, 255),
@@ -376,6 +464,7 @@ def idle_frame(message, hint="q / Esc / close window to quit"):
 def main():
     engine = load_engine()
     print(f"Recognition engine: {engine.name}")
+    print("Scan pipeline: DETECT → VALIDATE → MATCH → IDENTITY → ATTEND → RECORD")
     if not engine.ready():
         print(engine.missing_message())
         return
@@ -475,6 +564,7 @@ def main():
                         clear_frame()
                     print("Session closed - camera released. Waiting for the next session...")
                     set_hud("Session closed — camera off", ok=False)
+                    set_pipeline("DETECT", ok=False, detail="waiting for session")
 
                 if config.SHOW_WINDOW:
                     cv2.imshow(
@@ -537,42 +627,88 @@ def main():
             else:
                 set_hud(f"Session open · {matcher}", ok=True)
 
-            if publish_frame is not None:
-                publish_frame(frame)
-
             detections = engine.identify(frame)
             seen = set()
+            step, step_ok, detail = "DETECT", None, "no face"
+
+            if detections:
+                usable = [d for d in detections if getattr(d, "stage", "") != "invalid"]
+                invalid = [d for d in detections if getattr(d, "stage", "") == "invalid"]
+                step = "VALIDATE"
+                if not usable:
+                    step_ok = False
+                    why = reason_label(invalid[0].reason) if invalid else "invalid face"
+                    detail = why
+                    log_scan(f"validation rejected: {why} — not matching", f"inv:{why}")
+                else:
+                    matched_dets = [d for d in usable if d.matched and d.student_id is not None]
+                    step = "MATCH"
+                    if not matched_dets:
+                        step_ok = False
+                        detail = "below threshold"
+                        log_scan("match below threshold — no attendance", "unknown")
+                    else:
+                        step_ok = True
+                        detail = ""
 
             for det in detections:
-                if config.SHOW_WINDOW:
-                    color = (0, 255, 0) if det.matched else (0, 0, 255)
-                    cv2.rectangle(frame, (det.x, det.y), (det.x + det.w, det.y + det.h), color, 2)
-                    cv2.putText(
-                        frame,
-                        det.label,
-                        (det.x, max(20, det.y - 8)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        color,
-                        2,
-                    )
+                stage = getattr(det, "stage", "")
+                if stage == "invalid":
+                    color = (0, 165, 255)
+                elif det.matched:
+                    color = (0, 255, 0)
+                else:
+                    color = (0, 0, 255)
+                label = det.label
 
                 if det.matched and det.student_id is not None:
                     sid = det.student_id
                     seen.add(sid)
                     consecutive[sid] = consecutive.get(sid, 0) + 1
-                    if consecutive[sid] >= config.MIN_CONSEC_FRAMES:
-                        if now - last_posted.get(sid, 0) >= config.COOLDOWN_SECONDS:
-                            record(sid, det.confidence, session_state=session_state)
-                            last_posted[sid] = now
+                    needed = config.MIN_CONSEC_FRAMES
+                    count = consecutive[sid]
+                    if count < needed:
+                        step, step_ok = "IDENTITY", None
+                        detail = f"#{sid} {count}/{needed} frames"
+                        label = f"{det.label}  {count}/{needed}"
+                    elif now - last_posted.get(sid, 0) < config.COOLDOWN_SECONDS:
+                        step, step_ok = "ATTEND", False
+                        detail = f"#{sid} duplicate"
+                        label = f"{det.label}  duplicate"
                         consecutive[sid] = 0
+                        log_scan(f"duplicate scan ignored for #{sid}", f"dup:{sid}", every=5.0)
+                        if not pipeline_is_holding():
+                            set_pipeline("ATTEND", ok=False, detail=detail, hold=3.0)
+                    else:
+                        step, step_ok = "ATTEND", None
+                        detail = f"#{sid} attendance checks"
+                        record(sid, det.confidence, session_state=session_state)
+                        last_posted[sid] = now
+                        consecutive[sid] = 0
+
+                cv2.rectangle(frame, (det.x, det.y), (det.x + det.w, det.y + det.h), color, 2)
+                cv2.putText(
+                    frame,
+                    label,
+                    (det.x, max(88, det.y - 8)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.55,
+                    color,
+                    2,
+                )
 
             for sid in list(consecutive.keys()):
                 if sid not in seen:
                     consecutive[sid] = 0
 
+            if not pipeline_is_holding():
+                set_pipeline(step, ok=step_ok, detail=detail)
+
+            draw_hud(frame)
+            if publish_frame is not None:
+                publish_frame(frame)
+
             if config.SHOW_WINDOW:
-                draw_hud(frame)
                 cv2.imshow("Recognize", for_display(frame))
                 quit_now, key = should_quit("Recognize")
                 if handle_keys(key) or quit_now:

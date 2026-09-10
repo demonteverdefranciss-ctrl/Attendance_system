@@ -38,6 +38,10 @@ class AttendanceController extends ApiController
             return $this->ok($this->recordPayload($existing), 200);
         }
 
+        // Attendance validation after a recognized identity:
+        // active student, biometric consent, assigned section, this camera,
+        // an open session, then Present/Late or time-out. A detected face
+        // alone is never enough to write a record.
         $student = Student::with('section:id,camera_id')->find($data['student_id']);
 
         if (! $student->is_active) {

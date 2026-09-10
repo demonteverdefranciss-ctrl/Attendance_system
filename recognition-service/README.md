@@ -17,12 +17,26 @@ to the old matcher. Do not run both at once.
 
 ## Pipeline
 
+A detected face is not attendance. The live loop is:
+
+```
+1. Face Detection     — YuNet (ArcFace) or Haar (LBPH)
+2. Face Validation    — size, blur, brightness, coarse frontal pose
+3. Face Matching      — 128-D descriptor vs enrolled gallery
+4. Identity Validation — score threshold + N consecutive frames
+5. Attendance Validation — open session, consent, active student,
+                           assigned camera, duplicate cooldown
+6. Record             — Present / Late / time-out
+```
+
+Invalid faces never go to matching. Below-threshold or duplicate scans are
+not recorded. The camera overlay shows which stage passed or failed.
+
 ```
 Camera (webcam / Tapo RTSP)
-  -> detect faces
-  -> match (LBPH or ArcFace)  -> confidence gate + N consecutive frames + cooldown
+  -> DETECT → VALIDATE → MATCH → IDENTITY
   -> POST /api/v1/attendance/recognitions  (X-Camera-Id + X-Device-Key)
-  -> backend finds the open session, dedupes, records attendance
+  -> backend attendance checks → record
 ```
 
 ## Setup
@@ -77,6 +91,11 @@ python test_api.py 1
 | `MIN_CONSEC_FRAMES` | Consecutive confident frames required before recording |
 | `COOLDOWN_SECONDS` | Per-student gap to avoid duplicate posts |
 | `SAMPLES_PER_STUDENT` | Face samples captured during enrollment |
+| `MIN_FACE_SIZE` | Minimum face box (pixels) before matching |
+| `FACE_VALIDATION` | `1` to reject unusable faces before matching |
+| `FACE_BLUR_MIN_VARIANCE` | Laplacian sharpness floor (lower = more lenient) |
+| `FACE_BRIGHTNESS_MIN` / `MAX` | Reject faces that are too dark or washed out |
+| `FACE_FRONTAL_CHECK` | `1` to reject strong profile / collapsed landmarks |
 | `SHOW_WINDOW` | `1` to show a preview window, `0` for headless |
 
 ## Notes & limitations
