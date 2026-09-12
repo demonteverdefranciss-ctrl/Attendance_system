@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import FilePickButton from '@/Components/FilePickButton';
+import { inspectFacePhoto } from '@/lib/facePhotoCheck';
 
 export function submissionBadge(status) {
     if (status === 'active' || status === 'approved') return 'bg-green-100 text-green-700';
@@ -32,16 +33,46 @@ export function formatDateTime(value) {
 }
 
 export function ChildBiometricUpload({ child }) {
+    const { assetBase } = usePage().props;
     const [files, setFiles] = useState([]);
     const [consent, setConsent] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [checking, setChecking] = useState(false);
+    const [photoError, setPhotoError] = useState(null);
 
     const submission = child.biometric_submission;
     const canUpload = !submission || submission.status === 'rejected';
 
+    const chooseFiles = async (next) => {
+        setPhotoError(null);
+        const selected = Array.isArray(next) ? next.slice(0, 3) : [];
+        if (selected.length === 0) {
+            setFiles([]);
+            return;
+        }
+
+        setChecking(true);
+        const accepted = [];
+        try {
+            for (let i = 0; i < selected.length; i += 1) {
+                const result = await inspectFacePhoto(selected[i], assetBase);
+                if (!result.ok) {
+                    const which = selected.length > 1 ? `Photo ${i + 1}: ` : '';
+                    setPhotoError(which + result.message);
+                    setFiles([]);
+                    return;
+                }
+                accepted.push(selected[i]);
+            }
+            setFiles(accepted);
+        } finally {
+            setChecking(false);
+        }
+    };
+
     const submit = (e) => {
         e.preventDefault();
-        if (!files.length || !consent) return;
+        if (!files.length || !consent || checking) return;
 
         const formData = new FormData();
         formData.append('student_id', child.id);
@@ -100,19 +131,26 @@ export function ChildBiometricUpload({ child }) {
             ) : (
                 <form onSubmit={submit} className="mt-3 space-y-3">
                     <p className="text-xs text-gray-500">
-                        Upload 1–3 clear front-facing photos (JPEG/PNG, max 2 MB each). The system
-                        rejects unusable photos first. A teacher only confirms identity after that.
+                        Upload 1–3 close-up photos of your child&apos;s face only (JPEG/PNG, max 2 MB each).
+                        Full-body pictures, objects, and photos with no face are rejected. A teacher
+                        confirms identity after the system accepts the face.
                     </p>
                     <FilePickButton
                         kind="photo"
                         accept="image/jpeg,image/png"
                         multiple
                         required
-                        label="Add photos"
-                        hint="1–3 front-facing JPEG/PNG, max 2 MB each"
+                        label="Add face photos"
+                        hint="Close-up of the face only — not full body"
                         value={files}
-                        onChange={setFiles}
+                        onChange={chooseFiles}
                     />
+                    {checking ? (
+                        <p className="text-xs text-blue-700">Checking that each photo shows a face…</p>
+                    ) : null}
+                    {photoError ? (
+                        <p className="text-xs font-medium text-red-600">{photoError}</p>
+                    ) : null}
                     <label className="flex items-start gap-2 text-xs text-gray-700">
                         <input
                             type="checkbox"
@@ -128,7 +166,7 @@ export function ChildBiometricUpload({ child }) {
                     </label>
                     <button
                         type="submit"
-                        disabled={uploading || !files.length || !consent}
+                        disabled={uploading || checking || !files.length || !consent}
                         className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                     >
                         {uploading ? 'Validating…' : 'Submit photos'}

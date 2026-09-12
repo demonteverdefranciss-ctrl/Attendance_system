@@ -19,15 +19,20 @@ from face_validation import crop_bgr, reason_label, validate_detected_face
 
 MESSAGES = {
     "OK": "Face is valid and usable for recognition.",
-    "NO_FACE": "No face was detected. Recapture a clear, front-facing photo of the student only.",
+    "NO_FACE": "No face was detected. Upload a clear, front-facing close-up of the student only — not an object, screenshot, or full-body photo.",
     "MULTIPLE_FACES": "More than one face was found. Recapture a photo with only the student.",
     "TOO_SMALL": "The face is too small or too far away. Move closer and recapture.",
+    "NOT_CLOSE_UP": "This looks like a full-body or distant photo. Recapture a close-up of the student's face filling most of the frame.",
     "BLURRY": "The photo is too blurry. Hold the phone still and recapture in better light.",
     "TOO_DARK": "The photo is too dark. Recapture in better lighting.",
     "TOO_BRIGHT": "The photo is too bright or washed out. Recapture in even lighting.",
     "NOT_FRONTAL": "The face is turned away. Have the student look straight at the camera.",
     "INVALID_IMAGE": "This file could not be read as a photo. Upload a JPEG or PNG.",
 }
+
+# Enrollment photos must be a face close-up, not a whole-body shot.
+MIN_FACE_HEIGHT_RATIO = 0.22
+MIN_FACE_WIDTH_RATIO = 0.16
 
 
 def _read_bgr(path):
@@ -127,6 +132,16 @@ def validate_image(path):
         }
 
     face = faces[0]
+    img_h, img_w = img.shape[:2]
+    if face["h"] < img_h * MIN_FACE_HEIGHT_RATIO or face["w"] < img_w * MIN_FACE_WIDTH_RATIO:
+        return {
+            "ok": False,
+            "reason": "NOT_CLOSE_UP",
+            "faces": 1,
+            "descriptor": None,
+            "message": MESSAGES["NOT_CLOSE_UP"],
+        }
+
     roi = crop_bgr(img, face["x"], face["y"], face["w"], face["h"])
     ok, reason = validate_detected_face(
         roi,

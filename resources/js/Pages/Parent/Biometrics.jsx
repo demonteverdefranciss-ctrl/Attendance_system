@@ -8,8 +8,9 @@ export default function BiometricsIndex({ children = [] }) {
             <Head title="Biometric Photos" />
 
             <p className="mb-4 text-sm text-gray-500">
-                Upload a clear front-facing photo of your child. The system checks the photo first.
-                If it is usable, a teacher then confirms it is the correct student (RA 10173 consent required).
+                Upload a close-up of your child&apos;s face only — not a full-body photo, screenshot, or
+                unrelated picture. The system rejects photos without a clear face. A teacher then confirms
+                it is the correct student (RA 10173 consent required).
             </p>
 
             {children.length === 0 ? (
