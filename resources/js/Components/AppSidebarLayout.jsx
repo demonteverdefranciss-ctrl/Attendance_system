@@ -42,8 +42,8 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                         key={item.route}
                         href={route(item.route)}
                         onClick={() => onNavigate?.()}
-                        className={`block rounded-lg px-3 py-2 text-sm font-medium ${
-                            active ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
+                        className={`block rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-500 hover:text-white ${
+                            active ? 'bg-blue-50 text-blue-700' : 'text-gray-600'
                         }`}
                     >
                         {item.label}
@@ -57,7 +57,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
         <div className="min-h-screen bg-gray-100">
             <div className="flex">
                 {/* Desktop sidebar */}
-                <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-gray-200">
+                <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-blue-200 border-r border-gray-200">
                     <div className="flex h-16 items-center gap-2 px-6 font-bold text-gray-800">
                         <span className="text-blue-600">Attendance</span>
                     </div>
@@ -73,7 +73,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                             aria-label="Close menu"
                             onClick={() => setOpen(false)}
                         />
-                        <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-white shadow-xl">
+                        <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-blue-200 shadow-xl">
                             <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4">
                                 <div className="font-bold text-gray-800">Attendance</div>
                                 <button
