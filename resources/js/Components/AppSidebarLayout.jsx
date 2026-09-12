@@ -78,7 +78,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
         <div className="min-h-screen bg-gray-100">
             <div className="flex">
                 {/* Desktop sidebar */}
-                <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-blue-200 border-r border-gray-200">
+                <aside className="hidden md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 bg-blue-200 border-r border-gray-200">
                     <div className="flex h-16 items-center px-4">
                         <BrandMark logoUrl={logoUrl} />
                     </div>
@@ -113,7 +113,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                     </div>
                 )}
 
-                <div className="flex-1 md:pl-64">
+                <div className="flex-1 md:pl-72">
                     <header className="flex h-16 items-center justify-between gap-3 bg-white px-4 shadow-sm sm:px-6">
                         <div className="flex items-center gap-2">
                             <button
