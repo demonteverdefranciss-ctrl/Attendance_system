@@ -79,9 +79,8 @@ class ParentController extends ApiController
         $data = $request->validate([
             'student_id' => ['required', 'integer', 'exists:students,id'],
             'consent_acknowledged' => ['accepted'],
-            'photos' => ['required', 'array', 'min:1', 'max:'.BiometricPhotoService::MAX_PHOTOS],
-            'photos.*' => ['image', 'mimes:jpeg,jpg,png', 'max:2048'],
-        ]);
+            ...BiometricPhotoService::photoUploadRules(),
+        ], BiometricPhotoService::photoUploadMessages());
 
         $student = Student::findOrFail($data['student_id']);
 

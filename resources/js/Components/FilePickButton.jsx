@@ -38,6 +38,7 @@ export default function FilePickButton({
     hint,
     value,
     onChange,
+    error = null,
 }) {
     const files = fileList(value, multiple);
     const selected = files.length > 0;
@@ -69,9 +70,11 @@ export default function FilePickButton({
     return (
         <label
             className={`relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl px-3 py-4 text-center ring-1 transition ${
-                selected
-                    ? 'bg-blue-50 ring-2 ring-blue-600'
-                    : 'bg-sky-50 ring-sky-200 hover:bg-sky-100 hover:ring-blue-300'
+                error
+                    ? 'bg-rose-50 ring-2 ring-rose-500'
+                    : selected
+                      ? 'bg-blue-50 ring-2 ring-blue-600'
+                      : 'bg-sky-50 ring-sky-200 hover:bg-sky-100 hover:ring-blue-300'
             }`}
         >
             <input
