@@ -6,6 +6,7 @@ use App\Models\Guardian;
 use App\Models\Role;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\PicoFaceDetector;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +33,51 @@ class ParentBiometricPhotoUploadTest extends TestCase
         $this->assertStringContainsString(
             'No face was detected',
             session('error')
+        );
+        $this->assertDatabaseCount('biometric_photo_submissions', 0);
+    }
+
+    public function test_parent_can_submit_a_detected_face_photo(): void
+    {
+        config(['recognition.photo_validation' => 'off']);
+        $this->mock(PicoFaceDetector::class, function ($mock) {
+            $mock->shouldReceive('orientedDimensions')->andReturn([640, 480]);
+            $mock->shouldReceive('detect')->andReturn([
+                ['x' => 80, 'y' => 40, 'size' => 220, 'score' => 40.0],
+            ]);
+        });
+
+        [$user, $student] = $this->parentWithChild();
+
+        $this->actingAs($user)
+            ->from(route('parent.biometrics.index'))
+            ->post(route('parent.biometric-photos.store'), [
+                'student_id' => $student->id,
+                'consent_acknowledged' => '1',
+                'photos' => [UploadedFile::fake()->image('face.jpg', 640, 480)],
+            ])
+            ->assertRedirect(route('parent.biometrics.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseCount('biometric_photo_submissions', 1);
+    }
+
+    public function test_parent_sees_a_photo_field_message_for_a_non_image(): void
+    {
+        [$user, $student] = $this->parentWithChild();
+
+        $this->actingAs($user)
+            ->from(route('parent.biometrics.index'))
+            ->post(route('parent.biometric-photos.store'), [
+                'student_id' => $student->id,
+                'consent_acknowledged' => '1',
+                'photos' => [UploadedFile::fake()->create('notes.txt', 20, 'text/plain')],
+            ])
+            ->assertSessionHasErrors('photos.0');
+
+        $this->assertStringContainsString(
+            'JPEG or PNG',
+            collect(session('errors')->get('photos.0'))->implode(' ')
         );
         $this->assertDatabaseCount('biometric_photo_submissions', 0);
     }

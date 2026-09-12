@@ -31,6 +31,10 @@ class PicoFaceDetector
             return [];
         }
 
+        $image = $this->applyJpegOrientation($image, $path);
+
+        $origW = imagesx($image);
+        $origH = imagesy($image);
         $scale = max($origW, $origH) / self::MAX_SIDE;
         if ($scale < 1) {
             $scale = 1;
@@ -70,6 +74,26 @@ class PicoFaceDetector
     }
 
     /**
+     * @return array{0: int, 1: int}
+     */
+    public function orientedDimensions(string $path): array
+    {
+        $info = @getimagesize($path);
+        $width = (int) ($info[0] ?? 0);
+        $height = (int) ($info[1] ?? 0);
+        if (($info[2] ?? 0) !== IMAGETYPE_JPEG || ! function_exists('exif_read_data')) {
+            return [$width, $height];
+        }
+
+        $orientation = (int) (@exif_read_data($path)['Orientation'] ?? 1);
+        if (in_array($orientation, [5, 6, 7, 8], true)) {
+            return [$height, $width];
+        }
+
+        return [$width, $height];
+    }
+
+    /**
      * @return \GdImage|resource|null
      */
     private function loadImage(string $path)
@@ -85,6 +109,36 @@ class PicoFaceDetector
             IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? (@imagecreatefromwebp($path) ?: null) : null,
             default => null,
         };
+    }
+
+    /**
+     * Phone portraits are often stored sideways with EXIF orientation.
+     * GD does not apply that tag, so a real face looks rotated and is missed.
+     *
+     * @param  \GdImage|resource  $image
+     * @return \GdImage|resource
+     */
+    private function applyJpegOrientation($image, string $path)
+    {
+        $orientation = 1;
+        if (function_exists('exif_read_data')) {
+            $orientation = (int) (@exif_read_data($path)['Orientation'] ?? 1);
+        }
+
+        $rotated = match ($orientation) {
+            3 => imagerotate($image, 180, 0),
+            6 => imagerotate($image, -90, 0),
+            8 => imagerotate($image, 90, 0),
+            default => null,
+        };
+
+        if ($rotated === false || $rotated === null) {
+            return $image;
+        }
+
+        imagedestroy($image);
+
+        return $rotated;
     }
 
     /**
@@ -190,7 +244,7 @@ class PicoFaceDetector
     {
         $shiftfactor = 0.12;
         $scalefactor = 1.2;
-        $minsize = max(36, (int) round(min($nrows, $ncols) * 0.12));
+        $minsize = max(24, (int) round(min($nrows, $ncols) * 0.08));
         $maxsize = min($nrows, $ncols);
         $detections = [];
         $scale = (float) $minsize;

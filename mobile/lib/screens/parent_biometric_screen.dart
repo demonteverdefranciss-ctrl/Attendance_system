@@ -121,7 +121,7 @@ class _ParentBiometricScreenState extends State<ParentBiometricScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text(
-                    'Upload 1–3 close-up photos of your child\'s face only (JPEG/PNG). Full-body pictures and photos with no face are rejected. A teacher then confirms it is the correct student.',
+                    'Upload 1–3 photos of your child\'s face (JPEG/PNG). Full-body pictures and photos with no face are rejected. A teacher then confirms it is the correct student.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
                   ),
                   const SizedBox(height: 12),

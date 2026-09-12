@@ -134,10 +134,34 @@ let classifyPromise;
 function loadClassifier(cascadeUrl) {
     if (!classifyPromise) {
         classifyPromise = fetch(cascadeUrl)
-            .then((response) => response.arrayBuffer())
-            .then((buffer) => unpackCascade(new Int8Array(buffer)));
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Face-detection cascade is missing.');
+                }
+                return response.arrayBuffer();
+            })
+            .then((buffer) => unpackCascade(new Int8Array(buffer)))
+            .catch((error) => {
+                classifyPromise = null;
+                throw error;
+            });
     }
     return classifyPromise;
+}
+
+export function selectPrimaryFace(faces) {
+    if (!faces.length) {
+        return { status: 'none', face: null };
+    }
+    const sorted = [...faces].sort((a, b) => b.score - a.score || b.size - a.size);
+    const best = sorted[0];
+    const rival = sorted.slice(1).find(
+        (other) => other.size >= best.size * 0.6 && other.score >= Math.max(10, best.score * 0.4),
+    );
+    if (rival) {
+        return { status: 'multiple', face: best };
+    }
+    return { status: 'one', face: best };
 }
 
 export async function detectFaces(bitmap, cascadeUrl) {
@@ -165,7 +189,7 @@ export async function detectFaces(bitmap, cascadeUrl) {
         classify,
         {
             shiftfactor: 0.12,
-            minsize: Math.max(36, Math.round(Math.min(workW, workH) * 0.12)),
+            minsize: Math.max(24, Math.round(Math.min(workW, workH) * 0.08)),
             maxsize: Math.min(workW, workH),
             scalefactor: 1.2,
         },

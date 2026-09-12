@@ -15,9 +15,9 @@ class EnrollmentPhotoValidator
 {
     public const MIN_IMAGE_PX = 200;
 
-    public const MIN_FACE_HEIGHT_RATIO = 0.22;
+    public const MIN_FACE_HEIGHT_RATIO = 0.14;
 
-    public const MIN_FACE_WIDTH_RATIO = 0.16;
+    public const MIN_FACE_WIDTH_RATIO = 0.10;
 
     public function __construct(
         private RecognitionProcessService $recognition,
@@ -126,7 +126,8 @@ class EnrollmentPhotoValidator
             return $this->fail('INVALID_IMAGE', 0, 'This file could not be read as a photo. Upload a JPEG or PNG.');
         }
 
-        if (($info[0] ?? 0) < self::MIN_IMAGE_PX || ($info[1] ?? 0) < self::MIN_IMAGE_PX) {
+        [$imageW, $imageH] = $this->faces->orientedDimensions($path);
+        if ($imageW < self::MIN_IMAGE_PX || $imageH < self::MIN_IMAGE_PX) {
             return $this->fail('TOO_SMALL', 0, 'The photo is too small. Recapture a clearer, closer photo of the student\'s face.');
         }
 
@@ -150,31 +151,29 @@ class EnrollmentPhotoValidator
             );
         }
 
-        $count = count($faces);
-        if ($count === 0) {
+        $picked = $this->selectPrimaryFace($faces);
+        if ($picked['status'] === 'none') {
             return $this->fail(
                 'NO_FACE',
                 0,
-                'No face was detected. Upload a clear, front-facing close-up of the student only — not an object, screenshot, or full-body photo.'
+                'No face was detected. Upload a clear, front-facing photo of the student — not an object, screenshot, or full-body photo.'
             );
         }
-        if ($count > 1) {
+        if ($picked['status'] === 'multiple') {
             return $this->fail(
                 'MULTIPLE_FACES',
-                $count,
+                count($faces),
                 'More than one face was found. Recapture a photo with only the student.'
             );
         }
 
-        $face = $faces[0];
-        $imageW = (int) $info[0];
-        $imageH = (int) $info[1];
+        $face = $picked['face'];
         $size = (int) ($face['size'] ?? 0);
         if ($size < $imageH * self::MIN_FACE_HEIGHT_RATIO || $size < $imageW * self::MIN_FACE_WIDTH_RATIO) {
             return $this->fail(
                 'NOT_CLOSE_UP',
                 1,
-                'This looks like a full-body or distant photo. Recapture a close-up of the student\'s face filling most of the frame.'
+                'This looks like a full-body or distant photo. Recapture a closer photo of the student\'s face.'
             );
         }
 
@@ -185,6 +184,39 @@ class EnrollmentPhotoValidator
             'descriptor' => null,
             'message' => 'Face is valid and usable for recognition.',
         ];
+    }
+
+    /**
+     * Ignore weak extra boxes (common on phone photos) and keep the main face.
+     *
+     * @param  array<int, array{x?: int, y?: int, size?: int, score?: float}>  $faces
+     * @return array{status: string, face: ?array}
+     */
+    public function selectPrimaryFace(array $faces): array
+    {
+        if ($faces === []) {
+            return ['status' => 'none', 'face' => null];
+        }
+
+        usort($faces, function (array $a, array $b) {
+            $score = ((float) ($b['score'] ?? 0)) <=> ((float) ($a['score'] ?? 0));
+
+            return $score !== 0 ? $score : ((int) ($b['size'] ?? 0)) <=> ((int) ($a['size'] ?? 0));
+        });
+
+        $best = $faces[0];
+        $bestSize = (int) ($best['size'] ?? 0);
+        $bestScore = (float) ($best['score'] ?? 0);
+
+        foreach (array_slice($faces, 1) as $other) {
+            $similarSize = (int) ($other['size'] ?? 0) >= $bestSize * 0.6;
+            $similarScore = (float) ($other['score'] ?? 0) >= max(10.0, $bestScore * 0.4);
+            if ($similarSize && $similarScore) {
+                return ['status' => 'multiple', 'face' => $best];
+            }
+        }
+
+        return ['status' => 'one', 'face' => $best];
     }
 
     /**

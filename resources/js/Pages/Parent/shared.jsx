@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import FilePickButton from '@/Components/FilePickButton';
-import { inspectFacePhoto } from '@/lib/facePhotoCheck';
+import { inspectFacePhoto, prepareFacePhoto } from '@/lib/facePhotoCheck';
 
 export function submissionBadge(status) {
     if (status === 'active' || status === 'approved') return 'bg-green-100 text-green-700';
@@ -55,14 +55,15 @@ export function ChildBiometricUpload({ child }) {
         const accepted = [];
         try {
             for (let i = 0; i < selected.length; i += 1) {
-                const result = await inspectFacePhoto(selected[i], assetBase);
+                const prepared = await prepareFacePhoto(selected[i]);
+                const result = await inspectFacePhoto(prepared, assetBase);
                 if (!result.ok) {
                     const which = selected.length > 1 ? `Photo ${i + 1}: ` : '';
                     setPhotoError(which + result.message);
                     setFiles([]);
                     return;
                 }
-                accepted.push(selected[i]);
+                accepted.push(prepared);
             }
             setFiles(accepted);
         } finally {
@@ -85,10 +86,22 @@ export function ChildBiometricUpload({ child }) {
         router.post(route('parent.biometric-photos.store'), formData, {
             forceFormData: true,
             preserveScroll: true,
-            onFinish: () => {
-                setUploading(false);
+            onError: (errors) => {
+                const photo =
+                    errors.photos ||
+                    errors['photos.0'] ||
+                    errors['photos.1'] ||
+                    errors['photos.2'] ||
+                    Object.values(errors)[0];
+                setPhotoError(photo || 'The photos could not be saved. Try a clearer JPEG or PNG of the face.');
+            },
+            onSuccess: () => {
                 setFiles([]);
                 setConsent(false);
+                setPhotoError(null);
+            },
+            onFinish: () => {
+                setUploading(false);
             },
         });
     };
@@ -131,18 +144,18 @@ export function ChildBiometricUpload({ child }) {
             ) : (
                 <form onSubmit={submit} className="mt-3 space-y-3">
                     <p className="text-xs text-gray-500">
-                        Upload 1–3 close-up photos of your child&apos;s face only (JPEG/PNG, max 2 MB each).
-                        Full-body pictures, objects, and photos with no face are rejected. A teacher
+                        Upload 1–3 photos of your child&apos;s face (JPEG/PNG). Large phone photos are resized
+                        automatically. Full-body pictures, objects, and photos with no face are rejected. A teacher
                         confirms identity after the system accepts the face.
                     </p>
                     <FilePickButton
                         kind="photo"
                         accept="image/jpeg,image/png"
                         multiple
-                        required
                         label="Add face photos"
-                        hint="Close-up of the face only — not full body"
+                        hint="Face photo — not a full-body shot"
                         value={files}
+                        error={photoError}
                         onChange={chooseFiles}
                     />
                     {checking ? (
@@ -157,7 +170,6 @@ export function ChildBiometricUpload({ child }) {
                             checked={consent}
                             onChange={(e) => setConsent(e.target.checked)}
                             className="mt-0.5 rounded border-gray-300"
-                            required
                         />
                         <span>
                             I consent to the collection and use of my child&apos;s biometric data (face
