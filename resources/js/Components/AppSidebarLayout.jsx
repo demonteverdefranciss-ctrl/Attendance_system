@@ -10,7 +10,14 @@ function BrandMark({ logoUrl }) {
                 alt="Bigaa Elementary School"
                 className="h-8 w-8 shrink-0 rounded-full bg-white object-contain"
             />
-            <span className="font-bold text-blue-600">Attendance</span>
+            <div className="flex flex-col leading-tight">
+                <span className="font-bold text-blue-600 whitespace-nowrap">
+                    Bigaa Elementary School
+                </span>
+                <span className="text-xs text-gray-500 whitespace-nowrap">
+                    Attendance Management System
+                </span>
+            </div>
         </div>
     );
 }
