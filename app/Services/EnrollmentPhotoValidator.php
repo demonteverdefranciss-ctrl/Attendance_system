@@ -92,13 +92,24 @@ class EnrollmentPhotoValidator
         $payload = json_decode($process->getOutput(), true);
 
         if (is_array($payload) && array_key_exists('ok', $payload)) {
-            return [
+            $pythonResult = [
                 'ok' => (bool) $payload['ok'],
                 'reason' => (string) ($payload['reason'] ?? 'INVALID_IMAGE'),
                 'faces' => (int) ($payload['faces'] ?? 0),
                 'descriptor' => is_array($payload['descriptor'] ?? null) ? $payload['descriptor'] : null,
                 'message' => (string) ($payload['message'] ?? 'Recapture a close-up of the student\'s face and try again.'),
             ];
+
+            if ($pythonResult['ok'] || $required) {
+                return $pythonResult;
+            }
+
+            $php = $this->phpFaceCheck($path);
+            if ($php['ok'] ?? false) {
+                return $php;
+            }
+
+            return $pythonResult;
         }
 
         Log::warning('Enrollment photo validator returned invalid JSON.', [
@@ -126,17 +137,18 @@ class EnrollmentPhotoValidator
             return $this->fail('INVALID_IMAGE', 0, 'This file could not be read as a photo. Upload a JPEG or PNG.');
         }
 
-        [$imageW, $imageH] = $this->faces->orientedDimensions($path);
+        try {
+            [$imageW, $imageH] = $this->faces->orientedDimensions($path);
+        } catch (\Throwable) {
+            $imageW = (int) ($info[0] ?? 0);
+            $imageH = (int) ($info[1] ?? 0);
+        }
         if ($imageW < self::MIN_IMAGE_PX || $imageH < self::MIN_IMAGE_PX) {
             return $this->fail('TOO_SMALL', 0, 'The photo is too small. Recapture a clearer, closer photo of the student\'s face.');
         }
 
         if (! extension_loaded('gd')) {
-            return $this->fail(
-                'PHOTO_VALIDATION_UNAVAILABLE',
-                0,
-                'The system could not check for a face on this photo. Recapture and try again.'
-            );
+            return $this->skipCheck('gd extension is not loaded');
         }
 
         try {
@@ -144,11 +156,7 @@ class EnrollmentPhotoValidator
         } catch (\Throwable $e) {
             Log::warning('PHP face detector failed.', ['error' => $e->getMessage()]);
 
-            return $this->fail(
-                'PHOTO_VALIDATION_UNAVAILABLE',
-                0,
-                'The system could not check for a face on this photo. Recapture and try again.'
-            );
+            return $this->skipCheck($e->getMessage());
         }
 
         $picked = $this->selectPrimaryFace($faces);
@@ -222,6 +230,22 @@ class EnrollmentPhotoValidator
     /**
      * @return array{ok: bool, reason: string, faces: int, descriptor: ?array, message: string}
      */
+    private function skipCheck(string $why): array
+    {
+        Log::warning('Enrollment face check skipped; photo sent to teacher review.', ['why' => $why]);
+
+        return [
+            'ok' => true,
+            'reason' => 'CHECK_SKIPPED',
+            'faces' => 0,
+            'descriptor' => null,
+            'message' => 'Photo accepted for teacher review.',
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, reason: string, faces: int, descriptor: ?array, message: string}
+     */
     private function fail(string $reason, int $faces, string $message): array
     {
         return [
@@ -238,23 +262,34 @@ class EnrollmentPhotoValidator
      */
     private function pythonCommand(): ?array
     {
-        if ($this->recognition->pythonAvailable()) {
-            return [$this->recognition->pythonBinary(), '-u', 'validate_photo.py'];
-        }
-
-        $script = $this->recognition->directory().DIRECTORY_SEPARATOR.'validate_photo.py';
-        if (! is_file($script)) {
+        if (! $this->recognition->pythonAvailable()) {
             return null;
         }
 
-        foreach (['python3', 'python'] as $bin) {
-            $probe = new Process([$bin, '--version']);
-            $probe->run();
-            if ($probe->isSuccessful()) {
-                return [$bin, '-u', 'validate_photo.py'];
-            }
+        $bin = $this->recognition->pythonBinary();
+        if (! $this->pythonHasCv2($bin)) {
+            return null;
         }
 
-        return null;
+        return [$bin, '-u', 'validate_photo.py'];
+    }
+
+    private function pythonHasCv2(string $bin): bool
+    {
+        static $cache = [];
+        if (array_key_exists($bin, $cache)) {
+            return $cache[$bin];
+        }
+
+        try {
+            $probe = new Process([$bin, '-c', 'import cv2']);
+            $probe->setTimeout(8);
+            $probe->run();
+            $cache[$bin] = $probe->isSuccessful();
+        } catch (\Throwable) {
+            $cache[$bin] = false;
+        }
+
+        return $cache[$bin];
     }
 }

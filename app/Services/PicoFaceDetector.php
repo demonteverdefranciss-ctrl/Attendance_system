@@ -31,7 +31,11 @@ class PicoFaceDetector
             return [];
         }
 
-        $image = $this->applyJpegOrientation($image, $path);
+        try {
+            $image = $this->applyJpegOrientation($image, $path);
+        } catch (\Throwable) {
+            // Keep the decoded pixels; a bad EXIF block must not abort detection.
+        }
 
         $origW = imagesx($image);
         $origH = imagesy($image);
@@ -45,6 +49,11 @@ class PicoFaceDetector
         $work = $image;
         if ($workW !== $origW || $workH !== $origH) {
             $work = imagecreatetruecolor($workW, $workH);
+            if ($work === false) {
+                imagedestroy($image);
+
+                throw new \RuntimeException('Could not resize the photo for face detection.');
+            }
             imagecopyresampled($work, $image, 0, 0, 0, 0, $workW, $workH, $origW, $origH);
             imagedestroy($image);
         }
@@ -81,11 +90,7 @@ class PicoFaceDetector
         $info = @getimagesize($path);
         $width = (int) ($info[0] ?? 0);
         $height = (int) ($info[1] ?? 0);
-        if (($info[2] ?? 0) !== IMAGETYPE_JPEG || ! function_exists('exif_read_data')) {
-            return [$width, $height];
-        }
-
-        $orientation = (int) (@exif_read_data($path)['Orientation'] ?? 1);
+        $orientation = $this->jpegOrientation($path);
         if (in_array($orientation, [5, 6, 7, 8], true)) {
             return [$height, $width];
         }
@@ -104,11 +109,26 @@ class PicoFaceDetector
         }
 
         return match ($info[2] ?? 0) {
-            IMAGETYPE_JPEG => @imagecreatefromjpeg($path) ?: null,
+            IMAGETYPE_JPEG => $this->loadJpeg($path),
             IMAGETYPE_PNG => @imagecreatefrompng($path) ?: null,
             IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? (@imagecreatefromwebp($path) ?: null) : null,
             default => null,
         };
+    }
+
+    /**
+     * @return \GdImage|resource|null
+     */
+    private function loadJpeg(string $path)
+    {
+        $image = @imagecreatefromjpeg($path);
+        if ($image) {
+            return $image;
+        }
+
+        $bytes = @file_get_contents($path);
+
+        return $bytes !== false ? (@imagecreatefromstring($bytes) ?: null) : null;
     }
 
     /**
@@ -120,9 +140,9 @@ class PicoFaceDetector
      */
     private function applyJpegOrientation($image, string $path)
     {
-        $orientation = 1;
-        if (function_exists('exif_read_data')) {
-            $orientation = (int) (@exif_read_data($path)['Orientation'] ?? 1);
+        $orientation = $this->jpegOrientation($path);
+        if (! function_exists('imagerotate') || $orientation === 1) {
+            return $image;
         }
 
         $rotated = match ($orientation) {
@@ -139,6 +159,23 @@ class PicoFaceDetector
         imagedestroy($image);
 
         return $rotated;
+    }
+
+    private function jpegOrientation(string $path): int
+    {
+        if (! function_exists('exif_read_data')) {
+            return 1;
+        }
+
+        try {
+            $exif = @exif_read_data($path);
+        } catch (\Throwable) {
+            return 1;
+        }
+
+        $orientation = (int) ($exif['Orientation'] ?? 1);
+
+        return ($orientation >= 1 && $orientation <= 8) ? $orientation : 1;
     }
 
     /**
@@ -167,9 +204,20 @@ class PicoFaceDetector
             return self::$classify;
         }
 
-        $path = resource_path('face-detection/facefinder');
-        $bytes = file_get_contents($path);
-        if ($bytes === false) {
+        $bytes = false;
+        foreach ([
+            resource_path('face-detection/facefinder'),
+            public_path('face-detection/facefinder'),
+            base_path('resources/face-detection/facefinder'),
+        ] as $path) {
+            if (is_file($path)) {
+                $bytes = @file_get_contents($path);
+                if ($bytes !== false && $bytes !== '') {
+                    break;
+                }
+            }
+        }
+        if ($bytes === false || $bytes === '') {
             throw new \RuntimeException('Face-detection cascade is missing.');
         }
 

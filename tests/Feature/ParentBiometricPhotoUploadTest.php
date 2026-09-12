@@ -62,6 +62,30 @@ class ParentBiometricPhotoUploadTest extends TestCase
         $this->assertDatabaseCount('biometric_photo_submissions', 1);
     }
 
+    public function test_parent_can_submit_when_the_face_checker_cannot_run(): void
+    {
+        config(['recognition.photo_validation' => 'off']);
+        $this->mock(PicoFaceDetector::class, function ($mock) {
+            $mock->shouldReceive('orientedDimensions')->andReturn([640, 480]);
+            $mock->shouldReceive('detect')->andThrow(new \RuntimeException('Broken EXIF block'));
+        });
+
+        [$user, $student] = $this->parentWithChild();
+
+        $this->actingAs($user)
+            ->from(route('parent.biometrics.index'))
+            ->post(route('parent.biometric-photos.store'), [
+                'student_id' => $student->id,
+                'consent_acknowledged' => '1',
+                'photos' => [UploadedFile::fake()->image('face.jpg', 640, 480)],
+            ])
+            ->assertRedirect(route('parent.biometrics.index'))
+            ->assertSessionHas('success')
+            ->assertSessionMissing('error');
+
+        $this->assertDatabaseCount('biometric_photo_submissions', 1);
+    }
+
     public function test_parent_sees_a_photo_field_message_for_a_non_image(): void
     {
         [$user, $student] = $this->parentWithChild();

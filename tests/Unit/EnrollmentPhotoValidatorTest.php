@@ -84,6 +84,20 @@ class EnrollmentPhotoValidatorTest extends TestCase
         }
     }
 
+    public function test_does_not_block_when_the_face_checker_cannot_run(): void
+    {
+        $this->mock(PicoFaceDetector::class, function ($mock) {
+            $mock->shouldReceive('orientedDimensions')->andReturn([640, 480]);
+            $mock->shouldReceive('detect')->andThrow(new \RuntimeException('Broken EXIF block'));
+        });
+
+        $file = UploadedFile::fake()->image('face.jpg', 640, 480);
+        $results = app(EnrollmentPhotoValidator::class)->validateAll([$file]);
+
+        $this->assertTrue($results[0]['ok']);
+        $this->assertSame('CHECK_SKIPPED', $results[0]['reason']);
+    }
+
     /**
      * @param  array<int, array{x: int, y: int, size: int, score: float}>  $faces
      */
