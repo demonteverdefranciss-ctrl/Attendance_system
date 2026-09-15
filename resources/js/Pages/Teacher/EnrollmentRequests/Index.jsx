@@ -1,22 +1,18 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
+import TeacherReviewActions from '@/Components/TeacherReviewActions';
+import Pagination, { usePageRows } from '@/Components/Pagination';
 
 export default function EnrollmentRequestsIndex({ requests, sections = [] }) {
+    const { rows, paginator } = usePageRows(requests);
     const [sectionByRequest, setSectionByRequest] = useState({});
 
-    const review = (item, action) => {
+    const review = (item, action, notes) => {
         const routeName = action === 'approve'
             ? 'teacher.enrollment-requests.approve'
             : 'teacher.enrollment-requests.reject';
 
-        const notePrompt = action === 'approve'
-            ? 'Optional note for the parent (leave blank to skip):'
-            : 'Optional rejection reason for the parent (leave blank to skip):';
-        const notesInput = window.prompt(notePrompt, '');
-        if (notesInput === null) return;
-
-        const notes = notesInput.trim();
         if (notes.length > 500) {
             window.alert('Note is too long. Please keep it within 500 characters.');
             return;
@@ -26,7 +22,7 @@ export default function EnrollmentRequestsIndex({ requests, sections = [] }) {
         if (action === 'approve' && item.is_new_student) {
             const sectionId = sectionByRequest[item.id];
             if (!sectionId) {
-                window.alert('Select a section for this new student before approving.');
+                window.alert('Select a section for this new student before accepting.');
                 return;
             }
             payload.section_id = sectionId;
@@ -44,8 +40,8 @@ export default function EnrollmentRequestsIndex({ requests, sections = [] }) {
     return (
         <TeacherLayout title="Enrollment Requests">
             <p className="mb-4 text-sm text-gray-500">
-                Parents submit their child&apos;s details here. Approve to create or link the student
-                record. New students need a section assigned before approval.
+                Parents submit their child&apos;s details here. Accept to create or link the student
+                record. New students need a section assigned before accepting.
             </p>
 
             <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
@@ -61,14 +57,14 @@ export default function EnrollmentRequestsIndex({ requests, sections = [] }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {requests.length === 0 && (
+                        {rows.length === 0 && (
                             <tr>
                                 <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">
                                     No pending enrollment requests.
                                 </td>
                             </tr>
                         )}
-                        {requests.map((item) => (
+                        {rows.map((item) => (
                             <tr key={item.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-sm text-gray-700">
                                     {item.student ?? 'Unknown student'}
@@ -106,29 +102,18 @@ export default function EnrollmentRequestsIndex({ requests, sections = [] }) {
                                         item.section
                                     )}
                                 </td>
-                                <td className="px-4 py-2">
-                                    <div className="flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => review(item, 'approve')}
-                                            className="rounded-lg bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700"
-                                        >
-                                            Approve
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => review(item, 'reject')}
-                                            className="rounded-lg bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700"
-                                        >
-                                            Reject
-                                        </button>
-                                    </div>
+                                <td className="px-4 py-2 min-w-[220px]">
+                                    <TeacherReviewActions
+                                        onAccept={(notes) => review(item, 'approve', notes)}
+                                        onReject={(notes) => review(item, 'reject', notes)}
+                                    />
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+            <Pagination paginator={paginator} />
         </TeacherLayout>
     );
 }

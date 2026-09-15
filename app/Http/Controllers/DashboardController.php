@@ -2,22 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SubmitExcuseLetterRequest;
 use App\Models\AttendanceExcuseRequest;
+use App\Models\AttendanceRecord;
 use App\Models\BiometricPhotoSubmission;
 use App\Models\ChildEnrollmentRequest;
 use App\Models\Guardian;
 use App\Models\Notification;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\TeacherNotification;
 use App\Services\AnalyticsService;
 use App\Services\AuditService;
 use App\Services\ExcuseRequestService;
+use App\Support\InputRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
@@ -85,7 +90,20 @@ class DashboardController extends Controller
             'atRisk' => $this->analytics->atRiskStudents($scope, $from, $to),
             'methodBreakdown' => $this->analytics->methodBreakdown($scope, $from, $to),
             'range' => ['from' => $from, 'to' => $to],
+            'notifications' => $this->teacherNotificationsPayload($teacher?->id),
         ]);
+    }
+
+    public function markTeacherNotificationRead(Request $request, TeacherNotification $teacherNotification): RedirectResponse
+    {
+        $teacher = Teacher::where('user_id', $request->user()->id)->first();
+        abort_unless($teacher && $teacherNotification->teacher_id === $teacher->id, 403);
+
+        if (! $teacherNotification->read_at) {
+            $teacherNotification->update(['read_at' => now()]);
+        }
+
+        return back();
     }
 
     public function parent(): Response
@@ -133,6 +151,22 @@ class DashboardController extends Controller
 
         return Inertia::render('Parent/ExcuseRequests', [
             'excuseRequests' => $this->parentExcusePayload($guardian),
+            'eligibleAbsences' => $guardian ? $this->excuses->eligibleAbsences($guardian) : collect(),
+        ]);
+    }
+
+    public function parentAttendance(Request $request): Response
+    {
+        $guardian = Guardian::where('user_id', Auth::id())->first();
+        $children = $this->parentChildrenPayload($guardian);
+        $studentId = $request->integer('student_id') ?: null;
+
+        return Inertia::render('Parent/Attendance', [
+            'children' => $children,
+            'records' => $this->parentAttendancePayload($guardian, $studentId),
+            'filters' => [
+                'student_id' => $studentId ? (string) $studentId : 'all',
+            ],
         ]);
     }
 
@@ -146,7 +180,30 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function submitExcuseLetter(Request $request, AttendanceExcuseRequest $excuseRequest): RedirectResponse
+    public function submitExcuseLetter(SubmitExcuseLetterRequest $request, AttendanceExcuseRequest $excuseRequest): RedirectResponse
+    {
+        $guardian = $request->user()->guardian;
+        if (! $guardian) {
+            abort(403);
+        }
+
+        try {
+            $this->excuses->submitLetter(
+                $guardian,
+                $excuseRequest,
+                $request->input('letter_body'),
+                $request->file('letter_pdf'),
+                $request->file('photo'),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('parent.excuse-requests.index')->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('parent.excuse-requests.index')
+            ->with('success', 'Explanation letter submitted. A teacher will review it.');
+    }
+
+    public function createExcuseRequest(Request $request): RedirectResponse
     {
         $guardian = $request->user()->guardian;
         if (! $guardian) {
@@ -154,17 +211,29 @@ class DashboardController extends Controller
         }
 
         $data = $request->validate([
-            'letter_body' => ['required', 'string', 'min:10', 'max:2000'],
+            'attendance_record_id' => ['required', 'integer', 'exists:attendance_records,id'],
         ]);
 
         try {
-            $this->excuses->submitLetter($guardian, $excuseRequest, $data['letter_body']);
+            $this->excuses->openOptional($guardian, (int) $data['attendance_record_id']);
         } catch (\InvalidArgumentException $e) {
-            return redirect()->route('parent.excuse-requests.index')->with('error', $e->getMessage());
+            return back()->with('error', $e->getMessage());
         }
 
         return redirect()->route('parent.excuse-requests.index')
-            ->with('success', 'Explanation letter submitted. A teacher will review it.');
+            ->with('success', 'You can now type or upload the explanation letter.');
+    }
+
+    public function excuseLetterFile(Request $request, AttendanceExcuseRequest $excuseRequest, string $type): StreamedResponse
+    {
+        $guardian = $request->user()->guardian;
+        if (! $guardian) {
+            abort(403);
+        }
+
+        $this->excuses->assertGuardianCanAccess($guardian, $excuseRequest);
+
+        return $this->excuses->attachmentResponse($excuseRequest, $type);
     }
 
     public function markParentNotificationRead(Request $request, Notification $notification): RedirectResponse
@@ -209,13 +278,13 @@ class DashboardController extends Controller
         }
 
         $data = $request->validate([
-            'lrn' => ['required', 'string', 'max:20'],
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
+            'lrn' => InputRules::lrn(true),
+            'first_name' => InputRules::personName(),
+            'last_name' => InputRules::personName(),
             'gender' => ['nullable', 'in:male,female'],
             'grade_level' => ['nullable', 'string', 'max:50'],
-            'relationship' => ['nullable', 'string', 'max:50'],
-        ]);
+            'relationship' => ['nullable', 'string', 'max:50', InputRules::PERSON_NAME],
+        ], InputRules::messages());
 
         $student = Student::where('lrn', $data['lrn'])->first();
 
@@ -288,8 +357,9 @@ class DashboardController extends Controller
                     ->orWhereHas('student', fn ($s) => $s->whereIn('section_id', $sectionIds));
             })
             ->latest('id')
-            ->get()
-            ->map(fn ($r) => [
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn ($r) => [
                 'id' => $r->id,
                 'student' => $r->full_name,
                 'lrn' => $r->lrn,
@@ -481,12 +551,7 @@ class DashboardController extends Controller
                         ? "{$student->section->grade_level} - {$student->section->name}"
                         : '—',
                     'consent_biometric' => $student->consent_biometric,
-                    'biometric_submission' => $latestSubmission ? [
-                        'status' => $latestSubmission->status,
-                        'created_at' => $latestSubmission->created_at?->toDateTimeString(),
-                        'reviewed_at' => $latestSubmission->reviewed_at?->toDateTimeString(),
-                        'notes' => $latestSubmission->notes,
-                    ] : null,
+                    'biometric_submission' => $latestSubmission?->parentPayload(),
                 ];
             })
             ->values();
@@ -563,8 +628,10 @@ class DashboardController extends Controller
                 'student_id' => $r->student_id,
                 'streak_count' => $r->streak_count,
                 'streak_summary' => $r->streak_summary,
+                'is_required' => $r->isRequired(),
                 'status' => $r->status,
                 'letter_body' => $r->letter_body,
+                ...$r->attachmentMeta(),
                 'notes' => $r->notes,
                 'notified_at' => $r->notified_at?->toDateTimeString(),
                 'submitted_at' => $r->submitted_at?->toDateTimeString(),
@@ -572,5 +639,73 @@ class DashboardController extends Controller
                 'created_at' => $r->created_at?->toDateTimeString(),
             ])
             ->values();
+    }
+
+    private function parentAttendancePayload(?Guardian $guardian, ?int $studentId = null)
+    {
+        if (! $guardian) {
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
+        }
+
+        $studentIds = $guardian->students()->pluck('students.id')->all();
+        if ($studentIds === []) {
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
+        }
+
+        if ($studentId && ! in_array($studentId, $studentIds, true)) {
+            $studentId = null;
+        }
+
+        $covered = $this->excuses->coveredRecordIds($studentIds);
+
+        return AttendanceRecord::with([
+            'student:id,first_name,last_name',
+            'session:id,session_date,section_id',
+            'session.section:id,name,grade_level',
+        ])
+            ->whereIn('student_id', $studentId ? [$studentId] : $studentIds)
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn ($r) => [
+                'id' => $r->id,
+                'student_id' => $r->student_id,
+                'student' => $r->student?->full_name,
+                'date' => $r->session?->session_date?->toDateString(),
+                'section' => $r->session?->section
+                    ? "{$r->session->section->grade_level} - {$r->session->section->name}"
+                    : '—',
+                'status' => $r->status,
+                'time_in' => $r->time_in?->toDateTimeString(),
+                'time_out' => $r->time_out?->toDateTimeString(),
+                'method' => $r->method,
+                'can_explain' => in_array($r->status, ['absent', 'late'], true)
+                    && ! in_array((int) $r->id, $covered, true),
+            ]);
+    }
+
+    private function teacherNotificationsPayload(?int $teacherId)
+    {
+        if (! $teacherId) {
+            return collect();
+        }
+
+        try {
+            return TeacherNotification::where('teacher_id', $teacherId)
+                ->latest('id')
+                ->limit(15)
+                ->get()
+                ->map(fn ($n) => [
+                    'id' => $n->id,
+                    'type' => $n->type,
+                    'title' => $n->title,
+                    'body' => $n->body,
+                    'read_at' => $n->read_at?->toDateTimeString(),
+                    'created_at' => $n->created_at?->toDateTimeString(),
+                ])
+                ->values();
+        } catch (\Throwable) {
+            return collect();
+        }
     }
 }

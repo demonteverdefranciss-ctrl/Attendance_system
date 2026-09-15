@@ -48,6 +48,9 @@ Route::prefix('v1')->group(function () {
             Route::post('enrollment-requests', [ParentController::class, 'storeEnrollmentRequest']);
             Route::post('notification-preference', [ParentController::class, 'updateNotificationPreference']);
             Route::get('excuse-requests', [ParentController::class, 'excuseRequests']);
+            Route::post('excuse-requests', [ParentController::class, 'openExcuseRequest']);
+            Route::get('excuse-requests/{excuseRequest}/file/{type}', [ParentController::class, 'excuseLetterFile'])
+                ->whereIn('type', ['pdf', 'photo']);
             Route::post('excuse-requests/{excuseRequest}', [ParentController::class, 'submitExcuseLetter']);
             Route::post('biometric-photos', [ParentController::class, 'storeBiometricPhotos']);
         });
@@ -56,6 +59,7 @@ Route::prefix('v1')->group(function () {
             Route::get('dashboard', [TeacherController::class, 'dashboard']);
             Route::get('attendance', [TeacherController::class, 'attendanceIndex']);
             Route::post('attendance/open', [TeacherController::class, 'openSession']);
+            Route::post('recognition/engine', [TeacherController::class, 'updateRecognitionEngine']);
             Route::get('attendance/{session}', [TeacherController::class, 'showSession']);
             Route::post('attendance/{session}/records', [TeacherController::class, 'storeAttendance']);
             Route::post('attendance/{session}/close', [TeacherController::class, 'closeSession']);
@@ -64,6 +68,8 @@ Route::prefix('v1')->group(function () {
             Route::post('enrollment-requests/{enrollmentRequest}/approve', [TeacherController::class, 'approveEnrollmentRequest']);
             Route::post('enrollment-requests/{enrollmentRequest}/reject', [TeacherController::class, 'rejectEnrollmentRequest']);
             Route::get('excuse-requests', [TeacherController::class, 'excuseRequests']);
+            Route::get('excuse-requests/{excuseRequest}/file/{type}', [TeacherController::class, 'excuseLetterFile'])
+                ->whereIn('type', ['pdf', 'photo']);
             Route::post('excuse-requests/{excuseRequest}/approve', [TeacherController::class, 'approveExcuseRequest']);
             Route::post('excuse-requests/{excuseRequest}/reject', [TeacherController::class, 'rejectExcuseRequest']);
             Route::get('biometric-submissions', [TeacherController::class, 'biometricSubmissions']);

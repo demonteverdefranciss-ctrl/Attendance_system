@@ -1,0 +1,286 @@
+"""
+ArcFace-style recognition using OpenCV SFace (trained with ArcFace loss) + YuNet.
+
+No extra pip packages. ONNX models download into models/ on first use.
+"""
+import json
+import os
+
+import cv2
+import numpy as np
+import requests
+
+import config
+from engine import Detection, prepare_detection_frame
+from face_validation import crop_bgr, reason_label, validate_detected_face
+from identity_match import decide_similarity
+
+YUNET_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
+SFACE_URL = "https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx"
+COSINE = getattr(cv2, "FaceRecognizerSF_FR_COSINE", getattr(cv2.FaceRecognizerSF, "FR_COSINE", 0))
+
+
+def _download(url, dest):
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    print(f"Downloading {os.path.basename(dest)} …")
+    resp = requests.get(url, timeout=120, stream=True, headers={"User-Agent": "BigaaES-Attendance"})
+    resp.raise_for_status()
+    tmp = dest + ".part"
+    with open(tmp, "wb") as fh:
+        for chunk in resp.iter_content(chunk_size=1024 * 256):
+            if chunk:
+                fh.write(chunk)
+    os.replace(tmp, dest)
+
+
+def ensure_models():
+    if not os.path.isfile(config.YUNET_MODEL_PATH):
+        _download(YUNET_URL, config.YUNET_MODEL_PATH)
+    if not os.path.isfile(config.SFACE_MODEL_PATH):
+        _download(SFACE_URL, config.SFACE_MODEL_PATH)
+
+
+def _read_bgr(path):
+    img = cv2.imread(path, cv2.IMREAD_COLOR)
+    if img is not None:
+        return img
+    gray = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    if gray is None:
+        return None
+    return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+
+def _pad_scene(img):
+    """Give tight enrollment crops enough margin for YuNet."""
+    h, w = img.shape[:2]
+    canvas = np.full((h * 3, w * 3, 3), 140, dtype=np.uint8)
+    canvas[h : 2 * h, w : 2 * w] = img
+    return canvas
+
+
+def _detect_faces(detector, frame):
+    h, w = frame.shape[:2]
+    detector.setInputSize((w, h))
+    _ok, faces = detector.detect(frame)
+    if faces is None or len(faces) == 0:
+        return []
+    return faces
+
+
+def _largest(faces):
+    return max(faces, key=lambda f: float(f[2]) * float(f[3]))
+
+
+class ArcFaceEngine:
+    name = "arcface"
+
+    def __init__(self):
+        self._detector = None
+        self._recognizer = None
+        self._ids = np.array([], dtype=np.int32)
+        self._embeddings = np.zeros((0, 128), dtype=np.float32)
+
+    def ready(self):
+        return os.path.isfile(config.ARCFACE_GALLERY_PATH)
+
+    def missing_message(self):
+        return "No ArcFace gallery. Run enroll.py then train.py with RECOGNITION_ENGINE=arcface."
+
+    def load(self):
+        ensure_models()
+        self._detector = cv2.FaceDetectorYN.create(
+            config.YUNET_MODEL_PATH,
+            "",
+            (320, 320),
+            score_threshold=0.7,
+            nms_threshold=0.3,
+            top_k=5000,
+        )
+        self._recognizer = cv2.FaceRecognizerSF.create(config.SFACE_MODEL_PATH, "")
+        data = np.load(config.ARCFACE_GALLERY_PATH, allow_pickle=False)
+        self._ids = data["ids"]
+        self._embeddings = data["embeddings"]
+
+    def _feature(self, frame, face_row):
+        aligned = self._recognizer.alignCrop(frame, face_row)
+        feat = self._recognizer.feature(aligned)
+        return np.asarray(feat, dtype=np.float32).reshape(-1)
+
+    def _match(self, feat):
+        """Compare the 128-D descriptor with every enrolled student.
+
+        Returns (best_id, best_score, second_id, second_score).
+        Scores are cosine similarity: 1.0 is identical, threshold is ~0.36.
+        """
+        if self._embeddings.size == 0:
+            return None, 0.0, None, 0.0
+        scores = np.array(
+            [
+                self._recognizer.match(feat, other, COSINE)
+                for other in self._embeddings
+            ],
+            dtype=np.float32,
+        )
+        order = np.argsort(scores)[::-1]
+        best = int(order[0])
+        second_id, second_score = None, 0.0
+        if len(order) > 1:
+            runner = int(order[1])
+            second_id, second_score = int(self._ids[runner]), float(scores[runner])
+        return int(self._ids[best]), float(scores[best]), second_id, second_score
+
+    def identify(self, frame):
+        detect_frame, scale = prepare_detection_frame(frame)
+        faces = _detect_faces(self._detector, detect_frame)
+        detections = []
+
+        for face in faces:
+            x, y, w, h = [int(v) for v in face[:4]]
+            landmarks = face[4:14] if len(face) >= 14 else None
+            det_score = float(face[14]) if len(face) >= 15 else None
+            roi = crop_bgr(detect_frame, x, y, w, h)
+            ok, reason = validate_detected_face(
+                roi,
+                w,
+                h,
+                landmarks=landmarks,
+                det_score=det_score,
+            )
+
+            if scale != 1.0:
+                x, y, w, h = int(x / scale), int(y / scale), int(w / scale), int(h / scale)
+
+            x, y, w, h = max(0, x), max(0, y), max(1, w), max(1, h)
+            if not ok:
+                detections.append(
+                    Detection(
+                        x=x,
+                        y=y,
+                        w=w,
+                        h=h,
+                        student_id=None,
+                        matched=False,
+                        confidence=0.0,
+                        label=f"invalid: {reason_label(reason)}",
+                        stage="invalid",
+                        reason=reason,
+                    )
+                )
+                continue
+
+            feat = self._feature(detect_frame, face)
+            student_id, score, rival_id, rival_score = self._match(feat)
+            matched, reason = decide_similarity(
+                student_id,
+                score,
+                rival_id,
+                rival_score,
+                config.ARCFACE_THRESHOLD,
+                config.ARCFACE_MIN_MARGIN,
+            )
+            if reason == "LOOKALIKE":
+                label = f"lookalike #{student_id}/#{rival_id} ({score:.2f}/{rival_score:.2f})"
+            elif matched:
+                label = f"#{student_id} ({score:.2f})"
+            else:
+                label = f"unknown ({score:.2f})"
+            detections.append(
+                Detection(
+                    x=x,
+                    y=y,
+                    w=w,
+                    h=h,
+                    student_id=student_id if matched else None,
+                    matched=matched,
+                    confidence=max(0.0, min(1.0, score)),
+                    label=label,
+                    stage="matched" if matched else "unknown",
+                    reason=reason,
+                    rival_id=rival_id if reason == "LOOKALIKE" else None,
+                )
+            )
+
+        return detections
+
+
+def build_gallery():
+    """Build models/arcface_gallery.npz from dataset/<student_id>/*.png."""
+    if not os.path.isdir(config.DATASET_DIR):
+        print("No dataset directory found. Run enroll.py first.")
+        return False
+
+    ensure_models()
+    detector = cv2.FaceDetectorYN.create(
+        config.YUNET_MODEL_PATH,
+        "",
+        (320, 320),
+        score_threshold=0.6,
+        nms_threshold=0.3,
+        top_k=5000,
+    )
+    recognizer = cv2.FaceRecognizerSF.create(config.SFACE_MODEL_PATH, "")
+
+    ids = []
+    embeddings = []
+    student_dirs = [
+        d
+        for d in os.listdir(config.DATASET_DIR)
+        if os.path.isdir(os.path.join(config.DATASET_DIR, d)) and d.isdigit()
+    ]
+
+    for sid in student_dirs:
+        folder = os.path.join(config.DATASET_DIR, sid)
+        feats = []
+        for name in os.listdir(folder):
+            path = os.path.join(folder, name)
+            if os.path.isdir(path):
+                continue
+            img = _read_bgr(path)
+            if img is None:
+                continue
+            scene = img
+            faces = _detect_faces(detector, scene)
+            if not len(faces):
+                scene = _pad_scene(img)
+                faces = _detect_faces(detector, scene)
+            if not len(faces):
+                continue
+            aligned = recognizer.alignCrop(scene, _largest(faces))
+            feat = np.asarray(recognizer.feature(aligned), dtype=np.float32).reshape(-1)
+            feats.append(feat)
+
+        if not feats:
+            print(f"  [WARN] no usable face for student {sid}")
+            continue
+
+        mean = np.mean(np.stack(feats), axis=0)
+        norm = np.linalg.norm(mean)
+        if norm > 0:
+            mean = mean / norm
+        ids.append(int(sid))
+        embeddings.append(mean.astype(np.float32))
+        print(f"  student {sid}: {len(feats)} embedding(s)")
+
+    if not ids:
+        print("No ArcFace embeddings. Enroll students with visible faces first.")
+        return False
+
+    os.makedirs(config.MODEL_DIR, exist_ok=True)
+    np.savez(
+        config.ARCFACE_GALLERY_PATH,
+        ids=np.array(ids, dtype=np.int32),
+        embeddings=np.stack(embeddings),
+    )
+    with open(config.LABELS_PATH, "w", encoding="utf-8") as fh:
+        json.dump(
+            {
+                "engine": "arcface",
+                "student_ids": ids,
+                "samples": len(ids),
+            },
+            fh,
+            indent=2,
+        )
+
+    print(f"ArcFace gallery saved to {config.ARCFACE_GALLERY_PATH} ({len(ids)} student(s)).")
+    return True

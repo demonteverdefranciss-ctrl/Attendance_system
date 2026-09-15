@@ -1,13 +1,39 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import FlashMessages from '@/Components/FlashMessages';
+
+function BrandMark({ logoUrl }) {
+    return (
+        <div className="flex select-none items-center gap-2 pointer-events-none">
+            <img
+                src={logoUrl}
+                alt="Bigaa Elementary School"
+                className="h-8 w-8 shrink-0 rounded-full bg-white object-contain"
+            />
+            <div className="flex flex-col leading-tight">
+                <span className="font-bold text-blue-600 whitespace-nowrap">
+                    Bigaa Elementary School
+                </span>
+                <span className="text-xs text-gray-500 whitespace-nowrap">
+                    Attendance Management System
+                </span>
+            </div>
+        </div>
+    );
+}
 
 export default function AppSidebarLayout({ nav = [], title, actions, children }) {
-    const { auth, flash } = usePage().props;
+    const { auth, teacherAlerts = [], assetBase } = usePage().props;
+    const logoUrl = `${assetBase || ''}/branding/bigaa-logo.png`;
     const [open, setOpen] = useState(false);
 
     const logout = (e) => {
         e.preventDefault();
         router.post(route('logout'));
+    };
+
+    const dismissAlert = (id) => {
+        router.post(route('teacher.notifications.read', id), {}, { preserveScroll: true });
     };
 
     useEffect(() => {
@@ -37,8 +63,8 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                         key={item.route}
                         href={route(item.route)}
                         onClick={() => onNavigate?.()}
-                        className={`block rounded-lg px-3 py-2 text-sm font-medium ${
-                            active ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
+                        className={`block rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-500 hover:text-white ${
+                            active ? 'bg-blue-50 text-blue-700' : 'text-gray-600'
                         }`}
                     >
                         {item.label}
@@ -52,9 +78,9 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
         <div className="min-h-screen bg-gray-100">
             <div className="flex">
                 {/* Desktop sidebar */}
-                <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-gray-200">
-                    <div className="flex h-16 items-center gap-2 px-6 font-bold text-gray-800">
-                        <span className="text-blue-600">Attendance</span>
+                <aside className="hidden md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 bg-blue-200 border-r border-gray-200">
+                    <div className="flex h-16 items-center px-4">
+                        <BrandMark logoUrl={logoUrl} />
                     </div>
                     <NavLinks />
                 </aside>
@@ -68,9 +94,9 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                             aria-label="Close menu"
                             onClick={() => setOpen(false)}
                         />
-                        <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-white shadow-xl">
+                        <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-blue-200 shadow-xl">
                             <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4">
-                                <div className="font-bold text-gray-800">Attendance</div>
+                                <BrandMark logoUrl={logoUrl} />
                                 <button
                                     type="button"
                                     onClick={() => setOpen(false)}
@@ -87,7 +113,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                     </div>
                 )}
 
-                <div className="flex-1 md:pl-64">
+                <div className="flex-1 md:pl-72">
                     <header className="flex h-16 items-center justify-between gap-3 bg-white px-4 shadow-sm sm:px-6">
                         <div className="flex items-center gap-2">
                             <button
@@ -101,7 +127,9 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                                 </svg>
                             </button>
-                            <div className="font-bold text-gray-800 md:hidden">Attendance</div>
+                            <div className="md:hidden">
+                                <BrandMark logoUrl={logoUrl} />
+                            </div>
                         </div>
                         <div className="ml-auto flex items-center gap-3 sm:gap-4">
                             <div className="text-right">
@@ -111,7 +139,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                             <button
                                 type="button"
                                 onClick={logout}
-                                className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                                className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
                             >
                                 Logout
                             </button>
@@ -119,14 +147,29 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                     </header>
 
                     <main className="p-4 sm:p-6">
-                        {flash?.success && (
-                            <div className="mb-4 rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">{flash.success}</div>
-                        )}
-                        {flash?.error && (
-                            <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{flash.error}</div>
-                        )}
-                        {flash?.warning && (
-                            <div className="mb-4 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800">{flash.warning}</div>
+                        <FlashMessages />
+
+                        {Array.isArray(teacherAlerts) && teacherAlerts.length > 0 && (
+                            <div className="mb-4 space-y-2">
+                                {teacherAlerts.map((alert) => (
+                                    <div
+                                        key={alert.id}
+                                        className="flex flex-wrap items-start justify-between gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-900 ring-1 ring-blue-200"
+                                    >
+                                        <div>
+                                            <p className="font-semibold">{alert.title}</p>
+                                            {alert.body && <p className="mt-0.5 text-blue-800">{alert.body}</p>}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => dismissAlert(alert.id)}
+                                            className="rounded-lg bg-white px-3 py-1 text-xs font-medium text-blue-800 ring-1 ring-blue-200 hover:bg-blue-100"
+                                        >
+                                            Dismiss
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         )}
 
                         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">

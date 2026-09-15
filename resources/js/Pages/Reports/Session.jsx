@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import { StatCard } from '@/Components/AppSidebarLayout';
 import { Doughnut, ChartCard, noAspect } from '@/Components/Charts';
+import Pagination, { usePageRows } from '@/Components/Pagination';
 
 const STATUS_COLORS = {
     present: 'text-green-700',
@@ -14,6 +15,7 @@ const STATUS_COLORS = {
 export default function ReportsSession({ session, summary, methodBreakdown, records }) {
     const { auth } = usePage().props;
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
+    const { rows: recordRows, paginator: recordsPaginator } = usePageRows(records);
 
     const methodData = {
         labels: ['Face', 'Manual', 'Other'],
@@ -54,13 +56,13 @@ export default function ReportsSession({ session, summary, methodBreakdown, reco
                     <div className="flex gap-2">
                         <a
                             href={route('reports.csv', exportParams)}
-                            className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                            className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
                         >
                             Export CSV
                         </a>
                         <a
                             href={route('reports.pdf', exportParams)}
-                            className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                            className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-100"
                         >
                             Export PDF
                         </a>
@@ -114,14 +116,14 @@ export default function ReportsSession({ session, summary, methodBreakdown, reco
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {records.length === 0 && (
+                        {recordRows.length === 0 && (
                             <tr>
                                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">
                                     No records in this session.
                                 </td>
                             </tr>
                         )}
-                        {records.map((r, i) => (
+                        {recordRows.map((r, i) => (
                             <tr key={i} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-sm text-gray-700">
                                     {r.student_id ? (
@@ -148,6 +150,7 @@ export default function ReportsSession({ session, summary, methodBreakdown, reco
                     </tbody>
                 </table>
             </div>
+            <Pagination paginator={recordsPaginator} />
         </Layout>
     );
 }

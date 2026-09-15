@@ -1,11 +1,10 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
-export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30, testClearEnabled = false }) {
+export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 360, testClearEnabled = false }) {
     const [closingId, setClosingId] = useState(null);
     const [clearing, setClearing] = useState(false);
-    const flash = usePage().props.flash ?? {};
 
     const openSession = (sectionId) => {
         router.post(route('teacher.attendance.open'), { section_id: sectionId });
@@ -47,16 +46,11 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30, tes
         <TeacherLayout title="Mark Attendance">
             <Head title="Mark Attendance" />
 
-            {flash.success && (
-                <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800 ring-1 ring-green-200">
-                    {flash.success}
-                </div>
-            )}
 
             <p className="mb-2 text-sm text-gray-500">Today: {today}</p>
             <p className="mb-4 text-xs text-gray-500">
-                Schedule windows auto-open and auto-close on the website.
-                Manual &quot;Open Attendance&quot; sessions auto-close after {adhocMaxMinutes} minutes.
+                Schedule windows auto-open at start time. Each section auto-closes after the hours set by Admin
+                (or at schedule end, whichever comes first).
                 Keep <code className="rounded bg-gray-100 px-1">run_recognition.ps1</code> running on the school PC so the camera follows open/close.
             </p>
 
@@ -96,7 +90,7 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30, tes
                                 <p className="text-sm text-gray-500">{section.students_count} students</p>
                             </div>
                             {session && (
-                                <span className={`rounded-full px-2 py-0.5 text-xs ${session.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                <span className={`rounded-full px-2 py-0.5 text-xs ${session.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200'}`}>
                                     {session.status}
                                     {session.is_adhoc ? ' · manual' : ' · schedule'}
                                 </span>
@@ -125,7 +119,7 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30, tes
                                     </Link>
                                     <Link
                                         href={route('reports.session', session.id)}
-                                        className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                                        className="rounded-lg bg-sky-50 px-4 py-2 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
                                     >
                                         View report
                                     </Link>
@@ -133,7 +127,7 @@ export default function AttendanceIndex({ rows, today, adhocMaxMinutes = 30, tes
                                         <button
                                             onClick={() => closeSession(session.id)}
                                             disabled={closingId === session.id}
-                                            className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                                            className="rounded-lg bg-rose-50 px-4 py-2 text-sm font-medium text-rose-800 ring-1 ring-inset ring-rose-200 hover:bg-rose-100 disabled:opacity-50"
                                         >
                                             {closingId === session.id ? 'Closing…' : 'Close session'}
                                         </button>

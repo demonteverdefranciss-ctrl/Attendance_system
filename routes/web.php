@@ -1,11 +1,14 @@
 <?php
 
 use App\Http\Controllers\Admin\GuardianController;
+use App\Http\Controllers\Admin\NoClassDayController;
 use App\Http\Controllers\Admin\ScheduleController;
+use App\Http\Controllers\Admin\CameraController;
 use App\Http\Controllers\Admin\SectionController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\TeacherController;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\ArchiveController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ParentRegistrationController;
 use App\Http\Controllers\Parent\BiometricPhotoController as ParentBiometricPhotoController;
@@ -15,6 +18,7 @@ use App\Http\Controllers\Teacher\RecognitionController as TeacherRecognitionCont
 use App\Http\Controllers\Teacher\ExcuseRequestController as TeacherExcuseRequestController;
 use App\Http\Controllers\CameraStreamController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NoClassDayListController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,14 +47,28 @@ Route::middleware('auth')->group(function () {
 
         Route::resource('teachers', TeacherController::class)->except('show');
         Route::resource('guardians', GuardianController::class)->except('show');
+        Route::resource('cameras', CameraController::class)->except('show');
         Route::resource('sections', SectionController::class)->except('show');
         Route::resource('students', StudentController::class)->except('show');
         Route::resource('schedules', ScheduleController::class)->except('show');
+        Route::get('no-class-days', [NoClassDayController::class, 'index'])->name('no-class-days.index');
+        Route::post('no-class-days', [NoClassDayController::class, 'store'])->name('no-class-days.store');
+        Route::post('no-class-days/sync-google', [NoClassDayController::class, 'syncGoogle'])->name('no-class-days.sync-google');
+        Route::delete('no-class-days/{noClassDay}', [NoClassDayController::class, 'destroy'])->name('no-class-days.destroy');
         Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+        Route::get('archive', [ArchiveController::class, 'index'])->name('archive.index');
+        Route::post('archive/{category}/{id}/restore', [ArchiveController::class, 'restore'])
+            ->whereNumber('id')
+            ->name('archive.restore');
+        Route::delete('archive/{category}/{id}', [ArchiveController::class, 'forceDestroy'])
+            ->whereNumber('id')
+            ->name('archive.destroy');
     });
 
     Route::middleware('role:teacher')->prefix('teacher')->name('teacher.')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'teacher'])->name('dashboard');
+        Route::post('notifications/{teacherNotification}/read', [DashboardController::class, 'markTeacherNotificationRead'])
+            ->name('notifications.read');
         Route::get('enrollment-requests', [DashboardController::class, 'teacherEnrollmentRequests'])->name('enrollment-requests.index');
         Route::post('enrollment-requests/{enrollmentRequest}/approve', [DashboardController::class, 'approveEnrollmentRequest'])
             ->name('enrollment-requests.approve');
@@ -58,12 +76,16 @@ Route::middleware('auth')->group(function () {
             ->name('enrollment-requests.reject');
 
         Route::get('excuse-requests', [TeacherExcuseRequestController::class, 'index'])->name('excuse-requests.index');
+        Route::get('excuse-requests/{excuseRequest}/file/{type}', [TeacherExcuseRequestController::class, 'file'])
+            ->whereIn('type', ['pdf', 'photo'])
+            ->name('excuse-requests.file');
         Route::post('excuse-requests/{excuseRequest}/approve', [TeacherExcuseRequestController::class, 'approve'])
             ->name('excuse-requests.approve');
         Route::post('excuse-requests/{excuseRequest}/reject', [TeacherExcuseRequestController::class, 'reject'])
             ->name('excuse-requests.reject');
 
         Route::get('biometric-photos', [TeacherBiometricPhotoController::class, 'index'])->name('biometric-photos.index');
+        Route::get('no-class-days', [NoClassDayListController::class, 'teacher'])->name('no-class-days.index');
         Route::post('biometric-photos/{submission}/approve', [TeacherBiometricPhotoController::class, 'approve'])
             ->name('biometric-photos.approve');
         Route::post('biometric-photos/{submission}/reject', [TeacherBiometricPhotoController::class, 'reject'])
@@ -84,6 +106,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('recognition/status', [TeacherRecognitionController::class, 'status'])->name('recognition.status');
         Route::post('recognition/start', [TeacherRecognitionController::class, 'start'])->name('recognition.start');
+        Route::post('recognition/engine', [TeacherRecognitionController::class, 'updateEngine'])->name('recognition.engine');
     });
 
     Route::middleware('role:parent')->prefix('parent')->name('parent.')->group(function () {
@@ -91,10 +114,17 @@ Route::middleware('auth')->group(function () {
         Route::get('biometrics', [DashboardController::class, 'parentBiometrics'])->name('biometrics.index');
         Route::get('enrollment', [DashboardController::class, 'parentEnrollment'])->name('enrollment.index');
         Route::get('excuse-requests', [DashboardController::class, 'parentExcuseRequests'])->name('excuse-requests.index');
+        Route::get('attendance', [DashboardController::class, 'parentAttendance'])->name('attendance.index');
+        Route::get('excuse-requests/{excuseRequest}/file/{type}', [DashboardController::class, 'excuseLetterFile'])
+            ->whereIn('type', ['pdf', 'photo'])
+            ->name('excuse-requests.file');
         Route::get('notifications', [DashboardController::class, 'parentNotifications'])->name('notifications.index');
+        Route::get('no-class-days', [NoClassDayListController::class, 'parent'])->name('no-class-days.index');
 
         Route::post('enrollment-requests', [DashboardController::class, 'createEnrollmentRequest'])->name('enrollment-requests.store');
         Route::post('biometric-photos', [ParentBiometricPhotoController::class, 'store'])->name('biometric-photos.store');
+        Route::post('excuse-requests', [DashboardController::class, 'createExcuseRequest'])
+            ->name('excuse-requests.store');
         Route::post('excuse-requests/{excuseRequest}', [DashboardController::class, 'submitExcuseLetter'])
             ->name('excuse-requests.submit');
         Route::post('notifications/{notification}/read', [DashboardController::class, 'markParentNotificationRead'])

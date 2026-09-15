@@ -66,6 +66,22 @@ class _AttendanceAppState extends State<AttendanceApp> {
         ),
         scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF1D4ED8),
+            foregroundColor: Colors.white,
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF1D4ED8),
+            side: const BorderSide(color: Color(0xFF93C5FD)),
+            backgroundColor: const Color(0xFFF0F9FF),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(foregroundColor: const Color(0xFF1D4ED8)),
+        ),
       ),
       home: _loggedIn
           ? (_role == 'teacher'

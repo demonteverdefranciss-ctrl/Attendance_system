@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\EnrollmentPhotoRejectedException;
 use App\Http\Controllers\Api\ApiController;
+use App\Http\Requests\SubmitExcuseLetterRequest;
 use App\Models\AttendanceExcuseRequest;
 use App\Models\BiometricPhotoSubmission;
 use App\Models\ChildEnrollmentRequest;
@@ -11,8 +13,10 @@ use App\Models\Student;
 use App\Services\AuditService;
 use App\Services\BiometricPhotoService;
 use App\Services\ExcuseRequestService;
+use App\Support\InputRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ParentController extends ApiController
 {
@@ -60,12 +64,7 @@ class ParentController extends ApiController
                         ? "{$student->section->grade_level} - {$student->section->name}"
                         : '—',
                     'consent_biometric' => (bool) $student->consent_biometric,
-                    'biometric_submission' => $latestSubmission ? [
-                        'status' => $latestSubmission->status,
-                        'created_at' => $latestSubmission->created_at?->toDateTimeString(),
-                        'reviewed_at' => $latestSubmission->reviewed_at?->toDateTimeString(),
-                        'notes' => $latestSubmission->notes,
-                    ] : null,
+                    'biometric_submission' => $latestSubmission?->parentPayload(),
                 ];
             })
             ->values();
@@ -80,9 +79,8 @@ class ParentController extends ApiController
         $data = $request->validate([
             'student_id' => ['required', 'integer', 'exists:students,id'],
             'consent_acknowledged' => ['accepted'],
-            'photos' => ['required', 'array', 'min:1', 'max:'.BiometricPhotoService::MAX_PHOTOS],
-            'photos.*' => ['image', 'mimes:jpeg,jpg,png', 'max:2048'],
-        ]);
+            ...BiometricPhotoService::photoUploadRules(),
+        ], BiometricPhotoService::photoUploadMessages());
 
         $student = Student::findOrFail($data['student_id']);
 
@@ -107,12 +105,16 @@ class ParentController extends ApiController
             return $this->fail('Approved photos for this child are awaiting import at school.', 'AWAITING_SYNC', 422);
         }
 
-        $submission = $this->photos->createSubmission(
-            $student,
-            $guardian->id,
-            $data['photos'],
-            true
-        );
+        try {
+            $submission = $this->photos->createSubmission(
+                $student,
+                $guardian->id,
+                $data['photos'],
+                true
+            );
+        } catch (EnrollmentPhotoRejectedException $e) {
+            return $this->fail($e->getMessage(), $e->reasonCode, 422);
+        }
 
         $this->audit->log(
             action: 'biometric_photos_submitted',
@@ -127,7 +129,7 @@ class ParentController extends ApiController
             userAgent: $request->userAgent()
         );
 
-        return $this->ok(['message' => 'Face photos submitted for teacher review.'], 201);
+        return $this->ok(['message' => 'Photos passed system validation. A teacher will confirm this is the correct student.'], 201);
     }
 
     public function enrollmentRequests(Request $request): JsonResponse
@@ -161,13 +163,13 @@ class ParentController extends ApiController
         $guardian = $this->guardianOrFail($request);
 
         $data = $request->validate([
-            'lrn' => ['required', 'string', 'max:20'],
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
+            'lrn' => InputRules::lrn(true),
+            'first_name' => InputRules::personName(),
+            'last_name' => InputRules::personName(),
             'gender' => ['nullable', 'in:male,female'],
             'grade_level' => ['nullable', 'string', 'max:50'],
-            'relationship' => ['nullable', 'string', 'max:50'],
-        ]);
+            'relationship' => ['nullable', 'string', 'max:50', InputRules::PERSON_NAME],
+        ], InputRules::messages());
 
         $student = Student::where('lrn', $data['lrn'])->first();
 
@@ -246,29 +248,64 @@ class ParentController extends ApiController
                 'streak_summary' => $r->streak_summary,
                 'status' => $r->status,
                 'letter_body' => $r->letter_body,
+                ...$r->attachmentMeta(),
+                'is_required' => $r->isRequired(),
                 'notes' => $r->notes,
                 'submitted_at' => $r->submitted_at?->toDateTimeString(),
                 'reviewed_at' => $r->reviewed_at?->toDateTimeString(),
                 'created_at' => $r->created_at?->toDateTimeString(),
             ]);
 
-        return $this->ok($items);
+        return $this->ok([
+            'requests' => $items,
+            'eligible_absences' => $this->excuses->eligibleAbsences($guardian),
+        ]);
     }
 
-    public function submitExcuseLetter(Request $request, AttendanceExcuseRequest $excuseRequest): JsonResponse
+    public function openExcuseRequest(Request $request): JsonResponse
     {
         $guardian = $this->guardianOrFail($request);
         $data = $request->validate([
-            'letter_body' => ['required', 'string', 'min:10', 'max:2000'],
+            'attendance_record_id' => ['required', 'integer', 'exists:attendance_records,id'],
         ]);
 
         try {
-            $this->excuses->submitLetter($guardian, $excuseRequest, $data['letter_body']);
+            $opened = $this->excuses->openOptional($guardian, (int) $data['attendance_record_id']);
+        } catch (\InvalidArgumentException $e) {
+            return $this->fail($e->getMessage(), 'INVALID', 422);
+        }
+
+        return $this->ok([
+            'message' => 'You can now submit the explanation letter.',
+            'id' => $opened->id,
+        ], 201);
+    }
+
+    public function submitExcuseLetter(SubmitExcuseLetterRequest $request, AttendanceExcuseRequest $excuseRequest): JsonResponse
+    {
+        $guardian = $this->guardianOrFail($request);
+
+        try {
+            $this->excuses->submitLetter(
+                $guardian,
+                $excuseRequest,
+                $request->input('letter_body'),
+                $request->file('letter_pdf'),
+                $request->file('photo'),
+            );
         } catch (\InvalidArgumentException $e) {
             return $this->fail($e->getMessage(), 'INVALID', 422);
         }
 
         return $this->ok(['message' => 'Explanation letter submitted.']);
+    }
+
+    public function excuseLetterFile(Request $request, AttendanceExcuseRequest $excuseRequest, string $type): StreamedResponse
+    {
+        $guardian = $this->guardianOrFail($request);
+        $this->excuses->assertGuardianCanAccess($guardian, $excuseRequest);
+
+        return $this->excuses->attachmentResponse($excuseRequest, $type);
     }
 
     private function guardianOrFail(Request $request)

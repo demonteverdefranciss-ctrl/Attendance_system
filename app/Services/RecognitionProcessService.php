@@ -103,13 +103,20 @@ class RecognitionProcessService
     }
 
     /**
-     * @return array{enabled: bool, status: string}
+     * @return array{enabled: bool, status: string, engine: string}
      */
     public function snapshot(): array
     {
+        try {
+            $engine = \App\Support\RecognitionEngine::current();
+        } catch (\Throwable) {
+            $engine = 'lbph';
+        }
+
         return [
             'enabled' => $this->isEnabled(),
             'status' => $this->status(),
+            'engine' => $engine,
         ];
     }
 
@@ -145,6 +152,21 @@ class RecognitionProcessService
     private function lockPath(): string
     {
         return $this->serviceDir().DIRECTORY_SEPARATOR.'.recognize.lock';
+    }
+
+    public function pythonAvailable(): bool
+    {
+        return is_file($this->pythonExecutable());
+    }
+
+    public function pythonBinary(): string
+    {
+        return $this->pythonExecutable();
+    }
+
+    public function directory(): string
+    {
+        return $this->serviceDir();
     }
 
     private function serviceDir(): string

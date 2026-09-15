@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Support\InputRules;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,13 +31,13 @@ class ParentRegistrationController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'first_name' => InputRules::personName(),
+            'last_name' => InputRules::personName(),
+            'phone' => InputRules::phone(),
             'username' => ['required', 'string', 'max:100', 'alpha_dash', Rule::unique('users', 'username')],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'confirmed', Password::defaults()],
-        ]);
+        ], InputRules::messages());
 
         $user = DB::transaction(function () use ($data, $request) {
             $user = User::create([

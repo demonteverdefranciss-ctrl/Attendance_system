@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AttendanceRecord;
 use App\Models\Student;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -218,17 +219,41 @@ class AnalyticsService
             ->orderByDesc('id')
             ->limit(1000)
             ->get()
-            ->map(fn ($r) => [
-                'date' => $r->session?->session_date?->toDateString(),
-                'section' => $r->session?->section?->name,
-                'student_id' => $r->student_id,
-                'student' => $r->student ? "{$r->student->last_name}, {$r->student->first_name}" : '—',
-                'status' => $r->status,
-                'time_in' => $r->time_in?->format('H:i'),
-                'time_out' => $r->time_out?->format('H:i'),
-                'method' => $r->method,
-                'session_id' => $r->session_id,
-            ]);
+            ->map(fn ($r) => $this->recordRow($r));
+    }
+
+    /**
+     * Paginated attendance records for the reports UI (20 per page).
+     *
+     * @param  array<int, int>|null  $sectionIds
+     */
+    public function paginatedRecords(?array $sectionIds, string $from, string $to, ?int $sectionId = null, ?int $sessionId = null): LengthAwarePaginator
+    {
+        return $this->baseQuery($sectionIds, $from, $to, $sessionId)
+            ->when($sectionId && ! $sessionId, fn ($q) => $q->whereHas('session', fn ($s) => $s->where('section_id', $sectionId)))
+            ->with(['student:id,first_name,last_name', 'session:id,section_id,session_date', 'session.section:id,name'])
+            ->orderByDesc('id')
+            ->paginate(20, ['*'], 'records_page')
+            ->withQueryString()
+            ->through(fn ($r) => $this->recordRow($r));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function recordRow(AttendanceRecord $r): array
+    {
+        return [
+            'date' => $r->session?->session_date?->toDateString(),
+            'section' => $r->session?->section?->name,
+            'student_id' => $r->student_id,
+            'student' => $r->student ? "{$r->student->last_name}, {$r->student->first_name}" : '—',
+            'status' => $r->status,
+            'time_in' => $r->time_in?->format('H:i'),
+            'time_out' => $r->time_out?->format('H:i'),
+            'method' => $r->method,
+            'session_id' => $r->session_id,
+        ];
     }
 
     /**
@@ -257,7 +282,42 @@ class AnalyticsService
             $query->whereIn('section_id', $sectionIds);
         }
 
-        return $query->get()->map(fn ($s) => [
+        return $query->get()->map(fn ($s) => $this->sessionRow($s))->all();
+    }
+
+    /**
+     * Paginated sessions for the reports browser (20 per page).
+     *
+     * @param  array<int, int>|null  $sectionIds
+     */
+    public function paginatedRecentSessions(?array $sectionIds, ?int $sectionId = null): LengthAwarePaginator
+    {
+        $query = \App\Models\AttendanceSession::query()
+            ->with('section:id,name,grade_level')
+            ->withCount([
+                'records as present_count' => fn ($q) => $q->whereIn('status', ['present', 'late']),
+                'records as absent_count' => fn ($q) => $q->where('status', 'absent'),
+                'records as excused_count' => fn ($q) => $q->where('status', 'excused'),
+                'records as total_count',
+            ])
+            ->orderByDesc('session_date')
+            ->orderByDesc('opened_at');
+
+        if ($sectionId) {
+            $query->where('section_id', $sectionId);
+        } elseif ($sectionIds !== null) {
+            $query->whereIn('section_id', $sectionIds);
+        }
+
+        return $query->paginate(20, ['*'], 'sessions_page')->withQueryString()->through(fn ($s) => $this->sessionRow($s));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function sessionRow($s): array
+    {
+        return [
             'id' => $s->id,
             'session_date' => $s->session_date?->toDateString(),
             'status' => $s->status,
@@ -272,7 +332,7 @@ class AnalyticsService
             'excused_count' => (int) $s->excused_count,
             'total_count' => (int) $s->total_count,
             'is_adhoc' => $s->schedule_id === null,
-        ])->all();
+        ];
     }
 
     /**

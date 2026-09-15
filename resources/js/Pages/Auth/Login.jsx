@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import FlashMessages from '@/Components/FlashMessages';
 
 export default function Login({ status }) {
     const { assetBase } = usePage().props;
@@ -21,6 +22,7 @@ export default function Login({ status }) {
     return (
         <>
             <Head title="Login" />
+            <FlashMessages />
 
             <div
                 className="relative min-h-screen flex items-center justify-center p-6 bg-cover bg-center bg-no-repeat"

@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "edu.pnc.attendance.attendance_parent"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

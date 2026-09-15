@@ -2,11 +2,13 @@
 Live recognition loop: read the video source, identify enrolled students, and
 push attendance to the backend.
 
-Validation safeguards before recording:
-  * LBPH distance must be within LBPH_THRESHOLD (confidence gate)
-  * the same student must be seen for MIN_CONSEC_FRAMES consecutive frames
-  * a per-student COOLDOWN_SECONDS prevents duplicate posts
-The backend additionally enforces an open session + unique(session, student).
+Scan pipeline (a detected face is never enough on its own):
+  1. Face Detection
+  2. Face Validation (size / blur / brightness / pose)
+  3. Face Matching (descriptor vs enrolled gallery)
+  4. Identity Validation (threshold + lookalike margin + consecutive frames)
+  5. Attendance Validation (session, consent, student, camera, duplicate)
+  6. Record
 """
 import os
 import threading
@@ -18,7 +20,9 @@ import cv2
 import numpy as np
 
 import config
-from api_client import get_open_sessions, lbph_distance_to_confidence, post_recognition
+from api_client import get_open_sessions, post_recognition
+from engine import load_engine
+from face_validation import reason_label
 from preview import for_display
 
 LOCK_FILE = os.path.join(config.BASE_DIR, ".recognize.lock")
@@ -27,6 +31,19 @@ _post_status = {"text": "", "until": 0.0}
 _post_status_lock = threading.Lock()
 _hud = {"line": "Starting…", "ok": False}
 _hud_lock = threading.Lock()
+_pipeline = {"step": "DETECT", "ok": None, "detail": "", "until": 0.0}
+_pipeline_lock = threading.Lock()
+_reject_log_at = {}
+
+PIPELINE_STEPS = ("DETECT", "VALIDATE", "MATCH", "IDENTITY", "ATTEND", "RECORD")
+ATTEND_ERROR_LABELS = {
+    "STUDENT_INACTIVE": "inactive student",
+    "NO_BIOMETRIC_CONSENT": "no consent",
+    "NO_SECTION": "no section",
+    "WRONG_CAMERA": "wrong camera",
+    "NO_SESSION": "no session",
+    "INVALID_TIMEOUT": "invalid time-out",
+}
 
 
 def set_post_status(text, seconds=4.0):
@@ -51,6 +68,32 @@ def set_hud(line, ok=False):
 def current_hud():
     with _hud_lock:
         return _hud["line"], _hud["ok"]
+
+
+def set_pipeline(step, ok=None, detail="", hold=0.0):
+    with _pipeline_lock:
+        _pipeline["step"] = step
+        _pipeline["ok"] = ok
+        _pipeline["detail"] = detail
+        _pipeline["until"] = time.time() + hold if hold else 0.0
+
+
+def current_pipeline():
+    with _pipeline_lock:
+        return dict(_pipeline)
+
+
+def pipeline_is_holding():
+    with _pipeline_lock:
+        return time.time() < _pipeline["until"]
+
+
+def log_scan(message, key, every=2.0):
+    now = time.time()
+    if now - _reject_log_at.get(key, 0) < every:
+        return
+    _reject_log_at[key] = now
+    print(f"[SCAN] {message}")
 
 
 class FrameGrabber:
@@ -136,12 +179,12 @@ class FrameGrabber:
             self._frame = None
 
 
-def record(student_id, distance, session_state=None):
+def record(student_id, confidence, session_state=None):
     """Post attendance in a background thread so RTSP reading stays live."""
-    confidence = lbph_distance_to_confidence(distance)
     captured_at = datetime.now().astimezone().isoformat()
     client_uuid = str(uuid.uuid4())
     set_post_status(f"Posting #{student_id}…", seconds=30.0)
+    set_pipeline("ATTEND", ok=None, detail=f"#{student_id} session/student checks", hold=8.0)
     print(f"[…] posting student {student_id}…")
 
     def _post():
@@ -166,14 +209,17 @@ def record(student_id, distance, session_state=None):
                     pass
                 print(f"[OK]  student {student_id} {mode} (conf={confidence:.2f})")
                 set_post_status(f"OK #{student_id} {mode}", seconds=5.0)
+                set_pipeline("RECORD", ok=True, detail=f"#{student_id} {mode}", hold=5.0)
             else:
                 err_code = None
                 try:
                     err_code = (resp.json().get("error") or {}).get("code")
                 except Exception:
                     pass
+                why = ATTEND_ERROR_LABELS.get(err_code, f"HTTP {resp.status_code}")
                 print(f"[WARN] student {student_id}: HTTP {resp.status_code} {resp.text[:200]}")
-                set_post_status(f"Failed #{student_id} HTTP {resp.status_code}", seconds=6.0)
+                set_post_status(f"Blocked #{student_id}: {why}", seconds=6.0)
+                set_pipeline("ATTEND", ok=False, detail=why, hold=6.0)
                 # Backend says no open session → turn camera off immediately.
                 if err_code == "NO_SESSION" and session_state is not None:
                     session_state["session_open"] = False
@@ -183,6 +229,7 @@ def record(student_id, distance, session_state=None):
         except Exception as exc:
             print(f"[ERR] student {student_id}: {exc}")
             set_post_status(f"Network error #{student_id}", seconds=6.0)
+            set_pipeline("ATTEND", ok=False, detail="network error", hold=6.0)
 
     threading.Thread(target=_post, daemon=True).start()
 
@@ -224,7 +271,7 @@ def maybe_start_stream_server():
 def session_is_open(previous=False, timeout=8):
     """Ask the backend whether any attendance session is open.
 
-    Returns (open_now, reached_api).
+    Returns (open_now, reached_api, engine_name).
     A successful `open: false` always turns the camera off.
     Network errors keep the previous state so a brief Railway blip does not
     flicker the camera.
@@ -232,31 +279,37 @@ def session_is_open(previous=False, timeout=8):
     try:
         resp = get_open_sessions(timeout=timeout)
         if resp.status_code == 200:
-            open_now = bool(resp.json().get("data", {}).get("open"))
+            payload = resp.json().get("data", {}) or {}
+            open_now = bool(payload.get("open"))
+            engine_name = payload.get("engine")
+            if engine_name not in ("lbph", "arcface"):
+                engine_name = None
             if open_now:
                 set_hud("Session open · camera live", ok=True)
             else:
                 set_hud("Session closed — camera off", ok=False)
                 if previous:
                     print("[INFO] Backend reports no open session — releasing camera.")
-            return open_now, True
+            return open_now, True, engine_name
         print(f"[WARN] session check: HTTP {resp.status_code} {resp.text[:120]}")
         set_hud(f"API HTTP {resp.status_code} — keeping last state", ok=previous)
     except Exception as exc:
         print(f"[WARN] session check failed (keeping previous state): {exc}")
         set_hud("Railway unreachable — press O to force camera ON", ok=False)
-    return previous, False
+    return previous, False, None
 
 
 def check_session_async(state, timeout=8):
     def _check():
         try:
-            open_now, reached = session_is_open(
+            open_now, reached, engine_name = session_is_open(
                 previous=bool(state["session_open"]),
                 timeout=timeout,
             )
             state["session_open"] = open_now
             state["api_ok"] = reached
+            if engine_name:
+                state["wanted_engine"] = engine_name
             # Website Close always wins over a previous manual O override.
             if reached and not open_now:
                 state["force_open"] = False
@@ -269,6 +322,24 @@ def check_session_async(state, timeout=8):
         return
     state["checking"] = True
     threading.Thread(target=_check, daemon=True).start()
+
+
+def switch_engine(current, wanted_name):
+    if not wanted_name or wanted_name == current.name:
+        return current
+    candidate = load_engine(wanted_name)
+    if not candidate.ready():
+        print(f"[WARN] teacher asked for {wanted_name} but it is not trained. Staying on {current.name}.")
+        set_hud(f"{wanted_name.upper()} not trained — using {current.name.upper()}", ok=False)
+        return current
+    try:
+        candidate.load()
+    except Exception as exc:
+        print(f"[WARN] could not switch to {wanted_name}: {exc}")
+        return current
+    print(f"[INFO] matcher is now {candidate.name}")
+    set_hud(f"Matcher: {candidate.name.upper()}", ok=True)
+    return candidate
 
 
 def acquire_lock():
@@ -309,31 +380,63 @@ def release_lock():
 
 
 def prepare_detection_frame(frame):
-    height, width = frame.shape[:2]
-    max_width = max(1, config.PROCESS_MAX_WIDTH)
-    if width <= max_width:
-        return frame, 1.0
+    from engine import prepare_detection_frame as _prepare
 
-    scale = max_width / width
-    resized = cv2.resize(
-        frame,
-        (max_width, int(height * scale)),
-        interpolation=cv2.INTER_AREA,
-    )
-    return resized, scale
+    return _prepare(frame)
 
 
 def draw_hud(frame):
+    height, width = frame.shape[:2]
+    cv2.rectangle(frame, (0, 0), (width, 68), (20, 20, 20), -1)
     line, ok = current_hud()
     color = (80, 200, 80) if ok else (80, 180, 255)
-    cv2.rectangle(frame, (0, 0), (frame.shape[1], 36), (20, 20, 20), -1)
-    cv2.putText(frame, line[:70], (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+    cv2.putText(frame, line[:48], (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+    pipe = current_pipeline()
+    detail = str(pipe.get("detail") or "")
+    if detail:
+        cv2.putText(
+            frame,
+            detail[:42],
+            (max(10, width - 320), 24),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (210, 210, 210),
+            1,
+        )
+
+    current = pipe.get("step") or "DETECT"
+    current_ok = pipe.get("ok")
+    try:
+        current_i = PIPELINE_STEPS.index(current)
+    except ValueError:
+        current_i = 0
+
+    labels = ("1 DETECT", "2 VALIDATE", "3 MATCH", "4 IDENTITY", "5 ATTEND", "6 RECORD")
+    box_w = max(72, width // 6)
+    for i, _name in enumerate(PIPELINE_STEPS):
+        x1 = i * box_w
+        x2 = min(width - 2, x1 + box_w - 3)
+        if i < current_i:
+            fill, text_c = (40, 90, 40), (190, 235, 190)
+        elif i == current_i:
+            if current_ok is False:
+                fill, text_c = (40, 40, 150), (210, 210, 255)
+            elif current_ok is True:
+                fill, text_c = (40, 140, 40), (190, 255, 190)
+            else:
+                fill, text_c = (70, 90, 40), (180, 220, 255)
+        else:
+            fill, text_c = (45, 45, 45), (140, 140, 140)
+        cv2.rectangle(frame, (x1 + 2, 38), (x2, 64), fill, -1)
+        cv2.putText(frame, labels[i], (x1 + 6, 56), cv2.FONT_HERSHEY_SIMPLEX, 0.42, text_c, 1)
+
     status = current_post_status()
     if status:
         cv2.putText(
             frame,
             status,
-            (10, frame.shape[0] - 16),
+            (10, height - 16),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.65,
             (0, 255, 255),
@@ -359,8 +462,21 @@ def idle_frame(message, hint="q / Esc / close window to quit"):
 
 
 def main():
-    if not os.path.exists(config.MODEL_PATH):
-        print("No trained model. Run enroll.py then train.py first.")
+    engine = load_engine()
+    print(f"Recognition engine: {engine.name}")
+    print("Scan pipeline: DETECT → VALIDATE → MATCH → IDENTITY → ATTEND → RECORD")
+    if engine.name == "arcface":
+        print(
+            f"Match rule: 128-D cosine >= {config.ARCFACE_THRESHOLD:g}; "
+            f"lookalike margin {config.ARCFACE_MIN_MARGIN:g}"
+        )
+    else:
+        print(
+            f"Match rule: LBPH distance <= {config.LBPH_THRESHOLD:g}; "
+            f"lookalike margin {config.LBPH_MIN_MARGIN:g}"
+        )
+    if not engine.ready():
+        print(engine.missing_message())
         return
 
     if not acquire_lock():
@@ -368,9 +484,12 @@ def main():
 
     maybe_start_stream_server()
 
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
-    recognizer.read(config.MODEL_PATH)
-    cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    try:
+        engine.load()
+    except Exception as exc:
+        print(f"ERROR: could not load {engine.name} engine: {exc}")
+        release_lock()
+        return
 
     session_gated = config.SESSION_POLL_SECONDS > 0
     grabber = FrameGrabber()
@@ -397,7 +516,11 @@ def main():
         print("Keys: O = force camera ON | C = force OFF | q/Esc = quit")
         set_hud("Checking Railway for open session…", ok=False)
         # Blocking first check with a longer timeout so a slow Railway still works.
-        session_state["session_open"] = session_is_open(previous=False, timeout=15)[0]
+        open_now, _, api_engine = session_is_open(previous=False, timeout=15)
+        session_state["session_open"] = open_now
+        if api_engine:
+            session_state["wanted_engine"] = api_engine
+            engine = switch_engine(engine, api_engine)
         last_session_check = time.time()
     else:
         print("Recognizing (camera always on). Keys: q/Esc = quit")
@@ -428,11 +551,15 @@ def main():
             else:
                 poll_every = 15
 
-            if session_gated and now - last_session_check >= poll_every:
+            if now - last_session_check >= poll_every:
                 # Longer timeout while waiting to open; shorter while already open.
                 to = 12 if not session_state["session_open"] else 5
                 check_session_async(session_state, timeout=to)
                 last_session_check = now
+
+            wanted = session_state.get("wanted_engine")
+            if wanted and wanted != engine.name:
+                engine = switch_engine(engine, wanted)
 
             session_open = True
             if session_gated:
@@ -447,6 +574,7 @@ def main():
                         clear_frame()
                     print("Session closed - camera released. Waiting for the next session...")
                     set_hud("Session closed — camera off", ok=False)
+                    set_pipeline("DETECT", ok=False, detail="waiting for session")
 
                 if config.SHOW_WINDOW:
                     cv2.imshow(
@@ -503,64 +631,101 @@ def main():
                 continue
 
             no_frame_since = None
+            matcher = engine.name.upper()
             if session_state.get("force_open"):
-                set_hud("Forced ON · camera live (C = off)", ok=True)
+                set_hud(f"Forced ON · {matcher} (C = off)", ok=True)
             else:
-                set_hud("Session open · camera live", ok=True)
+                set_hud(f"Session open · {matcher}", ok=True)
 
-            if publish_frame is not None:
-                publish_frame(frame)
-
-            detect_frame, scale = prepare_detection_frame(frame)
-            gray_small = cv2.cvtColor(detect_frame, cv2.COLOR_BGR2GRAY)
-            faces = cascade.detectMultiScale(
-                gray_small,
-                1.1,
-                5,
-                minSize=(config.MIN_FACE_SIZE, config.MIN_FACE_SIZE),
-            )
-            gray_full = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            detections = engine.identify(frame)
             seen = set()
+            step, step_ok, detail = "DETECT", None, "no face"
 
-            for (x, y, w, h) in faces:
-                if scale != 1.0:
-                    x = int(x / scale)
-                    y = int(y / scale)
-                    w = int(w / scale)
-                    h = int(h / scale)
+            if detections:
+                usable = [d for d in detections if getattr(d, "stage", "") != "invalid"]
+                invalid = [d for d in detections if getattr(d, "stage", "") == "invalid"]
+                step = "VALIDATE"
+                if not usable:
+                    step_ok = False
+                    why = reason_label(invalid[0].reason) if invalid else "invalid face"
+                    detail = why
+                    log_scan(f"validation rejected: {why} — not matching", f"inv:{why}")
+                else:
+                    matched_dets = [d for d in usable if d.matched and d.student_id is not None]
+                    lookalikes = [d for d in usable if getattr(d, "reason", "") == "LOOKALIKE"]
+                    step = "MATCH"
+                    if lookalikes:
+                        step_ok = False
+                        detail = "lookalike — uncertain"
+                        log_scan("lookalike scores too close — no attendance", "lookalike")
+                    elif not matched_dets:
+                        step_ok = False
+                        detail = "below threshold"
+                        log_scan("match below threshold — no attendance", "unknown")
+                    else:
+                        step_ok = True
+                        detail = ""
 
-                x = max(0, x)
-                y = max(0, y)
-                w = min(w, gray_full.shape[1] - x)
-                h = min(h, gray_full.shape[0] - y)
-                if w <= 0 or h <= 0:
-                    continue
+            for det in detections:
+                stage = getattr(det, "stage", "")
+                if stage == "invalid":
+                    color = (0, 165, 255)
+                elif getattr(det, "reason", "") == "LOOKALIKE":
+                    color = (255, 0, 255)
+                elif det.matched:
+                    color = (0, 255, 0)
+                else:
+                    color = (0, 0, 255)
+                label = det.label
 
-                face_roi = gray_full[y:y + h, x:x + w]
-                label, distance = recognizer.predict(cv2.resize(face_roi, config.FACE_SIZE))
-                matched = distance <= config.LBPH_THRESHOLD
+                if det.matched and det.student_id is not None:
+                    sid = det.student_id
+                    seen.add(sid)
+                    consecutive[sid] = consecutive.get(sid, 0) + 1
+                    needed = config.MIN_CONSEC_FRAMES
+                    count = consecutive[sid]
+                    if count < needed:
+                        step, step_ok = "IDENTITY", None
+                        detail = f"#{sid} {count}/{needed} frames"
+                        label = f"{det.label}  {count}/{needed}"
+                    elif now - last_posted.get(sid, 0) < config.COOLDOWN_SECONDS:
+                        step, step_ok = "ATTEND", False
+                        detail = f"#{sid} duplicate"
+                        label = f"{det.label}  duplicate"
+                        consecutive[sid] = 0
+                        log_scan(f"duplicate scan ignored for #{sid}", f"dup:{sid}", every=5.0)
+                        if not pipeline_is_holding():
+                            set_pipeline("ATTEND", ok=False, detail=detail, hold=3.0)
+                    else:
+                        step, step_ok = "ATTEND", None
+                        detail = f"#{sid} attendance checks"
+                        record(sid, det.confidence, session_state=session_state)
+                        last_posted[sid] = now
+                        consecutive[sid] = 0
 
-                if config.SHOW_WINDOW:
-                    color = (0, 255, 0) if matched else (0, 0, 255)
-                    text = f"#{label} ({distance:.0f})" if matched else "unknown"
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                    cv2.putText(frame, text, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-
-                if matched:
-                    seen.add(label)
-                    consecutive[label] = consecutive.get(label, 0) + 1
-                    if consecutive[label] >= config.MIN_CONSEC_FRAMES:
-                        if now - last_posted.get(label, 0) >= config.COOLDOWN_SECONDS:
-                            record(label, distance, session_state=session_state)
-                            last_posted[label] = now
-                        consecutive[label] = 0
+                cv2.rectangle(frame, (det.x, det.y), (det.x + det.w, det.y + det.h), color, 2)
+                cv2.putText(
+                    frame,
+                    label,
+                    (det.x, max(88, det.y - 8)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.55,
+                    color,
+                    2,
+                )
 
             for sid in list(consecutive.keys()):
                 if sid not in seen:
                     consecutive[sid] = 0
 
+            if not pipeline_is_holding():
+                set_pipeline(step, ok=step_ok, detail=detail)
+
+            draw_hud(frame)
+            if publish_frame is not None:
+                publish_frame(frame)
+
             if config.SHOW_WINDOW:
-                draw_hud(frame)
                 cv2.imshow("Recognize", for_display(frame))
                 quit_now, key = should_quit("Recognize")
                 if handle_keys(key) or quit_now:

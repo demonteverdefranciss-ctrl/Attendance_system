@@ -132,3 +132,17 @@ $env:RAILWAY_MYSQL_DATABASE="railway"
 ```
 
 Keep the `.sql` file on a USB drive / Google Drive. Do **not** commit it to GitHub (student data).
+
+Full walkthrough (backup now + redeploy later): see **[`docs/BACKUP_AND_REDEPLOY.md`](BACKUP_AND_REDEPLOY.md)**.
+
+Restore into a new Railway MySQL (or local XAMPP):
+
+```powershell
+$env:RAILWAY_MYSQL_HOST="...."
+$env:RAILWAY_MYSQL_PORT="...."
+$env:RAILWAY_MYSQL_USER="...."
+$env:RAILWAY_MYSQL_PASSWORD="...."
+$env:RAILWAY_MYSQL_DATABASE="railway"
+$env:BACKUP_SQL="C:\xampp\htdocs\attendance_system\backups\railway_attendance_YYYYMMDD_HHMMSS.sql"
+.\scripts\restore-railway-mysql.ps1
+```

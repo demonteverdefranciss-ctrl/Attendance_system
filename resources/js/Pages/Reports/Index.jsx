@@ -5,6 +5,7 @@ import TeacherLayout from '@/Layouts/TeacherLayout';
 import AtRiskStudentsTable from '@/Components/AtRiskStudentsTable';
 import { StatCard } from '@/Components/AppSidebarLayout';
 import { Doughnut, ChartCard, noAspect } from '@/Components/Charts';
+import Pagination, { usePageRows } from '@/Components/Pagination';
 
 const STATUS_COLORS = {
     present: 'text-green-700',
@@ -24,6 +25,9 @@ export default function ReportsIndex({
 }) {
     const { auth } = usePage().props;
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
+    const { rows: sessionRows, paginator: sessionsPaginator } = usePageRows(sessions);
+    const { rows: recordRows, paginator: recordsPaginator } = usePageRows(records);
+    const today = filters.today ?? new Date().toISOString().slice(0, 10);
 
     const [form, setForm] = useState({
         from: filters.from,
@@ -31,6 +35,20 @@ export default function ReportsIndex({
         section_id: filters.section_id ?? '',
         session_id: filters.session_id ?? '',
     });
+
+    const setDate = (key, value) => {
+        const clamped = value && value > today ? today : value;
+        setForm((prev) => {
+            const next = { ...prev, [key]: clamped, session_id: '' };
+            if (key === 'from' && next.to && next.from > next.to) {
+                next.to = next.from;
+            }
+            if (key === 'to' && next.from && next.to < next.from) {
+                next.from = next.to;
+            }
+            return next;
+        });
+    };
 
     const apply = (e) => {
         e.preventDefault();
@@ -73,7 +91,8 @@ export default function ReportsIndex({
                     <input
                         type="date"
                         value={form.from}
-                        onChange={(e) => setForm({ ...form, from: e.target.value, session_id: '' })}
+                        max={today}
+                        onChange={(e) => setDate('from', e.target.value)}
                         className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                 </div>
@@ -82,7 +101,8 @@ export default function ReportsIndex({
                     <input
                         type="date"
                         value={form.to}
-                        onChange={(e) => setForm({ ...form, to: e.target.value, session_id: '' })}
+                        max={today}
+                        onChange={(e) => setDate('to', e.target.value)}
                         className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                 </div>
@@ -105,10 +125,10 @@ export default function ReportsIndex({
                     Apply
                 </button>
                 <div className="ml-auto flex gap-2">
-                    <a href={exportUrl('csv')} className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                    <a href={exportUrl('csv')} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100">
                         Export CSV
                     </a>
-                    <a href={exportUrl('pdf')} className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200">
+                    <a href={exportUrl('pdf')} className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-100">
                         Export PDF
                     </a>
                 </div>
@@ -136,14 +156,14 @@ export default function ReportsIndex({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {sessions.length === 0 && (
+                            {sessionRows.length === 0 && (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                                         No sessions found for this filter.
                                     </td>
                                 </tr>
                             )}
-                            {sessions.map((s) => (
+                            {sessionRows.map((s) => (
                                 <tr key={s.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-2 text-sm text-gray-700">{s.session_date}</td>
                                     <td className="px-4 py-2 text-sm text-gray-700">{s.section}</td>
@@ -166,6 +186,9 @@ export default function ReportsIndex({
                             ))}
                         </tbody>
                     </table>
+                </div>
+                <div className="px-4 pb-4">
+                    <Pagination paginator={sessionsPaginator} />
                 </div>
             </div>
 
@@ -219,14 +242,14 @@ export default function ReportsIndex({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {records.length === 0 && (
+                        {recordRows.length === 0 && (
                             <tr>
                                 <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                                     No records for this period.
                                 </td>
                             </tr>
                         )}
-                        {records.map((r, i) => (
+                        {recordRows.map((r, i) => (
                             <tr key={i} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.date}</td>
                                 <td className="px-4 py-2 text-sm text-gray-700">{r.section}</td>
@@ -255,6 +278,7 @@ export default function ReportsIndex({
                     </tbody>
                 </table>
             </div>
+            <Pagination paginator={recordsPaginator} />
         </Layout>
     );
 }

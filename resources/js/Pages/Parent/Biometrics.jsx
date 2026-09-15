@@ -8,7 +8,9 @@ export default function BiometricsIndex({ children = [] }) {
             <Head title="Biometric Photos" />
 
             <p className="mb-4 text-sm text-gray-500">
-                Upload your child&apos;s photos for teacher-approved face enrollment (RA 10173 consent required).
+                Upload a photo of your child&apos;s face — not a full-body photo, screenshot, or unrelated
+                picture. The system rejects photos without a face. A teacher then confirms it is the correct
+                student (RA 10173 consent required).
             </p>
 
             {children.length === 0 ? (

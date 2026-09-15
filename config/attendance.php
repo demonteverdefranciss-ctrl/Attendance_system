@@ -4,15 +4,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Ad-hoc session max duration (minutes)
+    | Session max duration (minutes)
     |--------------------------------------------------------------------------
     |
-    | Teacher "Open session" without a schedule is closed automatically after
-    | this many minutes. Schedule-based sessions still close at schedule end.
-    | Set to 0 to disable the duration timeout.
+    | Any open session (schedule or manual) is closed automatically this many
+    | minutes after opened_at. Default 360 = 6 hours. Set to 0 to disable.
+    | Schedule windows still close at end_time if that comes first.
     |
     */
-    'adhoc_session_max_minutes' => (int) env('ATTENDANCE_ADHOC_SESSION_MAX_MINUTES', 30),
+    'session_max_minutes' => (int) env('ATTENDANCE_SESSION_MAX_MINUTES', 360),
+
+    'adhoc_session_max_minutes' => (int) env('ATTENDANCE_SESSION_MAX_MINUTES', 360),
+
+    /*
+    | Camera/face arrival after this many minutes from session opened_at is late.
+    | Set to 0 to disable the session-start grace period.
+    */
+    'late_after_minutes' => (int) env('ATTENDANCE_LATE_AFTER_MINUTES', 30),
 
     /*
     |--------------------------------------------------------------------------

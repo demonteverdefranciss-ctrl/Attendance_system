@@ -1,5 +1,6 @@
 """
-Import teacher-approved parent photos into the local LBPH dataset.
+Import teacher-approved parent photos into the local dataset, then train
+the engine selected by RECOGNITION_ENGINE (lbph or arcface).
 
 Usage:
   python sync_enrollment.py          # download + enroll + train
@@ -101,7 +102,8 @@ def main():
         if train.returncode != 0:
             print("ERROR: train.py failed")
             return
-        print("Done. Run recognize.py to start live recognition.")
+        engine = config.RECOGNITION_ENGINE
+        print(f"Done ({engine}). Run recognize.py to start live recognition.")
     else:
         print("No submissions were imported.")
 

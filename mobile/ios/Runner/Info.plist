@@ -53,6 +53,10 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a supporting photo for an explanation letter.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save selected photos if needed for explanation letters.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

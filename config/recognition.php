@@ -29,4 +29,23 @@ return [
     |
     */
     'python' => env('RECOGNITION_PYTHON'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default matcher until a teacher picks one in Attendance
+    |--------------------------------------------------------------------------
+    */
+    'engine' => env('RECOGNITION_ENGINE', 'arcface'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Parent enrollment photo validation
+    |--------------------------------------------------------------------------
+    |
+    | auto     = OpenCV when Python is available; otherwise PHP face detection
+    | required = reject uploads if the Python validator cannot run
+    | off      = skip OpenCV only (PHP still rejects non-face / full-body shots)
+    |
+    */
+    'photo_validation' => env('FACE_PHOTO_VALIDATION', 'auto'),
 ];

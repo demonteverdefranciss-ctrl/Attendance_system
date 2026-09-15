@@ -6,8 +6,11 @@ const nav = [
     { label: 'Teachers', route: 'admin.teachers.index' },
     { label: 'Parents / Guardians', route: 'admin.guardians.index' },
     { label: 'Sections', route: 'admin.sections.index' },
+    { label: 'Cameras', route: 'admin.cameras.index' },
     { label: 'Schedules', route: 'admin.schedules.index' },
+    { label: 'No-class days', route: 'admin.no-class-days.index' },
     { label: 'Audit Logs', route: 'admin.audit-logs.index' },
+    { label: 'Archive', route: 'admin.archive.index' },
     { label: 'Reports', route: 'reports.index' },
 ];
 

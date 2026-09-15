@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Camera;
 use App\Models\Section;
 use App\Models\Teacher;
+use App\Support\SoftDeleteUnique;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,17 +16,24 @@ class SectionController extends Controller
 {
     public function index(): Response
     {
-        $sections = Section::with('adviser:id,first_name,last_name')
+        $sections = Section::with([
+            'adviser:id,first_name,last_name',
+            'camera:id,name,location',
+        ])
             ->withCount('students')
             ->orderBy('name')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Admin/Sections/Index', ['sections' => $sections]);
     }
 
     public function create(): Response
     {
-        return Inertia::render('Admin/Sections/Form', ['teachers' => $this->teacherOptions()]);
+        return Inertia::render('Admin/Sections/Form', [
+            'teachers' => $this->teacherOptions(),
+            'cameras' => $this->cameraOptions(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -40,6 +48,7 @@ class SectionController extends Controller
         return Inertia::render('Admin/Sections/Form', [
             'section' => $section,
             'teachers' => $this->teacherOptions(),
+            'cameras' => $this->cameraOptions(),
         ]);
     }
 
@@ -52,9 +61,10 @@ class SectionController extends Controller
 
     public function destroy(Section $section): RedirectResponse
     {
+        SoftDeleteUnique::archive($section, ['name']);
         $section->delete();
 
-        return redirect()->route('admin.sections.index')->with('success', 'Section deleted.');
+        return redirect()->route('admin.sections.index')->with('success', 'Section moved to archive.');
     }
 
     /**
@@ -62,17 +72,35 @@ class SectionController extends Controller
      */
     private function validateData(Request $request, ?Section $section = null): array
     {
-        return $request->validate([
+        $request->merge([
+            'camera_id' => $request->input('camera_id') ?: null,
+            'adviser_id' => $request->input('adviser_id') ?: null,
+        ]);
+
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'grade_level' => ['required', 'string', 'max:20'],
             'school_year' => ['required', 'string', 'max:20'],
             'adviser_id' => ['nullable', 'exists:teachers,id'],
+            'camera_id' => ['nullable', 'exists:cameras,id'],
+            'session_max_hours' => ['required', 'numeric', 'min:0.5', 'max:12'],
         ]);
+
+        $validated['session_max_minutes'] = (int) round(((float) $validated['session_max_hours']) * 60);
+        unset($validated['session_max_hours']);
+
+        return $validated;
     }
 
     private function teacherOptions()
     {
         return Teacher::orderBy('last_name')
             ->get(['id', 'first_name', 'last_name']);
+    }
+
+    private function cameraOptions()
+    {
+        return Camera::orderBy('name')
+            ->get(['id', 'name', 'location', 'is_active']);
     }
 }

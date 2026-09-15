@@ -64,7 +64,7 @@ export default function NotificationsIndex({ notifications = [], notifyPref = 'p
                                         {n.title || 'Attendance Update'}
                                     </h3>
                                     {n.read_at ? (
-                                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
                                             Read
                                         </span>
                                     ) : (
@@ -77,14 +77,14 @@ export default function NotificationsIndex({ notifications = [], notifyPref = 'p
                                     {n.body || 'A new attendance event was recorded.'}
                                 </p>
                                 <p className="mt-1 text-xs text-gray-500">
-                                    Sent: {formatDateTime(n.sent_at)} · Type: {n.type}
+                                    Sent: {formatDateTime(n.sent_at)} Â· Type: {n.type}
                                 </p>
                             </div>
                             {!n.read_at && (
                                 <button
                                     type="button"
                                     onClick={() => markRead(n.id)}
-                                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                                    className="rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
                                 >
                                     Mark as read
                                 </button>

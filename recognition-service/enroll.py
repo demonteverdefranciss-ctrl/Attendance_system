@@ -83,7 +83,10 @@ def main():
     n = from_images(student_dir, args.images) if args.images else from_webcam(student_dir, config.SAMPLES_PER_STUDENT)
 
     print(f"Saved {n} face samples to {student_dir}")
-    print("Next step: python train.py")
+    if config.RECOGNITION_ENGINE == "arcface":
+        print("Next step: python train.py   (builds the ArcFace gallery)")
+    else:
+        print("Next step: python train.py   (trains the LBPH model)")
 
 
 if __name__ == "__main__":

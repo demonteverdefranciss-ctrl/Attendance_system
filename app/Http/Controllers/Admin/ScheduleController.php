@@ -18,7 +18,8 @@ class ScheduleController extends Controller
         $schedules = Schedule::with('section:id,name')
             ->orderBy('section_id')
             ->orderBy('day_of_week')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Admin/Schedules/Index', ['schedules' => $schedules]);
     }
@@ -54,7 +55,7 @@ class ScheduleController extends Controller
     {
         $schedule->delete();
 
-        return redirect()->route('admin.schedules.index')->with('success', 'Schedule deleted.');
+        return redirect()->route('admin.schedules.index')->with('success', 'Schedule moved to archive.');
     }
 
     /**

@@ -7,6 +7,8 @@ use App\Models\Guardian;
 use App\Models\Section;
 use App\Models\Student;
 use App\Services\BiometricPrivacyService;
+use App\Support\InputRules;
+use App\Support\SoftDeleteUnique;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -23,7 +25,8 @@ class StudentController extends Controller
     {
         $students = Student::with('section:id,name')
             ->orderBy('last_name')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Admin/Students/Index', ['students' => $students]);
     }
@@ -76,9 +79,11 @@ class StudentController extends Controller
 
     public function destroy(Student $student): RedirectResponse
     {
+        SoftDeleteUnique::archive($student, ['lrn']);
+        $student->update(['is_active' => false]);
         $student->delete();
 
-        return redirect()->route('admin.students.index')->with('success', 'Student deleted.');
+        return redirect()->route('admin.students.index')->with('success', 'Student moved to archive.');
     }
 
     /**
@@ -87,16 +92,16 @@ class StudentController extends Controller
     private function validateData(Request $request, ?Student $student = null): array
     {
         return $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'lrn' => ['nullable', 'string', 'max:20', Rule::unique('students', 'lrn')->ignore($student?->id)],
+            'first_name' => InputRules::personName(),
+            'last_name' => InputRules::personName(),
+            'lrn' => InputRules::lrn(false, Rule::unique('students', 'lrn')->ignore($student?->id)),
             'gender' => ['nullable', Rule::in(['male', 'female'])],
             'birthdate' => ['nullable', 'date'],
             'section_id' => ['nullable', 'exists:sections,id'],
             'consent_biometric' => ['boolean'],
             'guardian_ids' => ['array'],
             'guardian_ids.*' => ['exists:guardians,id'],
-        ]);
+        ], InputRules::messages());
     }
 
     /**

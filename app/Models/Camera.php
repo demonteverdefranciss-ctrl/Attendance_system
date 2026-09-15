@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Camera extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'name',
         'location',
@@ -23,5 +26,28 @@ class Camera extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function sections(): HasMany
+    {
+        return $this->hasMany(Section::class);
+    }
+
+    /**
+     * Whether this device may mark a student in the given section.
+     *
+     * Dedicated cameras (with assigned sections) only cover those sections.
+     * Unassigned cameras stay as a shared fallback for sections with no camera.
+     */
+    public function coversSection(int $sectionId, ?int $sectionCameraId = null): bool
+    {
+        $this->loadMissing('sections:id,camera_id');
+        $assignedIds = $this->sections->pluck('id');
+
+        if ($assignedIds->isNotEmpty()) {
+            return $assignedIds->contains($sectionId);
+        }
+
+        return $sectionCameraId === null;
     }
 }

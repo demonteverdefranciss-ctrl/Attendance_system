@@ -2,6 +2,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TextField from '@/Components/TextField';
 import SelectField from '@/Components/SelectField';
+import { digitsOnly, personName } from '@/lib/inputFilters';
 
 export default function StudentForm({ student, guardianIds = [], sections, guardians }) {
     const editing = !!student;
@@ -38,9 +39,31 @@ export default function StudentForm({ student, guardianIds = [], sections, guard
 
             <form onSubmit={submit} className="max-w-2xl space-y-5 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <TextField label="First Name" value={data.first_name} onChange={(e) => setData('first_name', e.target.value)} error={errors.first_name} />
-                    <TextField label="Last Name" value={data.last_name} onChange={(e) => setData('last_name', e.target.value)} error={errors.last_name} />
-                    <TextField label="LRN" value={data.lrn} onChange={(e) => setData('lrn', e.target.value)} error={errors.lrn} />
+                    <TextField
+                        label="First Name"
+                        value={data.first_name}
+                        onChange={(e) => setData('first_name', personName(e.target.value))}
+                        error={errors.first_name}
+                        hint="Letters only (no numbers)."
+                        autoComplete="given-name"
+                    />
+                    <TextField
+                        label="Last Name"
+                        value={data.last_name}
+                        onChange={(e) => setData('last_name', personName(e.target.value))}
+                        error={errors.last_name}
+                        hint="Letters only (no numbers)."
+                        autoComplete="family-name"
+                    />
+                    <TextField
+                        label="LRN"
+                        value={data.lrn}
+                        onChange={(e) => setData('lrn', digitsOnly(e.target.value))}
+                        error={errors.lrn}
+                        hint="Numbers only."
+                        inputMode="numeric"
+                        autoComplete="off"
+                    />
                     <SelectField label="Gender" value={data.gender} onChange={(e) => setData('gender', e.target.value)} error={errors.gender}>
                         <option value="">— Select —</option>
                         <option value="male">Male</option>

@@ -27,9 +27,9 @@ class AuditLogController extends Controller
             ->when($filters['to'], fn ($q, $to) => $q->whereDate('created_at', '<=', $to));
 
         $logs = $query->latest('id')
-            ->limit(500)
-            ->get()
-            ->map(fn ($log) => [
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn ($log) => [
                 'id' => $log->id,
                 'action' => $log->action,
                 'user' => $log->user ? [
