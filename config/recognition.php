@@ -42,9 +42,9 @@ return [
     | Parent enrollment photo validation
     |--------------------------------------------------------------------------
     |
-    | auto     = OpenCV checks when Python is available; otherwise size checks
+    | auto     = OpenCV when Python is available; otherwise PHP face detection
     | required = reject uploads if the Python validator cannot run
-    | off      = skip face checks (not for defense demos)
+    | off      = skip OpenCV only (PHP still rejects non-face / full-body shots)
     |
     */
     'photo_validation' => env('FACE_PHOTO_VALIDATION', 'auto'),

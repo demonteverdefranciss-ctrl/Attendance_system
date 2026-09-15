@@ -15,6 +15,35 @@ class BiometricPhotoService
 {
     public const MAX_PHOTOS = 3;
 
+    /** Kilobytes. Phone JPEGs are often larger than PHP's default 2 MB cap. */
+    public const MAX_PHOTO_KB = 10240;
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    public static function photoUploadRules(): array
+    {
+        return [
+            'photos' => ['required', 'array', 'min:1', 'max:'.self::MAX_PHOTOS],
+            'photos.*' => ['image', 'mimes:jpeg,jpg,png', 'max:'.self::MAX_PHOTO_KB],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function photoUploadMessages(): array
+    {
+        return [
+            'photos.required' => 'Choose 1–3 photos of the student\'s face.',
+            'photos.min' => 'Choose at least one photo of the student\'s face.',
+            'photos.max' => 'You can upload at most '.self::MAX_PHOTOS.' photos.',
+            'photos.*.image' => 'Each file must be a JPEG or PNG photo.',
+            'photos.*.mimes' => 'Each file must be a JPEG or PNG photo.',
+            'photos.*.max' => 'Each photo must be 10 MB or smaller.',
+        ];
+    }
+
     public function __construct(private EnrollmentPhotoValidator $validator)
     {
     }

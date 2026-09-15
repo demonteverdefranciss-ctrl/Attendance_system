@@ -1,6 +1,23 @@
 import { router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
+function firstValidationError(errors) {
+    const entries = Object.entries(errors ?? {});
+    const photo = entries.find(([key]) => key === 'photos' || key.startsWith('photos.'));
+    const ordered = photo ? [photo, ...entries.filter((entry) => entry !== photo)] : entries;
+
+    for (const [, value] of ordered) {
+        if (typeof value === 'string' && value.trim()) {
+            return value;
+        }
+        if (Array.isArray(value) && value[0]) {
+            return String(value[0]);
+        }
+    }
+
+    return null;
+}
+
 /**
  * Shows success / error / warning after saves, and a fail banner when validation errors appear.
  */
@@ -24,9 +41,10 @@ export default function FlashMessages({ className = '' }) {
         } else if (flash.warning) {
             message = { type: 'warning', text: flash.warning };
         } else if (validationFailed) {
+            const detail = firstValidationError(errors);
             message = {
                 type: 'error',
-                text: 'Save failed. Please fix the highlighted fields and try again.',
+                text: detail || 'Save failed. Please fix the highlighted fields and try again.',
             };
         }
 
