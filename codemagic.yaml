@@ -1,0 +1,30 @@
+workflows:
+  attendance-ios-release:
+    name: Attendance iOS Release
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      vars:
+        APP_ID: com.bigaa.attendance
+    scripts:
+      - name: Install Flutter dependencies
+        script: |
+          cd mobile
+          flutter pub get
+      - name: Run Flutter analysis
+        script: |
+          cd mobile
+          flutter analyze
+      - name: Build unsigned iOS app
+        script: |
+          cd mobile
+          flutter build ios --release --no-codesign
+    artifacts:
+      - mobile/build/ios/iphoneos/*.app
+      - mobile/build/ios/iphoneos/*.dSYM
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com
