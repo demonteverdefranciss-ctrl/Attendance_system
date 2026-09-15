@@ -105,3 +105,19 @@ Backend supports `POST /auth/device-token`. To enable FCM push on the phone:
 4. Add `FCM_SERVER_KEY` to Railway env vars
 
 In-app notifications (pull to refresh) work without Firebase.
+
+## Mobile portal update
+
+- Parent and teacher dashboard menus follow the web portal's navigation.
+- School-branded dashboard headers, blue accents, light gray backgrounds, and shared form/card styling.
+- Search student attendance by name, LRN, or section. Teachers can open student summaries from Student reports.
+- No-class days show upcoming dates and the previous 45 days using the same calendar payload as the web.
+- School seal launcher icons for Android, iOS, macOS, and web.
+
+Deploy the updated Laravel routes and NoClassDayListController alongside the app: the calendar requires authenticated GET /api/v1/no-class-days. The default app configuration points to Railway. This change does not deploy the server.
+
+Student reports currently open the existing student attendance summaries and latest 100 records; web report exports and session reports are not included.
+
+Validation: Flutter analyzer and five widget tests passed. Three calendar API tests cover authentication, role access, and date/archive filtering.
+
+The release APK build on this Windows machine was blocked by Application Control denying Flutter's gen_snapshot.exe. The existing BigaaES-Attendance.apk is unchanged and does not contain this update. Build on an environment where the Flutter release compiler is permitted.

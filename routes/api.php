@@ -25,6 +25,7 @@ Route::prefix('v1')->group(function () {
 
     // Token-authenticated (Flutter app users)
     Route::middleware('auth:sanctum')->group(function () {
+        Route::get('no-class-days', [\App\Http\Controllers\NoClassDayListController::class, 'api'])->name('api.no-class-days');
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::post('auth/device-token', [AuthController::class, 'deviceToken']);

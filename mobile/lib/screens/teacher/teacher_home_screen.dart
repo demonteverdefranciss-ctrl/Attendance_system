@@ -1,3 +1,4 @@
+import '../../widgets/school_navigation.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/api_client.dart';
@@ -73,6 +74,13 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     final summary = _dash['summary'] as Map<String, dynamic>? ?? {};
 
     return Scaffold(
+      drawer: SchoolNavigation(
+        api: widget.api,
+        teacher: true,
+        onReturn: () {
+          if (mounted) _load();
+        },
+      ),
       appBar: AppBar(
         title: const Text('Teacher Dashboard'),
         actions: [
@@ -84,21 +92,31 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
-                  Text('Welcome, $_userName', style: Theme.of(context).textTheme.titleLarge),
+                  SchoolWelcome(name: _userName, role: 'Teacher'),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _StatCard(label: 'Sections', value: '${_dash['sections_count'] ?? 0}'),
+                      _StatCard(
+                        label: 'Sections',
+                        value: '${_dash['sections_count'] ?? 0}',
+                      ),
                       const SizedBox(width: 12),
-                      _StatCard(label: 'Students', value: '${_dash['students_count'] ?? 0}'),
+                      _StatCard(
+                        label: 'Students',
+                        value: '${_dash['students_count'] ?? 0}',
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      _StatCard(label: 'Open sessions', value: '${_dash['open_sessions'] ?? 0}'),
+                      _StatCard(
+                        label: 'Open sessions',
+                        value: '${_dash['open_sessions'] ?? 0}',
+                      ),
                       const SizedBox(width: 12),
                       _StatCard(
                         label: 'Attendance rate',
@@ -111,7 +129,10 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                     Text(_error!, style: const TextStyle(color: Colors.red)),
                   ],
                   const SizedBox(height: 20),
-                  Text('Quick actions', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Quick actions',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
                   _ActionCard(
                     icon: Icons.fact_check_outlined,
@@ -119,7 +140,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                     subtitle: 'Open sessions and mark students',
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => TeacherAttendanceScreen(api: widget.api),
+                        builder: (_) =>
+                            TeacherAttendanceScreen(api: widget.api),
                       ),
                     ),
                   ),
@@ -132,7 +154,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                         : null,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => TeacherEnrollmentScreen(api: widget.api),
+                        builder: (_) =>
+                            TeacherEnrollmentScreen(api: widget.api),
                       ),
                     ),
                   ),
@@ -155,7 +178,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                   _ActionCard(
                     icon: Icons.face_retouching_natural,
                     title: 'Biometric photos',
-                    subtitle: '${_dash['pending_biometric'] ?? 0} pending review',
+                    subtitle:
+                        '${_dash['pending_biometric'] ?? 0} pending review',
                     badge: (_dash['pending_biometric'] as int? ?? 0) > 0
                         ? '${_dash['pending_biometric']}'
                         : null,
@@ -166,7 +190,10 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text('My students', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'My students',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
                   if (_students.isEmpty)
                     const Padding(
@@ -174,11 +201,14 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                       child: Text('No students assigned to your sections yet.'),
                     ),
                   ..._students.map((student) {
-                    final name = '${student['first_name']} ${student['last_name']}';
+                    final name =
+                        '${student['first_name']} ${student['last_name']}';
                     return Card(
                       child: ListTile(
                         title: Text(name),
-                        subtitle: Text(student['section']?.toString() ?? 'No section'),
+                        subtitle: Text(
+                          student['section']?.toString() ?? 'No section',
+                        ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(

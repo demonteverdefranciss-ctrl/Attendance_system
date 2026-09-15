@@ -8,6 +8,12 @@ use Inertia\Response;
 
 class NoClassDayListController extends Controller
 {
+    public function api(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
+    {
+        abort_unless($request->user()->hasRole('parent') || $request->user()->hasRole('teacher'), 403);
+        return response()->json(['success' => true, 'data' => $this->payload(), 'error' => null]);
+    }
+
     public function parent(): Response
     {
         return Inertia::render('Parent/NoClassDays', [

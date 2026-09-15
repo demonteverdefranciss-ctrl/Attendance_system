@@ -41,9 +41,9 @@ class _AttendanceAppState extends State<AttendanceApp> {
   }
 
   void _onLoggedIn(String role) => setState(() {
-        _loggedIn = true;
-        _role = role;
-      });
+    _loggedIn = true;
+    _role = role;
+  });
 
   void _onLoggedOut() => setState(() => _loggedIn = false);
 
@@ -64,7 +64,26 @@ class _AttendanceAppState extends State<AttendanceApp> {
           primary: const Color(0xFF1D4ED8),
           surface: Colors.white,
         ),
-        scaffoldBackgroundColor: Colors.white,
+        scaffoldBackgroundColor: const Color(0xFFF3F4F6),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Color(0xFF1E3A8A),
+          centerTitle: false,
+        ),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          color: Colors.white,
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFE5E7EB)),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
         useMaterial3: true,
         filledButtonTheme: FilledButtonThemeData(
           style: FilledButton.styleFrom(
@@ -85,21 +104,17 @@ class _AttendanceAppState extends State<AttendanceApp> {
       ),
       home: _loggedIn
           ? (_role == 'teacher'
-              ? TeacherHomeScreen(
-                  api: _api,
-                  session: _session,
-                  onLogout: _onLoggedOut,
-                )
-              : HomeScreen(
-                  api: _api,
-                  session: _session,
-                  onLogout: _onLoggedOut,
-                ))
-          : LoginScreen(
-              api: _api,
-              session: _session,
-              onLogin: _onLoggedIn,
-            ),
+                ? TeacherHomeScreen(
+                    api: _api,
+                    session: _session,
+                    onLogout: _onLoggedOut,
+                  )
+                : HomeScreen(
+                    api: _api,
+                    session: _session,
+                    onLogout: _onLoggedOut,
+                  ))
+          : LoginScreen(api: _api, session: _session, onLogin: _onLoggedIn),
     );
   }
 }

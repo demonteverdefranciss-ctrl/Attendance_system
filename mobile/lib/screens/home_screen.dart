@@ -1,3 +1,4 @@
+import '../widgets/school_navigation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
@@ -50,11 +51,13 @@ class _HomeScreenState extends State<HomeScreen> {
       final dash = await widget.api.get('/parent/dashboard');
       final students = await widget.api.get('/students');
       final dashData = dash['data'] as Map<String, dynamic>;
-      final studentList = (students['data'] as List).cast<Map<String, dynamic>>();
+      final studentList = (students['data'] as List)
+          .cast<Map<String, dynamic>>();
 
       setState(() {
         _userName = name ?? 'Parent';
-        _childrenCount = dashData['children_count'] as int? ?? studentList.length;
+        _childrenCount =
+            dashData['children_count'] as int? ?? studentList.length;
         _unread = dashData['unread_notifications'] as int? ?? 0;
         _notifyPref = dashData['notify_pref'] as String? ?? 'push';
         _students = studentList;
@@ -70,15 +73,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _saveNotifyPref(String pref) async {
     try {
-      await widget.api.post('/parent/notification-preference', {'notify_pref': pref});
+      await widget.api.post('/parent/notification-preference', {
+        'notify_pref': pref,
+      });
       setState(() => _notifyPref = pref);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(pref == 'push' ? 'Push notifications on.' : 'Push notifications off.')),
+        SnackBar(
+          content: Text(
+            pref == 'push'
+                ? 'Push notifications on.'
+                : 'Push notifications off.',
+          ),
+        ),
       );
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -91,6 +104,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: SchoolNavigation(
+        api: widget.api,
+        teacher: false,
+        onReturn: () {
+          if (mounted) _load();
+        },
+      ),
       appBar: AppBar(
         title: const Text('Parent Dashboard'),
         actions: [
@@ -127,9 +147,10 @@ class _HomeScreenState extends State<HomeScreen> {
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
-                  Text('Welcome, $_userName', style: Theme.of(context).textTheme.titleLarge),
+                  SchoolWelcome(name: _userName, role: 'Parent'),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -142,7 +163,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Card(
                     child: SwitchListTile(
                       title: const Text('Push notifications'),
-                      subtitle: const Text('Attendance alerts for your children'),
+                      subtitle: const Text(
+                        'Attendance alerts for your children',
+                      ),
                       value: _notifyPref == 'push',
                       onChanged: (on) => _saveNotifyPref(on ? 'push' : 'none'),
                     ),
@@ -155,7 +178,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('My Children', style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'My Children',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       TextButton.icon(
                         onPressed: () async {
                           await Navigator.of(context).push(
@@ -191,14 +217,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (_students.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text('No linked children yet. Submit an LRN for teacher verification.'),
+                      child: Text(
+                        'No linked children yet. Submit an LRN for teacher verification.',
+                      ),
                     ),
                   ..._students.map((student) {
-                    final name = '${student['first_name']} ${student['last_name']}';
+                    final name =
+                        '${student['first_name']} ${student['last_name']}';
                     return Card(
                       child: ListTile(
                         title: Text(name),
-                        subtitle: Text(student['section']?.toString() ?? 'No section'),
+                        subtitle: Text(
+                          student['section']?.toString() ?? 'No section',
+                        ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
