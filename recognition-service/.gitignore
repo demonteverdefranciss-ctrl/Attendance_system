@@ -4,3 +4,6 @@ models/
 .env
 __pycache__/
 *.pyc
+
+# Private local attendance queue and session cache
+offline-data/

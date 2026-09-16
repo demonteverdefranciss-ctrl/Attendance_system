@@ -75,6 +75,15 @@ class AttendanceService
      */
     public function closeSession(AttendanceSession $session, array $opts = []): void
     {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($session, $opts) {
+            $locked = AttendanceSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
+            $this->finishCloseSession($locked, $opts);
+            $session->setRawAttributes($locked->getAttributes(), true);
+        }, 3);
+    }
+
+    private function finishCloseSession(AttendanceSession $session, array $opts): void
+    {
         if ($session->status === 'closed') {
             return;
         }
@@ -134,22 +143,13 @@ class AttendanceService
     }
 
     /**
-     * Stop the local recognition process when every session today is closed.
-     * No-op on Railway (recognition is not installed there).
+     * Leave the recognition worker alive to drain offline captures.
+     * Session polling releases the camera when all sessions are closed.
      */
     public function stopRecognitionIfIdle(): void
     {
-        $stillOpen = AttendanceSession::where('status', 'open')->exists();
+        // Kept for existing callers. Polling stops video; the worker must drain its queue.
 
-        if ($stillOpen) {
-            return;
-        }
-
-        try {
-            app(RecognitionProcessService::class)->stop();
-        } catch (\Throwable) {
-            // Recognition node may be unavailable on cloud hosts.
-        }
     }
 
     /**
@@ -202,7 +202,7 @@ class AttendanceService
         $record->save();
 
         if (empty($opts['skip_notification'])) {
-            $this->dispatchAttendanceNotificationIfNeeded($record, $isNew, $beforeStatus, $beforeTimeIn);
+            $this->dispatchAttendanceNotificationIfNeeded($record, $isNew, $beforeStatus, $beforeTimeIn, (bool) ($opts['was_offline'] ?? false));
         }
 
         if (empty($opts['skip_audit'])) {
@@ -318,7 +318,8 @@ class AttendanceService
         AttendanceRecord $record,
         bool $isNew,
         ?string $beforeStatus,
-        mixed $beforeTimeIn
+        mixed $beforeTimeIn,
+        bool $wasOffline = false
     ): void {
         $shouldNotify = match ($record->status) {
             'present', 'late' => $isNew
@@ -338,6 +339,6 @@ class AttendanceService
             return;
         }
 
-        $this->notifications->queueAttendanceEvent($student, $record);
+        $this->notifications->queueAttendanceEvent($student, $record, $wasOffline);
     }
 }

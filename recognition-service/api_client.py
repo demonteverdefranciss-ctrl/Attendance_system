@@ -14,7 +14,7 @@ def device_headers():
     }
 
 
-def post_recognition(student_id, confidence=None, captured_at=None, client_uuid=None, event_type=None, timeout=10):
+def post_recognition(student_id, confidence=None, captured_at=None, client_uuid=None, event_type=None, timeout=10, session_id=None):
     """
     POST a recognition event to the backend (device-authenticated).
 
@@ -27,6 +27,8 @@ def post_recognition(student_id, confidence=None, captured_at=None, client_uuid=
         "student_id": int(student_id),
         "client_uuid": client_uuid or str(uuid.uuid4()),
     }
+    if session_id is not None:
+        payload["session_id"] = int(session_id)
     if confidence is not None:
         payload["confidence"] = round(float(confidence), 4)
     if captured_at is not None:

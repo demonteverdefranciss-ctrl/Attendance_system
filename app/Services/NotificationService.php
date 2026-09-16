@@ -16,7 +16,7 @@ class NotificationService
     /**
      * Queue guardian notifications for attendance events.
      */
-    public function queueAttendanceEvent(Student $student, AttendanceRecord $record): void
+    public function queueAttendanceEvent(Student $student, AttendanceRecord $record, bool $wasOffline = false): void
     {
         $type = $this->eventTypeForStatus($record->status);
         if (! $type) {
@@ -32,6 +32,12 @@ class NotificationService
 
             [$title, $body] = $this->attendanceMessage($type, $student->full_name);
 
+            if ($wasOffline && $record->time_in) {
+                $body = "{$student->full_name} was recorded {$record->status} at "
+                    .$record->time_in->format('M j, Y g:i A')
+                    .'. This update was delayed while the attendance device could not synchronize.';
+            }
+
             $notification = Notification::create([
                 'guardian_id' => $guardian->id,
                 'student_id' => $student->id,
@@ -41,6 +47,7 @@ class NotificationService
                 'body' => $body,
                 'payload' => [
                     'attendance_record_id' => $record->id,
+                    'was_offline' => $wasOffline,
                     'status' => $record->status,
                     'time_in' => $record->time_in?->toDateTimeString(),
                     'time_out' => $record->time_out?->toDateTimeString(),
@@ -49,7 +56,7 @@ class NotificationService
                 'status' => 'pending',
             ]);
 
-            SendPushNotificationJob::dispatch($notification->id);
+            SendPushNotificationJob::dispatch($notification->id)->afterCommit();
         }
     }
 
@@ -85,7 +92,7 @@ class NotificationService
             ]);
 
             if ($guardian->notify_pref === 'push') {
-                SendPushNotificationJob::dispatch($notification->id);
+                SendPushNotificationJob::dispatch($notification->id)->afterCommit();
             } else {
                 $notification->update(['status' => 'sent', 'sent_at' => now()]);
             }
@@ -124,7 +131,7 @@ class NotificationService
         ]);
 
         if ($guardian->notify_pref === 'push') {
-            SendPushNotificationJob::dispatch($notification->id);
+            SendPushNotificationJob::dispatch($notification->id)->afterCommit();
         } else {
             $notification->update(['status' => 'sent', 'sent_at' => now()]);
         }
@@ -162,7 +169,7 @@ class NotificationService
                     ]);
 
                     if ($guardian->notify_pref === 'push') {
-                        SendPushNotificationJob::dispatch($notification->id);
+                        SendPushNotificationJob::dispatch($notification->id)->afterCommit();
                     } else {
                         $notification->update(['status' => 'sent', 'sent_at' => now()]);
                     }
