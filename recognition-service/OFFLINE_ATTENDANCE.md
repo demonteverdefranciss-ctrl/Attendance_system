@@ -42,10 +42,19 @@ The PC must stay running for recognition; events already saved survive restarts.
 From `recognition-service`:
 
 ```powershell
+python check_connection.py
 python sync_attendance.py --status
 python sync_attendance.py --once
 python sync_attendance.py
 ```
+
+`check_connection.py` checks the configured backend and session roster without
+sending attendance. The website you open and `API_BASE_URL` must refer to the same
+server. If the server cannot be reached before any session has been cached,
+attendance cannot start offline. Restore access, open the section's session, and
+restart recognition. The `O` key enables preview only; it does not authorize a
+session. If the diagnostic reports an older backend, deploy the offline update
+and its migration to the branch Railway actually uses.
 
 The last command keeps retrying until Ctrl+C, without loading models or video.
 Status lists counts and up to 20 pending/rejected event IDs and error codes.

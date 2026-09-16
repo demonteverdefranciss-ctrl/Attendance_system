@@ -58,9 +58,14 @@ class OfflineQueue:
         if event_type not in ('in', 'out'):
             raise ValueError('Event type must be in or out')
         now = datetime.now().astimezone() if now is None else now
-        sessions = [s for s in self.sessions(now.timestamp()) if student_id in s['student_ids']]
-        if len(sessions) != 1:
-            raise ValueError('No valid cached session for this student. Connect to the server to open a session.')
+        active = self.sessions(now.timestamp())
+        if not active:
+            raise ValueError('No unexpired session cache. Connect to the server and open a session first.')
+        sessions = [s for s in active if student_id in s['student_ids']]
+        if not sessions:
+            raise ValueError('Student is not in this camera session. Check section assignment and biometric consent.')
+        if len(sessions) > 1:
+            raise ValueError('Student has overlapping sessions. Close the extra session on the website.')
         session_id = sessions[0]['id']
         # Persist deduplication across restarts and serialize concurrent captures.
         with self.connect() as db:

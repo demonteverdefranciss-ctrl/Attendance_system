@@ -11,6 +11,9 @@ class IntegrationTests(unittest.TestCase):
         event_type = patch.object(recognize.config, "EVENT_TYPE_HINT", "in")
         event_type.start()
         self.addCleanup(event_type.stop)
+        problem = patch.object(recognize, 'session_problem', '')
+        problem.start()
+        self.addCleanup(problem.stop)
         self.patch = patch.object(recognize, 'outbox', self.queue)
         self.patch.start()
         self.addCleanup(self.patch.stop)
@@ -49,3 +52,26 @@ class IntegrationTests(unittest.TestCase):
         recognize.record(10, .9)
         self.assertEqual(self.queue.counts(), {})
         self.assertIn('NOT SAVED', recognize.current_post_status())
+
+    def test_older_backend_reports_update_required_not_closed(self):
+        with patch.object(recognize, 'get_open_sessions') as get:
+            get.return_value.status_code = 200
+            get.return_value.json.return_value = {'success': True, 'data': {'open': True, 'count': 1}}
+            opened, reached, _ = recognize.session_is_open()
+        self.assertFalse(opened)
+        self.assertTrue(reached)
+        self.assertIn('Backend update required', recognize.session_problem)
+        self.assertFalse(recognize.record(10, .9))
+        self.assertEqual(self.queue.counts(), {})
+
+    def test_timeout_without_cache_explains_attendance_is_blocked(self):
+        self.queue.cache_sessions([])
+        with patch.object(recognize, 'get_open_sessions', side_effect=TimeoutError):
+            opened, reached, _ = recognize.session_is_open()
+        self.assertFalse(opened)
+        self.assertFalse(reached)
+        self.assertIn('no session cached', recognize.session_problem)
+
+    def test_student_outside_session_reports_assignment_problem(self):
+        self.assertFalse(recognize.record(99, .9))
+        self.assertIn('section assignment', recognize.current_post_status())

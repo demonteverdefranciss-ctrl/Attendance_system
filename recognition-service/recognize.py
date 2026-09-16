@@ -31,6 +31,7 @@ sync_stop = threading.Event()
 sync_wake = threading.Event()
 sync_counts = {}
 sync_error = None
+session_problem = 'Waiting for the server to authorize a session'
 
 
 def start_sync():
@@ -211,6 +212,8 @@ class FrameGrabber:
 def record(student_id, confidence, session_state=None):
     """Commit to disk before any network operation."""
     try:
+        if session_problem == 'Backend update required - deploy offline attendance':
+            raise ValueError(session_problem)
         outbox.enqueue(int(student_id), float(confidence),
                        event_type=config.EVENT_TYPE_HINT or "in",
                        cooldown=config.COOLDOWN_SECONDS)
@@ -266,30 +269,46 @@ def session_is_open(previous=False, timeout=8):
     A successful `open: false` always turns the camera off.
     Network errors use only unexpired server-issued cached sessions.
     """
+    global session_problem
     try:
         resp = get_open_sessions(timeout=timeout)
         if resp.status_code == 200:
-            payload = resp.json().get("data", {}) or {}
-            outbox.cache_sessions(payload.get("sessions", []))
+            body = resp.json()
+            payload = body.get("data", {}) or {}
+            if body.get("success") is not True or not isinstance(payload, dict):
+                raise ValueError('Invalid session response')
+            if not isinstance(payload.get("sessions"), list):
+                session_problem = 'Backend update required - deploy offline attendance'
+                set_hud(session_problem, ok=False)
+                print('[SESSION] Backend is missing the offline session roster. Deploy the backend update and migration; O only enables the preview.')
+                return False, True, None
+            outbox.cache_sessions(payload["sessions"])
             open_now = bool(outbox.sessions())
             engine_name = payload.get("engine")
             if engine_name not in ("lbph", "arcface"):
                 engine_name = None
             if open_now:
+                session_problem = ''
                 set_hud("Session open · camera live", ok=True)
             else:
+                session_problem = 'No active session for this camera - open one on the website'
                 set_hud("Session closed — camera off", ok=False)
                 if previous:
                     print("[INFO] Backend reports no open session — releasing camera.")
             return open_now, True, engine_name
         if resp.status_code in (401, 403):
             outbox.cache_sessions([])
-        print(f"[WARN] session check: HTTP {resp.status_code} {resp.text[:120]}")
-        set_hud(f"API HTTP {resp.status_code} — keeping last state", ok=previous)
+            session_problem = 'Device access denied - check camera credentials'
+            set_hud(session_problem, ok=False)
+            return False, True, None
+        print(f"[WARN] session check: HTTP {resp.status_code}")
     except Exception as exc:
-        print(f"[WARN] session check failed (keeping previous state): {exc}")
-        set_hud("Offline - using cached session until expiry", ok=False)
-    return bool(outbox.sessions()), False, None
+        print(f"[SESSION] Server check failed: {type(exc).__name__}")
+    cached = bool(outbox.sessions())
+    session_problem = ('Offline - using cached session until expiry' if cached else
+                       'Server unreachable - no session cached, attendance blocked')
+    set_hud(session_problem, ok=False)
+    return cached, False, None
 
 
 def check_session_async(state, timeout=8):
@@ -497,6 +516,7 @@ def main():
     grabber = FrameGrabber()
     consecutive = {}
     last_posted = {}
+    retry_after = {}
     # Offline restarts may use only an unexpired server-issued session cache.
     session_state = {
         "session_open": False if session_gated else True,
@@ -537,7 +557,7 @@ def main():
             session_state["force_closed"] = False
             session_state["force_open"] = True
             session_state["session_open"] = True
-            set_hud("Forced ON (press C to turn off)", ok=True)
+            set_hud("Preview ON - attendance still requires a session", ok=False)
             print("[INFO] Forced camera ON (O).")
         elif key in (ord("c"), ord("C")):
             session_state["force_closed"] = True
@@ -705,11 +725,18 @@ def main():
                         log_scan(f"duplicate scan ignored for #{sid}", f"dup:{sid}", every=5.0)
                         if not pipeline_is_holding():
                             set_pipeline("ATTEND", ok=False, detail=detail, hold=3.0)
+                    elif now < retry_after.get(sid, 0):
+                        label = f"{det.label}  waiting for session/save retry"
+                        consecutive[sid] = 0
                     else:
                         step, step_ok = "ATTEND", None
                         detail = f"#{sid} attendance checks"
                         saved = record(sid, det.confidence, session_state=session_state)
-                        last_posted[sid] = now if saved else now - config.COOLDOWN_SECONDS + 5
+                        if saved:
+                            last_posted[sid] = now
+                            retry_after.pop(sid, None)
+                        else:
+                            retry_after[sid] = now + 5
                         consecutive[sid] = 0
 
                 cv2.rectangle(frame, (det.x, det.y), (det.x + det.w, det.y + det.h), color, 2)
