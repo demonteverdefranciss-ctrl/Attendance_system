@@ -123,3 +123,9 @@ python test_api.py 1
 - Attendance is **deduplicated** by the backend (`unique(session, student)`),
   so re-recognitions are harmless.
 - No anti-spoofing / liveness yet.
+
+## Offline attendance
+
+Recognition now saves authorized captures to a durable local SQLite queue before uploading.
+See [Offline attendance setup and recovery](OFFLINE_ATTENDANCE.md) for deployment,
+entrance/exit camera configuration, cached-session limits, status commands, and outage testing.

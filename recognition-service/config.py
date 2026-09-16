@@ -46,6 +46,7 @@ SESSION_POLL_SECONDS = int(os.getenv("SESSION_POLL_SECONDS", "15"))
 FACE_SIZE = (200, 200)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OFFLINE_QUEUE_PATH = os.path.join(BASE_DIR, "offline-data", "attendance.sqlite3")
 DATASET_DIR = os.path.join(BASE_DIR, "dataset")
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "lbph.yml")

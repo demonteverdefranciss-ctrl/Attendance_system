@@ -13,8 +13,6 @@ Scan pipeline (a detected face is never enough on its own):
 import os
 import threading
 import time
-import uuid
-from datetime import datetime
 
 import cv2
 import numpy as np
@@ -24,8 +22,40 @@ from api_client import get_open_sessions, post_recognition
 from engine import load_engine
 from face_validation import reason_label
 from preview import for_display
+from offline_queue import OfflineQueue, sync_once
 
 LOCK_FILE = os.path.join(config.BASE_DIR, ".recognize.lock")
+
+outbox = None
+sync_stop = threading.Event()
+sync_wake = threading.Event()
+sync_counts = {}
+sync_error = None
+session_problem = 'Waiting for the server to authorize a session'
+
+
+def start_sync():
+    global outbox
+    outbox = OfflineQueue(config.OFFLINE_QUEUE_PATH, f"{config.API_BASE_URL}|{config.CAMERA_ID}")
+    sync_stop.clear()
+
+    def worker():
+        global sync_counts, sync_error
+        while not sync_stop.is_set():
+            try:
+                sync_once(outbox, post_recognition)
+                sync_counts = outbox.counts()
+                print(f"[QUEUE] {sync_counts}", flush=True)
+                sync_error = None
+            except Exception as exc:
+                sync_error = type(exc).__name__
+                print(f"[QUEUE] Sync worker error: {sync_error}")
+            sync_wake.wait(15)
+            sync_wake.clear()
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    return thread
+
 
 _post_status = {"text": "", "until": 0.0}
 _post_status_lock = threading.Lock()
@@ -180,58 +210,22 @@ class FrameGrabber:
 
 
 def record(student_id, confidence, session_state=None):
-    """Post attendance in a background thread so RTSP reading stays live."""
-    captured_at = datetime.now().astimezone().isoformat()
-    client_uuid = str(uuid.uuid4())
-    set_post_status(f"Posting #{student_id}…", seconds=30.0)
-    set_pipeline("ATTEND", ok=None, detail=f"#{student_id} session/student checks", hold=8.0)
-    print(f"[…] posting student {student_id}…")
-
-    def _post():
-        try:
-            resp = post_recognition(
-                student_id,
-                confidence=confidence,
-                captured_at=captured_at,
-                client_uuid=client_uuid,
-                event_type=config.EVENT_TYPE_HINT,
-                timeout=8,
-            )
-            if resp.status_code in (200, 201):
-                mode = "recorded"
-                try:
-                    payload = resp.json().get("data", {})
-                    if payload.get("time_out"):
-                        mode = "time-out"
-                    elif payload.get("time_in"):
-                        mode = "time-in"
-                except Exception:
-                    pass
-                print(f"[OK]  student {student_id} {mode} (conf={confidence:.2f})")
-                set_post_status(f"OK #{student_id} {mode}", seconds=5.0)
-                set_pipeline("RECORD", ok=True, detail=f"#{student_id} {mode}", hold=5.0)
-            else:
-                err_code = None
-                try:
-                    err_code = (resp.json().get("error") or {}).get("code")
-                except Exception:
-                    pass
-                why = ATTEND_ERROR_LABELS.get(err_code, f"HTTP {resp.status_code}")
-                print(f"[WARN] student {student_id}: HTTP {resp.status_code} {resp.text[:200]}")
-                set_post_status(f"Blocked #{student_id}: {why}", seconds=6.0)
-                set_pipeline("ATTEND", ok=False, detail=why, hold=6.0)
-                # Backend says no open session → turn camera off immediately.
-                if err_code == "NO_SESSION" and session_state is not None:
-                    session_state["session_open"] = False
-                    session_state["force_open"] = False
-                    set_hud("Session closed — camera off", ok=False)
-                    print("[INFO] NO_SESSION from API — releasing camera.")
-        except Exception as exc:
-            print(f"[ERR] student {student_id}: {exc}")
-            set_post_status(f"Network error #{student_id}", seconds=6.0)
-            set_pipeline("ATTEND", ok=False, detail="network error", hold=6.0)
-
-    threading.Thread(target=_post, daemon=True).start()
+    """Commit to disk before any network operation."""
+    try:
+        if session_problem == 'Backend update required - deploy offline attendance':
+            raise ValueError(session_problem)
+        outbox.enqueue(int(student_id), float(confidence),
+                       event_type=config.EVENT_TYPE_HINT or "in",
+                       cooldown=config.COOLDOWN_SECONDS)
+        set_post_status(f"Saved locally #{student_id} - awaiting sync", seconds=6)
+        set_pipeline("RECORD", ok=True, detail="saved locally", hold=5)
+        sync_wake.set()
+        return True
+    except Exception as exc:
+        set_post_status(f"NOT SAVED #{student_id}: {exc}", seconds=10)
+        set_pipeline("RECORD", ok=False, detail="local save blocked", hold=5)
+        print(f"[QUEUE] Capture not saved: {type(exc).__name__}: {exc}")
+        return False
 
 
 def should_quit(window_name="Recognize"):
@@ -273,30 +267,48 @@ def session_is_open(previous=False, timeout=8):
 
     Returns (open_now, reached_api, engine_name).
     A successful `open: false` always turns the camera off.
-    Network errors keep the previous state so a brief Railway blip does not
-    flicker the camera.
+    Network errors use only unexpired server-issued cached sessions.
     """
+    global session_problem
     try:
         resp = get_open_sessions(timeout=timeout)
         if resp.status_code == 200:
-            payload = resp.json().get("data", {}) or {}
-            open_now = bool(payload.get("open"))
+            body = resp.json()
+            payload = body.get("data", {}) or {}
+            if body.get("success") is not True or not isinstance(payload, dict):
+                raise ValueError('Invalid session response')
+            if not isinstance(payload.get("sessions"), list):
+                session_problem = 'Backend update required - deploy offline attendance'
+                set_hud(session_problem, ok=False)
+                print('[SESSION] Backend is missing the offline session roster. Deploy the backend update and migration; O only enables the preview.')
+                return False, True, None
+            outbox.cache_sessions(payload["sessions"])
+            open_now = bool(outbox.sessions())
             engine_name = payload.get("engine")
             if engine_name not in ("lbph", "arcface"):
                 engine_name = None
             if open_now:
+                session_problem = ''
                 set_hud("Session open · camera live", ok=True)
             else:
+                session_problem = 'No active session for this camera - open one on the website'
                 set_hud("Session closed — camera off", ok=False)
                 if previous:
                     print("[INFO] Backend reports no open session — releasing camera.")
             return open_now, True, engine_name
-        print(f"[WARN] session check: HTTP {resp.status_code} {resp.text[:120]}")
-        set_hud(f"API HTTP {resp.status_code} — keeping last state", ok=previous)
+        if resp.status_code in (401, 403):
+            outbox.cache_sessions([])
+            session_problem = 'Device access denied - check camera credentials'
+            set_hud(session_problem, ok=False)
+            return False, True, None
+        print(f"[WARN] session check: HTTP {resp.status_code}")
     except Exception as exc:
-        print(f"[WARN] session check failed (keeping previous state): {exc}")
-        set_hud("Railway unreachable — press O to force camera ON", ok=False)
-    return previous, False, None
+        print(f"[SESSION] Server check failed: {type(exc).__name__}")
+    cached = bool(outbox.sessions())
+    session_problem = ('Offline - using cached session until expiry' if cached else
+                       'Server unreachable - no session cached, attendance blocked')
+    set_hud(session_problem, ok=False)
+    return cached, False, None
 
 
 def check_session_async(state, timeout=8):
@@ -431,7 +443,11 @@ def draw_hud(frame):
         cv2.rectangle(frame, (x1 + 2, 38), (x2, 64), fill, -1)
         cv2.putText(frame, labels[i], (x1 + 6, 56), cv2.FONT_HERSHEY_SIMPLEX, 0.42, text_c, 1)
 
-    status = current_post_status()
+    counts = sync_counts
+    status = f"Queue: {counts.get('pending', 0)} pending / {counts.get('rejected', 0)} rejected"
+    if sync_error:
+        status += " - STORAGE ERROR"
+    status += " | " + current_post_status()
     if status:
         cv2.putText(
             frame,
@@ -446,6 +462,7 @@ def draw_hud(frame):
 
 def idle_frame(message, hint="q / Esc / close window to quit"):
     img = np.zeros((360, 640, 3), dtype=np.uint8)
+    draw_hud(img)
     cv2.putText(img, message[:48], (24, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (220, 220, 220), 2)
     cv2.putText(img, hint[:55], (24, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (150, 150, 150), 1)
     cv2.putText(
@@ -482,12 +499,16 @@ def main():
     if not acquire_lock():
         return
 
+    sync_thread = start_sync()
     maybe_start_stream_server()
 
     try:
         engine.load()
     except Exception as exc:
         print(f"ERROR: could not load {engine.name} engine: {exc}")
+        sync_stop.set()
+        sync_wake.set()
+        sync_thread.join(timeout=10)
         release_lock()
         return
 
@@ -495,10 +516,12 @@ def main():
     grabber = FrameGrabber()
     consecutive = {}
     last_posted = {}
-    # Start closed until the API confirms an open session (or user presses O).
+    retry_after = {}
+    # Offline restarts may use only an unexpired server-issued session cache.
     session_state = {
         "session_open": False if session_gated else True,
         "checking": False,
+        "force_closed": False,
         "force_open": False,  # manual override when Railway is unreachable
     }
     last_session_check = 0.0
@@ -531,11 +554,13 @@ def main():
         if key in (ord("q"), 27):
             return True
         if key in (ord("o"), ord("O")):
+            session_state["force_closed"] = False
             session_state["force_open"] = True
             session_state["session_open"] = True
-            set_hud("Forced ON (press C to turn off)", ok=True)
+            set_hud("Preview ON - attendance still requires a session", ok=False)
             print("[INFO] Forced camera ON (O).")
         elif key in (ord("c"), ord("C")):
+            session_state["force_closed"] = True
             session_state["force_open"] = False
             session_state["session_open"] = False
             set_hud("Forced OFF — waiting for session", ok=False)
@@ -557,6 +582,8 @@ def main():
                 check_session_async(session_state, timeout=to)
                 last_session_check = now
 
+            if not outbox.sessions():
+                session_state["session_open"] = False
             wanted = session_state.get("wanted_engine")
             if wanted and wanted != engine.name:
                 engine = switch_engine(engine, wanted)
@@ -564,6 +591,8 @@ def main():
             session_open = True
             if session_gated:
                 session_open = session_state["session_open"] or session_state["force_open"]
+            if session_state["force_closed"]:
+                session_open = False
 
             if not session_open:
                 if grabber.is_open:
@@ -696,11 +725,18 @@ def main():
                         log_scan(f"duplicate scan ignored for #{sid}", f"dup:{sid}", every=5.0)
                         if not pipeline_is_holding():
                             set_pipeline("ATTEND", ok=False, detail=detail, hold=3.0)
+                    elif now < retry_after.get(sid, 0):
+                        label = f"{det.label}  waiting for session/save retry"
+                        consecutive[sid] = 0
                     else:
                         step, step_ok = "ATTEND", None
                         detail = f"#{sid} attendance checks"
-                        record(sid, det.confidence, session_state=session_state)
-                        last_posted[sid] = now
+                        saved = record(sid, det.confidence, session_state=session_state)
+                        if saved:
+                            last_posted[sid] = now
+                            retry_after.pop(sid, None)
+                        else:
+                            retry_after[sid] = now + 5
                         consecutive[sid] = 0
 
                 cv2.rectangle(frame, (det.x, det.y), (det.x + det.w, det.y + det.h), color, 2)
@@ -734,6 +770,9 @@ def main():
                 time.sleep(0.01)
 
     finally:
+        sync_stop.set()
+        sync_wake.set()
+        sync_thread.join(timeout=10)
         grabber.stop()
         cv2.destroyAllWindows()
         release_lock()

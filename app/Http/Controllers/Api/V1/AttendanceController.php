@@ -30,82 +30,11 @@ class AttendanceController extends ApiController
             'confidence' => ['nullable', 'numeric', 'between:0,1'],
             'captured_at' => ['nullable', 'date'],
             'client_uuid' => ['required', 'uuid'],
+            'session_id' => ['nullable', 'integer'],
+            'event_type' => ['nullable', 'in:in,out'],
         ]);
-
-        // Idempotency: a re-sent event returns the existing record unchanged.
-        $existing = AttendanceRecord::where('client_uuid', $data['client_uuid'])->first();
-        if ($existing) {
-            return $this->ok($this->recordPayload($existing), 200);
-        }
-
-        // Attendance validation after a recognized identity:
-        // active student, biometric consent, assigned section, this camera,
-        // an open session, then Present/Late or time-out. A detected face
-        // alone is never enough to write a record.
-        $student = Student::with('section:id,camera_id')->find($data['student_id']);
-
-        if (! $student->is_active) {
-            return $this->fail('Student account is inactive.', 'STUDENT_INACTIVE', 422);
-        }
-
-        if (! $student->consent_biometric) {
-            return $this->fail('Biometric consent is not recorded for this student.', 'NO_BIOMETRIC_CONSENT', 422);
-        }
-
-        if (! $student->section_id) {
-            return $this->fail('Student is not assigned to a section.', 'NO_SECTION', 422);
-        }
-
-        $capturedAt = isset($data['captured_at']) ? Carbon::parse($data['captured_at']) : now();
-        $camera = $request->attributes->get('camera');
-
-        if ($camera instanceof Camera && ! $camera->coversSection((int) $student->section_id, $student->section?->camera_id)) {
-            return $this->fail('This camera is not assigned to the student\'s section.', 'WRONG_CAMERA', 422);
-        }
-
-        $session = $this->attendance->currentOpenSession($student->section_id);
-        if (! $session) {
-            return $this->fail('No active attendance session for this section.', 'NO_SESSION', 422);
-        }
-
-        // Time-in vs time-out only within the *current open* session so a re-opened
-        // session after close does not inherit a stale arrival from an earlier one.
-        $record = AttendanceRecord::where('session_id', $session->id)
-            ->where('student_id', $student->id)
-            ->first();
-
-        if ($record && in_array($record->status, ['present', 'late'], true) && ! $record->time_out) {
-            try {
-                $record = $this->attendance->recordTimeOut(
-                    $session,
-                    $student->id,
-                    $capturedAt,
-                    [
-                        'client_uuid' => $data['client_uuid'],
-                        'marked_by' => null,
-                        'ip_address' => $request->ip(),
-                        'user_agent' => $request->userAgent(),
-                    ]
-                );
-            } catch (\InvalidArgumentException $e) {
-                return $this->fail($e->getMessage(), 'INVALID_TIMEOUT', 422);
-            }
-
-            return $this->ok($this->recordPayload($record), 201);
-        }
-
-        $status = $this->attendance->statusForArrival($session->schedule, $capturedAt, $session);
-        $record = $this->attendance->mark($session, $student->id, $status, [
-            'method' => 'face',
-            'confidence' => $data['confidence'] ?? null,
-            'camera_id' => $camera?->id,
-            'time_in' => $capturedAt,
-            'client_uuid' => $data['client_uuid'],
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
-
-        return $this->ok($this->recordPayload($record), 201);
+        return $this->ok(app(\App\Services\RecognitionIngestService::class)
+            ->ingest($request->attributes->get('camera'), $data));
     }
 
     /**
@@ -124,14 +53,26 @@ class AttendanceController extends ApiController
             $sectionIds = $camera->sections()->pluck('id');
             if ($sectionIds->isNotEmpty()) {
                 $query->whereIn('section_id', $sectionIds);
+            } else {
+                $query->whereHas('section', fn ($q) => $q->whereNull('camera_id'));
             }
         }
 
-        $count = $query->count();
+        $sessions = $query->with(['schedule', 'section'])->get()->filter(fn ($session) =>
+            $session->opened_at && \App\Services\RecognitionIngestService::expiresAt($session)->isFuture());
+        $count = $sessions->count();
 
         return $this->ok([
             'open' => $count > 0,
             'count' => $count,
+            'sessions' => $sessions->map(fn ($session) => [
+                'id' => $session->id,
+                'section_id' => $session->section_id,
+                'opened_at' => $session->opened_at->toIso8601String(),
+                'expected_close_at' => \App\Services\RecognitionIngestService::expiresAt($session)->toIso8601String(),
+                'student_ids' => Student::where('section_id', $session->section_id)
+                    ->where('is_active', true)->where('consent_biometric', true)->pluck('id')->all(),
+            ])->values(),
             'engine' => \App\Support\RecognitionEngine::current(),
         ]);
     }
