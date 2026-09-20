@@ -1,4 +1,5 @@
 import { Head, router } from '@inertiajs/react';
+import AttendancePeriodFilter from '@/Components/AttendancePeriodFilter';
 import ParentLayout from '@/Layouts/ParentLayout';
 import Pagination, { usePageRows } from '@/Components/Pagination';
 import { formatDateTime } from '@/Pages/Parent/shared';
@@ -13,9 +14,10 @@ const STATUS_COLORS = {
 export default function AttendanceIndex({ children = [], records = [], filters = {} }) {
     const { rows, paginator } = usePageRows(records);
     const studentId = filters.student_id ?? 'all';
+    const period = filters.period ?? 'all';
 
     const selectChild = (id) => {
-        const params = id === 'all' ? {} : { student_id: id };
+        const params = { period, ...(id === 'all' ? {} : { student_id: id }) };
         router.get(route('parent.attendance.index'), params, { preserveState: true, preserveScroll: true });
     };
 
@@ -27,6 +29,11 @@ export default function AttendanceIndex({ children = [], records = [], filters =
                 <div className="border-b border-gray-100 px-4 py-3">
                     <h2 className="text-base font-semibold text-gray-900">Attendance records</h2>
                     <p className="text-xs text-gray-500">Time in and time out for each linked child.</p>
+                    <div className="mt-4">
+                        <AttendancePeriodFilter value={period} onChange={(value) => router.get(route('parent.attendance.index'), {
+                            period: value, ...(studentId === 'all' ? {} : { student_id: studentId }),
+                        }, { preserveState: true, preserveScroll: true })} />
+                    </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                         <button
                             type="button"
@@ -74,7 +81,7 @@ export default function AttendanceIndex({ children = [], records = [], filters =
                             {rows.length === 0 && (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
-                                        No attendance records yet.
+                                        No attendance records for the selected filters.
                                     </td>
                                 </tr>
                             )}
