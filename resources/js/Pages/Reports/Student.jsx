@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AttendancePeriodFilter, { periodDates, selectedPeriod } from '@/Components/AttendancePeriodFilter';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TeacherLayout from '@/Layouts/TeacherLayout';
@@ -64,6 +65,11 @@ export default function ReportStudent({ student, summary, trend, filters }) {
             </p>
 
             <form onSubmit={apply} className="mb-6 flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+                <AttendancePeriodFilter includeAll={false} value={selectedPeriod(filters, today)} onChange={(period) => {
+                    const next = periodDates(period, today);
+                    setForm(next);
+                    router.get(route('reports.student', student.id), next, { preserveScroll: true });
+                }} />
                 <div>
                     <label className="block text-xs font-medium text-gray-600">From</label>
                     <input

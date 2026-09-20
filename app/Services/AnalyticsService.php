@@ -157,7 +157,7 @@ class AnalyticsService
     {
         $summaryQuery = AttendanceRecord::query()
             ->where('student_id', $student->id)
-            ->whereHas('session', fn ($s) => $s->whereBetween('session_date', [$from, $to]));
+            ->whereHas('session', fn ($s) => $s->whereDate('session_date', '>=', $from)->whereDate('session_date', '<=', $to));
 
         $counts = (clone $summaryQuery)
             ->selectRaw('status, COUNT(*) as c')
@@ -173,7 +173,8 @@ class AnalyticsService
         $trend = AttendanceRecord::query()
             ->where('student_id', $student->id)
             ->join('attendance_sessions', 'attendance_sessions.id', '=', 'attendance_records.session_id')
-            ->whereBetween('attendance_sessions.session_date', [$from, $to])
+            ->whereDate('attendance_sessions.session_date', '>=', $from)
+            ->whereDate('attendance_sessions.session_date', '<=', $to)
             ->selectRaw("attendance_sessions.session_date as day,
                 MAX(CASE WHEN attendance_records.status IN ('present','late') THEN 1 ELSE 0 END) as attended")
             ->groupBy('attendance_sessions.session_date')
@@ -290,7 +291,7 @@ class AnalyticsService
      *
      * @param  array<int, int>|null  $sectionIds
      */
-    public function paginatedRecentSessions(?array $sectionIds, ?int $sectionId = null): LengthAwarePaginator
+    public function paginatedRecentSessions(?array $sectionIds, ?int $sectionId = null, ?string $from = null, ?string $to = null): LengthAwarePaginator
     {
         $query = \App\Models\AttendanceSession::query()
             ->with('section:id,name,grade_level')
@@ -307,6 +308,10 @@ class AnalyticsService
             $query->where('section_id', $sectionId);
         } elseif ($sectionIds !== null) {
             $query->whereIn('section_id', $sectionIds);
+        }
+
+        if ($from && $to) {
+            $query->whereDate('session_date', '>=', $from)->whereDate('session_date', '<=', $to);
         }
 
         return $query->paginate(20, ['*'], 'sessions_page')->withQueryString()->through(fn ($s) => $this->sessionRow($s));
@@ -348,7 +353,7 @@ class AnalyticsService
 
         return AttendanceRecord::query()
             ->whereHas('session', function ($s) use ($sectionIds, $from, $to) {
-                $s->whereBetween('session_date', [$from, $to]);
+                $s->whereDate('session_date', '>=', $from)->whereDate('session_date', '<=', $to);
                 if ($sectionIds !== null) {
                     $s->whereIn('section_id', $sectionIds);
                 }

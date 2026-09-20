@@ -15,7 +15,9 @@ class AnalyticsController extends ApiController
             return $this->fail('You cannot access this student.', 'FORBIDDEN', 403);
         }
 
-        $counts = $student->attendanceRecords()
+        $query = $student->attendanceRecords();
+        \App\Support\AttendancePeriod::apply($query, \App\Support\AttendancePeriod::fromRequest($request));
+        $counts = $query
             ->selectRaw('status, COUNT(*) as c')
             ->groupBy('status')
             ->pluck('c', 'status');

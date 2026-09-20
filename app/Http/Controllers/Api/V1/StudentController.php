@@ -36,7 +36,9 @@ class StudentController extends ApiController
             return $this->fail('You cannot access this student.', 'FORBIDDEN', 403);
         }
 
-        $records = $student->attendanceRecords()
+        $query = $student->attendanceRecords();
+        \App\Support\AttendancePeriod::apply($query, \App\Support\AttendancePeriod::fromRequest($request));
+        $records = $query
             ->with('session:id,session_date')
             ->latest('id')
             ->limit(100)

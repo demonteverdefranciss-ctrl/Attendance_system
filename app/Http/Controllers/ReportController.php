@@ -24,7 +24,7 @@ class ReportController extends Controller
         [$scopeIds, $sections, $from, $to, $sectionId, $sessionId] = $this->context($request);
 
         $effective = $sectionId ? [$sectionId] : $scopeIds;
-        $sessions = $this->analytics->paginatedRecentSessions($scopeIds, $sectionId);
+        $sessions = $this->analytics->paginatedRecentSessions($scopeIds, $sectionId, $from, $to);
 
         return Inertia::render('Reports/Index', [
             'sections' => $sections,

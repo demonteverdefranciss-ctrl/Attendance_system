@@ -160,12 +160,14 @@ class DashboardController extends Controller
         $guardian = Guardian::where('user_id', Auth::id())->first();
         $children = $this->parentChildrenPayload($guardian);
         $studentId = $request->integer('student_id') ?: null;
+        $period = \App\Support\AttendancePeriod::fromRequest($request);
 
         return Inertia::render('Parent/Attendance', [
             'children' => $children,
-            'records' => $this->parentAttendancePayload($guardian, $studentId),
+            'records' => $this->parentAttendancePayload($guardian, $studentId, $period),
             'filters' => [
                 'student_id' => $studentId ? (string) $studentId : 'all',
+                'period' => $period,
             ],
         ]);
     }
@@ -641,7 +643,7 @@ class DashboardController extends Controller
             ->values();
     }
 
-    private function parentAttendancePayload(?Guardian $guardian, ?int $studentId = null)
+    private function parentAttendancePayload(?Guardian $guardian, ?int $studentId = null, string $period = 'all')
     {
         if (! $guardian) {
             return new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
@@ -664,6 +666,7 @@ class DashboardController extends Controller
             'session.section:id,name,grade_level',
         ])
             ->whereIn('student_id', $studentId ? [$studentId] : $studentIds)
+            ->tap(fn ($query) => \App\Support\AttendancePeriod::apply($query, $period))
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
