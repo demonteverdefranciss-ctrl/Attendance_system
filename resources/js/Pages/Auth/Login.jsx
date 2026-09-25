@@ -11,7 +11,6 @@ export default function Login({ status }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         username: '',
         password: '',
-        remember: false,
     });
 
     const submit = (e) => {
@@ -98,16 +97,6 @@ export default function Login({ status }) {
                                         <p className="mt-1 text-sm text-red-600">{errors.password}</p>
                                     )}
                                 </div>
-
-                                <label className="flex items-center gap-2 text-sm text-gray-600">
-                                    <input
-                                        type="checkbox"
-                                        checked={data.remember}
-                                        onChange={(e) => setData('remember', e.target.checked)}
-                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-600"
-                                    />
-                                    Remember me
-                                </label>
 
                                 <button
                                     type="submit"
