@@ -197,15 +197,18 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                     <Link href={route('reports.session', session.id)} className="text-sm text-blue-600 hover:underline">
                         View report
                     </Link>
-                    <Link href={route('teacher.attendance.index')} className="text-sm text-gray-500 hover:underline">
-                        â† Back
+                    <Link href={route('teacher.attendance.index')} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
+                        <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5m7 7-7-7 7-7" />
+                        </svg>
+                        Back
                     </Link>
                 </div>
             }
         >
             <Head title="Mark Attendance" />
 
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-gray-500">
                     Session {sessionDate} Â·{' '}
                     <span className={closed ? 'text-gray-500' : 'text-green-600'}>{session.status}</span>

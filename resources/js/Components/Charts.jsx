@@ -21,9 +21,9 @@ export { Doughnut, Line, Bar };
 
 export function ChartCard({ title, children, height = 260 }) {
     return (
-        <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-gray-200">
+        <div className="min-w-0 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-5">
             <h3 className="mb-3 text-sm font-semibold text-gray-700">{title}</h3>
-            <div style={{ height }}>{children}</div>
+            <div className="relative min-w-0" style={{ height }}>{children}</div>
         </div>
     );
 }
