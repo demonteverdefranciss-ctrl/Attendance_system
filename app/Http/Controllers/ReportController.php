@@ -94,6 +94,18 @@ class ReportController extends Controller
         ]);
     }
 
+    public function preview(Request $request): Response
+    {
+        $format = $request->validate(['format' => 'required|in:csv,pdf'])['format'];
+        [$scopeIds, , $from, $to, $sectionId, $sessionId] = $this->context($request);
+
+        return Inertia::render('Reports/Preview', [
+            'format' => $format,
+            'filters' => ['from' => $from, 'to' => $to, 'section_id' => $sectionId, 'session_id' => $sessionId],
+            'records' => $this->analytics->records($scopeIds, $from, $to, $sectionId, $sessionId),
+        ]);
+    }
+
     public function csv(Request $request)
     {
         [$scopeIds, , $from, $to, $sectionId, $sessionId] = $this->context($request);
@@ -125,8 +137,9 @@ class ReportController extends Controller
             ? "attendance_session_{$sessionId}.pdf"
             : "attendance_{$from}_to_{$to}.pdf";
 
-        return Pdf::loadView('reports.attendance', compact('records', 'summary', 'from', 'to'))
-            ->download($filename);
+        $pdf = Pdf::loadView('reports.attendance', compact('records', 'summary', 'from', 'to'));
+
+        return $request->boolean('inline') ? $pdf->stream($filename) : $pdf->download($filename);
     }
 
     /**

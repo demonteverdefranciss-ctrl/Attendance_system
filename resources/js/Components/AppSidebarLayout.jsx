@@ -185,7 +185,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
     );
 }
 
-export function StatCard({ label, value, href, shortcutLabel = 'View details' }) {
+export function StatCard({ label, value, href }) {
     const Component = href ? Link : 'div';
     return (
         <Component
@@ -194,9 +194,6 @@ export function StatCard({ label, value, href, shortcutLabel = 'View details' })
         >
             <div className="text-3xl font-bold text-gray-900">{value}</div>
             <div className="mt-1 text-sm text-gray-500">{label}</div>
-            {href && <div className="mt-3 flex items-center justify-between gap-2 text-xs font-semibold text-blue-700">
-                <span>{shortcutLabel}</span><span aria-hidden="true">&rarr;</span>
-            </div>}
         </Component>
     );
 }

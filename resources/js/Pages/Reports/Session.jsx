@@ -55,16 +55,16 @@ export default function ReportsSession({ session, summary, methodBreakdown, reco
                     </div>
                     <div className="flex gap-2">
                         <a
-                            href={route('reports.csv', exportParams)}
+                            href={route('reports.preview', { ...exportParams, format: 'csv' })}
                             className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
                         >
-                            Export CSV
+                            Preview CSV
                         </a>
                         <a
-                            href={route('reports.pdf', exportParams)}
+                            href={route('reports.preview', { ...exportParams, format: 'pdf' })}
                             className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-100"
                         >
-                            Export PDF
+                            Preview PDF
                         </a>
                         {auth?.user?.role === 'teacher' && (
                             <Link
