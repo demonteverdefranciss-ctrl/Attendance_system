@@ -64,7 +64,7 @@ export default function ReportStudent({ student, summary, trend, filters }) {
                 {student.lrn ? ` Â· LRN: ${student.lrn}` : ''}
             </p>
 
-            <form onSubmit={apply} className="mb-6 flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+            <form onSubmit={apply} className="mb-6 flex flex-col gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:flex-row sm:flex-wrap sm:items-end">
                 <AttendancePeriodFilter includeAll={false} value={selectedPeriod(filters, today)} onChange={(period) => {
                     const next = periodDates(period, today);
                     setForm(next);
@@ -77,7 +77,7 @@ export default function ReportStudent({ student, summary, trend, filters }) {
                         value={form.from}
                         max={today}
                         onChange={(e) => setDate('from', e.target.value)}
-                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 min-h-11 w-full min-w-0 max-w-full rounded-lg border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:w-auto sm:text-sm"
                     />
                 </div>
                 <div>
@@ -87,7 +87,7 @@ export default function ReportStudent({ student, summary, trend, filters }) {
                         value={form.to}
                         max={today}
                         onChange={(e) => setDate('to', e.target.value)}
-                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 min-h-11 w-full min-w-0 max-w-full rounded-lg border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:w-auto sm:text-sm"
                     />
                 </div>
                 <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">

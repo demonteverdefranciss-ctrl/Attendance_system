@@ -2,19 +2,19 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import FlashMessages from '@/Components/FlashMessages';
 
-function BrandMark({ logoUrl }) {
+function BrandMark({ logoUrl, compact = false }) {
     return (
-        <div className="flex select-none items-center gap-2 pointer-events-none">
+        <div className="flex min-w-0 select-none items-center gap-2 pointer-events-none">
             <img
                 src={logoUrl}
                 alt="Bigaa Elementary School"
                 className="h-8 w-8 shrink-0 rounded-full bg-white object-contain"
             />
-            <div className="flex flex-col leading-tight">
-                <span className="font-bold text-blue-600 whitespace-nowrap">
+            <div className={`min-w-0 flex-col leading-tight ${compact ? 'hidden sm:flex' : 'flex'}`}>
+                <span className="text-sm font-bold text-blue-600">
                     Bigaa Elementary School
                 </span>
-                <span className="text-xs text-gray-500 whitespace-nowrap">
+                <span className="text-xs text-gray-500">
                     Attendance Management System
                 </span>
             </div>
@@ -26,6 +26,13 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
     const { auth, teacherAlerts = [], assetBase } = usePage().props;
     const logoUrl = `${assetBase || ''}/branding/bigaa-logo.png`;
     const [open, setOpen] = useState(false);
+
+    useEffect(() => {
+        const desktop = window.matchMedia('(min-width: 1024px)');
+        const closeOnDesktop = () => { if (desktop.matches) setOpen(false); };
+        desktop.addEventListener('change', closeOnDesktop);
+        return () => desktop.removeEventListener('change', closeOnDesktop);
+    }, []);
 
     const logout = (e) => {
         e.preventDefault();
@@ -52,7 +59,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
     }, [open]);
 
     const NavLinks = ({ onNavigate }) => (
-        <nav className="flex-1 space-y-1 px-3 py-2">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-2">
             {nav.map((item) => {
                 const active =
                     route().current(item.route) ||
@@ -63,7 +70,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                         key={item.route}
                         href={route(item.route)}
                         onClick={() => onNavigate?.()}
-                        className={`block rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-500 hover:text-white ${
+                        className={`flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-500 hover:text-white ${
                             active ? 'bg-blue-50 text-blue-700' : 'text-gray-600'
                         }`}
                     >
@@ -78,7 +85,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
         <div className="min-h-screen bg-gray-100">
             <div className="flex">
                 {/* Desktop sidebar */}
-                <aside className="hidden md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 bg-blue-200 border-r border-gray-200">
+                <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0 bg-blue-200 border-r border-gray-200">
                     <div className="flex h-16 items-center px-4">
                         <BrandMark logoUrl={logoUrl} />
                     </div>
@@ -87,7 +94,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
 
                 {/* Mobile drawer */}
                 {open && (
-                    <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true">
+                    <div id="mobile-navigation" className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
                         <button
                             type="button"
                             className="absolute inset-0 bg-gray-900/40"
@@ -95,12 +102,12 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                             onClick={() => setOpen(false)}
                         />
                         <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-blue-200 shadow-xl">
-                            <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4">
+                            <div className="flex min-h-20 shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-3">
                                 <BrandMark logoUrl={logoUrl} />
                                 <button
                                     type="button"
                                     onClick={() => setOpen(false)}
-                                    className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
                                     aria-label="Close sidebar"
                                 >
                                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -113,40 +120,41 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                     </div>
                 )}
 
-                <div className="flex-1 md:pl-72">
+                <div className="min-w-0 flex-1 lg:pl-72">
                     <header className="flex h-16 items-center justify-between gap-3 bg-white px-4 shadow-sm sm:px-6">
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
                             <button
                                 type="button"
-                                className="rounded-lg p-2 text-gray-700 hover:bg-gray-100 md:hidden"
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100 lg:hidden"
                                 aria-label="Open menu"
                                 aria-expanded={open}
+                                aria-controls="mobile-navigation"
                                 onClick={() => setOpen(true)}
                             >
                                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                                 </svg>
                             </button>
-                            <div className="md:hidden">
-                                <BrandMark logoUrl={logoUrl} />
+                            <div className="min-w-0 lg:hidden">
+                                <BrandMark logoUrl={logoUrl} compact />
                             </div>
                         </div>
-                        <div className="ml-auto flex items-center gap-3 sm:gap-4">
-                            <div className="text-right">
-                                <div className="text-sm font-medium text-gray-800">{auth?.user?.name}</div>
+                        <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-4">
+                            <div className="min-w-0 text-right">
+                                <div className="max-w-28 truncate text-sm font-medium text-gray-800 sm:max-w-48" title={auth?.user?.name}>{auth?.user?.name}</div>
                                 <div className="text-xs uppercase tracking-wide text-gray-400">{auth?.user?.role}</div>
                             </div>
                             <button
                                 type="button"
                                 onClick={logout}
-                                className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
+                                className="min-h-11 shrink-0 rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
                             >
                                 Logout
                             </button>
                         </div>
                     </header>
 
-                    <main className="p-4 sm:p-6">
+                    <main className="min-w-0 p-3 sm:p-6">
                         <FlashMessages />
 
                         {Array.isArray(teacherAlerts) && teacherAlerts.length > 0 && (
@@ -173,7 +181,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                         )}
 
                         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                            {title && <h1 className="text-2xl font-bold text-gray-900">{title}</h1>}
+                            {title && <h1 className="min-w-0 break-words text-xl font-bold text-gray-900 sm:text-2xl">{title}</h1>}
                             {actions}
                         </div>
 
@@ -190,7 +198,7 @@ export function StatCard({ label, value, href }) {
     return (
         <Component
             {...(href ? { href } : {})}
-            className={`block rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200 ${href ? 'group transition hover:bg-blue-50 hover:ring-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2' : ''}`}
+            className={`block min-w-0 break-words rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-6 ${href ? 'group transition hover:bg-blue-50 hover:ring-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2' : ''}`}
         >
             <div className="text-3xl font-bold text-gray-900">{value}</div>
             <div className="mt-1 text-sm text-gray-500">{label}</div>

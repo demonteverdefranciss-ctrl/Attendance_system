@@ -87,7 +87,7 @@ export default function ReportsIndex({
         <Layout title="Attendance Reports">
             <Head title="Reports" />
 
-            <form onSubmit={apply} className="mb-6 flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+            <form onSubmit={apply} className="mb-6 flex flex-col gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:flex-row sm:flex-wrap sm:items-end">
                 <AttendancePeriodFilter includeAll={false} value={selectedPeriod(filters, today)} onChange={(period) => {
                     const next = { ...form, ...periodDates(period, today), session_id: '' };
                     setForm(next);
@@ -100,7 +100,7 @@ export default function ReportsIndex({
                         value={form.from}
                         max={today}
                         onChange={(e) => setDate('from', e.target.value)}
-                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 min-h-11 w-full min-w-0 max-w-full rounded-lg border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:w-auto sm:text-sm"
                     />
                 </div>
                 <div>
@@ -110,7 +110,7 @@ export default function ReportsIndex({
                         value={form.to}
                         max={today}
                         onChange={(e) => setDate('to', e.target.value)}
-                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 min-h-11 w-full min-w-0 max-w-full rounded-lg border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:w-auto sm:text-sm"
                     />
                 </div>
                 <div>
@@ -118,7 +118,7 @@ export default function ReportsIndex({
                     <select
                         value={form.section_id}
                         onChange={(e) => setForm({ ...form, section_id: e.target.value, session_id: '' })}
-                        className="mt-1 rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-1 min-h-11 w-full min-w-0 max-w-full rounded-lg border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:w-auto sm:text-sm"
                     >
                         <option value="">All sections</option>
                         {sections.map((s) => (
@@ -131,7 +131,7 @@ export default function ReportsIndex({
                 <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
                     Apply
                 </button>
-                <div className="ml-auto flex gap-2">
+                <div className="flex flex-wrap gap-2 sm:ml-auto">
                     <a href={exportUrl('csv')} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100">
                         Preview CSV
                     </a>

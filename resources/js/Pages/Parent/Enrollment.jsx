@@ -83,13 +83,17 @@ export default function EnrollmentIndex({ enrollmentRequests = [] }) {
                         <option value="male">Male</option>
                         <option value="female">Female</option>
                     </select>
-                    <input
-                        type="text"
+                    <select
                         value={gradeLevel}
                         onChange={(e) => setGradeLevel(e.target.value)}
-                        placeholder="Grade level (e.g. Grade 6)"
+                        aria-label="Grade level"
                         className="rounded-lg border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
+                    >
+                        <option value="">Select grade level</option>
+                        {[1, 2, 3, 4, 5, 6].map((grade) => (
+                            <option key={grade} value={`Grade ${grade}`}>Grade {grade}</option>
+                        ))}
+                    </select>
                     <input
                         type="text"
                         value={relationship}
