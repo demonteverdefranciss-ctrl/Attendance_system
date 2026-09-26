@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     // Public
+    Route::post('auth/register/parent', [\App\Http\Controllers\Auth\ParentRegistrationController::class, 'registerMobile'])
+        ->middleware('throttle:5,1');
     Route::post('auth/login', [AuthController::class, 'login']);
 
     // Device-to-server (recognition node): X-Camera-Id + X-Device-Key
