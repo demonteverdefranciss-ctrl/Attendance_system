@@ -47,10 +47,10 @@ export default function TeacherDashboard({ stats, summary, trend, atRisk = [], m
             <Head title="Teacher Dashboard" />
 
             <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard label="My Sections" value={stats.sections} />
-                <StatCard label="My Students" value={stats.students} />
-                <StatCard label="Attendance Rate" value={`${summary.rate}%`} />
-                <StatCard label="Absent (30d)" value={summary.absent} />
+                <StatCard label="My Sections" value={stats.sections} href={route('teacher.attendance.index')} />
+                <StatCard label="My Students" value={stats.students} href={route('reports.index', { from: range.from, to: range.to })} />
+                <StatCard label="Attendance Rate" value={`${summary.rate}%`} href={route('reports.index', { from: range.from, to: range.to })} />
+                <StatCard label="Absent (30d)" value={summary.absent} href={route('reports.index', { from: range.from, to: range.to })} />
             </div>
 
             <p className="mb-3 text-sm text-gray-500">

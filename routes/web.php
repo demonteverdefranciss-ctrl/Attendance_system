@@ -143,6 +143,7 @@ Route::middleware('auth')->group(function () {
         Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('reports/sessions/{session}', [ReportController::class, 'session'])->name('reports.session');
         Route::get('reports/students/{student}', [ReportController::class, 'student'])->name('reports.student');
+        Route::get('reports/preview', [ReportController::class, 'preview'])->name('reports.preview');
         Route::get('reports/export/csv', [ReportController::class, 'csv'])->name('reports.csv');
         Route::get('reports/export/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
     });

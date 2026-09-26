@@ -44,10 +44,10 @@ export default function AdminDashboard({ stats, summary, trend, perSection, atRi
             <Head title="Admin Dashboard" />
 
             <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard label="Students" value={stats.students} />
-                <StatCard label="Sections" value={stats.sections} />
-                <StatCard label="Teachers" value={stats.teachers} />
-                <StatCard label="Parents / Guardians" value={stats.guardians} />
+                <StatCard label="Students" value={stats.students} href={route('admin.students.index')} />
+                <StatCard label="Sections" value={stats.sections} href={route('admin.sections.index')} />
+                <StatCard label="Teachers" value={stats.teachers} href={route('admin.teachers.index')} />
+                <StatCard label="Parents / Guardians" value={stats.guardians} href={route('admin.guardians.index')} />
             </div>
 
             <p className="mb-3 text-sm text-gray-500">
@@ -57,9 +57,9 @@ export default function AdminDashboard({ stats, summary, trend, perSection, atRi
             </p>
 
             <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <StatCard label="Attendance Rate" value={`${summary.rate}%`} />
-                <StatCard label="Present / Late" value={summary.present + summary.late} />
-                <StatCard label="Absent" value={summary.absent} />
+                <StatCard label="Attendance Rate" value={`${summary.rate}%`} href={route('reports.index', { from: range.from, to: range.to })} />
+                <StatCard label="Present / Late" value={summary.present + summary.late} href={route('reports.index', { from: range.from, to: range.to })} />
+                <StatCard label="Absent" value={summary.absent} href={route('reports.index', { from: range.from, to: range.to })} />
             </div>
 
             <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">

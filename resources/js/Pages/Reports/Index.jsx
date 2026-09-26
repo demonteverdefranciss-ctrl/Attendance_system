@@ -63,7 +63,8 @@ export default function ReportsIndex({
     };
 
     const exportUrl = (fmt) =>
-        route(fmt === 'csv' ? 'reports.csv' : 'reports.pdf', {
+        route('reports.preview', {
+            format: fmt,
             from: form.from,
             to: form.to,
             section_id: form.section_id || undefined,
@@ -132,10 +133,10 @@ export default function ReportsIndex({
                 </button>
                 <div className="ml-auto flex gap-2">
                     <a href={exportUrl('csv')} className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100">
-                        Export CSV
+                        Preview CSV
                     </a>
                     <a href={exportUrl('pdf')} className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-100">
-                        Export PDF
+                        Preview PDF
                     </a>
                 </div>
             </form>
