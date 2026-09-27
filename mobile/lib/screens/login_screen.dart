@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
 import '../services/session_service.dart';
+import 'register_parent_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
@@ -44,10 +46,14 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final role = await widget.session.login(_username.text.trim(), _password.text);
+      final role = await widget.session.login(
+        _username.text.trim(),
+        _password.text,
+      );
       if (!mounted) return;
       widget.onLogin(role);
     } on ApiException catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.message;
         _loading = false;
@@ -110,7 +116,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.15),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.15,
+                                      ),
                                       blurRadius: 8,
                                     ),
                                   ],
@@ -175,11 +183,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                     labelStyle: TextStyle(color: _blueDark),
                                     border: OutlineInputBorder(),
                                     focusedBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(color: _blue, width: 2),
+                                      borderSide: BorderSide(
+                                        color: _blue,
+                                        width: 2,
+                                      ),
                                     ),
                                   ),
                                   validator: (v) =>
-                                      (v == null || v.trim().isEmpty) ? 'Username required' : null,
+                                      (v == null || v.trim().isEmpty)
+                                      ? 'Username required'
+                                      : null,
                                 ),
                                 const SizedBox(height: 12),
                                 TextFormField(
@@ -190,22 +203,31 @@ class _LoginScreenState extends State<LoginScreen> {
                                     labelStyle: TextStyle(color: _blueDark),
                                     border: OutlineInputBorder(),
                                     focusedBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(color: _blue, width: 2),
+                                      borderSide: BorderSide(
+                                        color: _blue,
+                                        width: 2,
+                                      ),
                                     ),
                                   ),
-                                  validator: (v) =>
-                                      (v == null || v.isEmpty) ? 'Password required' : null,
+                                  validator: (v) => (v == null || v.isEmpty)
+                                      ? 'Password required'
+                                      : null,
                                 ),
                                 if (_error != null) ...[
                                   const SizedBox(height: 12),
-                                  Text(_error!, style: const TextStyle(color: Colors.red)),
+                                  Text(
+                                    _error!,
+                                    style: const TextStyle(color: Colors.red),
+                                  ),
                                 ],
                                 const SizedBox(height: 20),
                                 FilledButton(
                                   style: FilledButton.styleFrom(
                                     backgroundColor: _blue,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
                                   ),
                                   onPressed: _loading ? null : _submit,
                                   child: _loading
@@ -218,6 +240,44 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         )
                                       : const Text('Sign in'),
+                                ),
+                                TextButton(
+                                  onPressed: _loading
+                                      ? null
+                                      : () async {
+                                          final username =
+                                              await Navigator.of(
+                                                context,
+                                              ).push<String>(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      RegisterParentScreen(
+                                                        api: widget.api,
+                                                      ),
+                                                ),
+                                              );
+                                          if (!mounted || username == null) {
+                                            return;
+                                          }
+                                          setState(() {
+                                            _username.text = username;
+                                            _password.clear();
+                                            _error = null;
+                                          });
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Parent account created. Sign in to continue.',
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                  child: const Text(
+                                    'New parent? Create an account',
+                                  ),
                                 ),
                               ],
                             ),

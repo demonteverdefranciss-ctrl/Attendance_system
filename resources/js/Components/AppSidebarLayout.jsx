@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import FlashMessages from '@/Components/FlashMessages';
+import SidebarIcon from '@/Components/SidebarIcon';
 
 function BrandMark({ logoUrl, compact = false }) {
     return (
@@ -74,7 +75,8 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                             active ? 'bg-blue-50 text-blue-700' : 'text-gray-600'
                         }`}
                     >
-                        {item.label}
+                        <span className="mr-3 flex items-center"><SidebarIcon destination={item.route} /></span>
+                        <span>{item.label}</span>
                     </Link>
                 );
             })}

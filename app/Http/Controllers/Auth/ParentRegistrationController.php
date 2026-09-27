@@ -30,6 +30,27 @@ class ParentRegistrationController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $user = $this->registerParent($request);
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->route('parent.dashboard')
+            ->with('success', 'Parent account created. You can now link your child using their LRN.');
+    }
+
+    public function registerMobile(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = $this->registerParent($request);
+
+        return response()->json([
+            'success' => true,
+            'data' => ['username' => $user->username],
+            'error' => null,
+        ], 201);
+    }
+
+    private function registerParent(Request $request): User
+    {
         $data = $request->validate([
             'first_name' => InputRules::personName(),
             'last_name' => InputRules::personName(),
@@ -74,10 +95,6 @@ class ParentRegistrationController extends Controller
 
         event(new Registered($user));
 
-        Auth::login($user);
-        $request->session()->regenerate();
-
-        return redirect()->route('parent.dashboard')
-            ->with('success', 'Parent account created. You can now link your child using their LRN.');
+        return $user;
     }
 }
