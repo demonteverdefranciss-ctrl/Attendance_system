@@ -1,4 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import SortableHeading from '@/Components/SortableHeading';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
@@ -32,7 +33,7 @@ export default function ReportPreview({ format, filters, records }) {
             ) : (
                 <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
                     <table className="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead className="bg-gray-50"><tr>{columns.map(([key, label]) => <th key={key} scope="col" className="px-4 py-3 text-left font-semibold text-gray-600">{label}</th>)}</tr></thead>
+                        <thead className="bg-gray-50"><tr>{columns.map(([key, label]) => <SortableHeading key={key} column={key} prefix="records_">{label}</SortableHeading>)}</tr></thead>
                         <tbody className="divide-y divide-gray-100">
                             {records.map((record, index) => <tr key={record.id ?? index}>{columns.map(([key]) => <td key={key} className="whitespace-nowrap px-4 py-3 text-gray-700">{record[key] ?? '—'}</td>)}</tr>)}
                             {records.length === 0 && <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-gray-500">No records for these filters.</td></tr>}

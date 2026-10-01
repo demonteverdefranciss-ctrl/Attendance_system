@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\TableSort;
 use App\Models\Camera;
 use App\Models\Section;
 use App\Models\Teacher;
@@ -22,6 +23,7 @@ class SectionController extends Controller
         ])
             ->withCount('students')
             ->orderBy('name')
+            ->tap(fn ($query) => TableSort::apply($query, ['name' => ['grade_level', 'name'], 'school_year' => 'school_year', 'students_count' => 'students_count', 'session_max_minutes' => 'session_max_minutes', 'adviser' => [TableSort::related(\App\Models\Teacher::class, 'first_name', 'sections.adviser_id'), TableSort::related(\App\Models\Teacher::class, 'last_name', 'sections.adviser_id')], 'camera' => TableSort::related(\App\Models\Camera::class, 'name', 'sections.camera_id')]))
             ->paginate(20)
             ->withQueryString();
 

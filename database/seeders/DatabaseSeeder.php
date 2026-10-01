@@ -33,7 +33,7 @@ class DatabaseSeeder extends Seeder
         // --- Default admin (CHANGE THIS PASSWORD AFTER FIRST LOGIN) ---
         DB::table('users')->insert([
             'role_id' => $roleIds['admin'], 'username' => 'admin',
-            'name' => 'System Administrator', 'email' => 'admin@bigaaes.edu.ph',
+            'name' => 'Celenia A. Molinyawe', 'email' => 'admin@bigaaes.edu.ph',
             'password' => Hash::make('Admin@123'), 'is_active' => true,
             'created_at' => $now, 'updated_at' => $now,
         ]);

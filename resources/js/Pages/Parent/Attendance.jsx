@@ -1,3 +1,4 @@
+import SortableHeading from '@/Components/SortableHeading';
 import { Head, router } from '@inertiajs/react';
 import AttendancePeriodFilter from '@/Components/AttendancePeriodFilter';
 import ParentLayout from '@/Layouts/ParentLayout';
@@ -67,14 +68,9 @@ export default function AttendanceIndex({ children = [], records = [], filters =
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                {['Date', 'Child', 'Section', 'Status', 'Time In', 'Time Out', ''].map((h) => (
-                                    <th
-                                        key={h}
-                                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-                                    >
-                                        {h}
-                                    </th>
-                                ))}
+                            {[["date","Date"],["student","Child"],["section","Section"],["status","Status"],["time_in","Time In"],["time_out","Time Out"],[null,""]].map(([key, label]) => (
+                                key ? <SortableHeading key={key} column={key} prefix="" pageName="page">{label}</SortableHeading> : <th key="actions" />
+                            ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">

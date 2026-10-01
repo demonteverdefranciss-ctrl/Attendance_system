@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\TableSort;
 use App\Models\Guardian;
 use App\Models\Section;
 use App\Models\Student;
@@ -25,6 +26,7 @@ class StudentController extends Controller
     {
         $students = Student::with('section:id,name')
             ->orderBy('last_name')
+            ->tap(fn ($query) => TableSort::apply($query, ['name' => ['last_name', 'first_name'], 'lrn' => 'lrn', 'section' => TableSort::related(\App\Models\Section::class, 'name', 'students.section_id'), 'gender' => 'gender', 'consent' => 'consent_biometric']))
             ->paginate(20)
             ->withQueryString();
 

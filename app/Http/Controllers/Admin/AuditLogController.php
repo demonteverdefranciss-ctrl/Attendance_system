@@ -27,6 +27,10 @@ class AuditLogController extends Controller
             ->when($filters['to'], fn ($q, $to) => $q->whereDate('created_at', '<=', $to));
 
         $logs = $query->latest('id')
+            ->tap(fn ($q) => \App\Support\TableSort::apply($q, [
+                'created_at' => 'created_at', 'action' => 'action', 'entity' => ['entity', 'entity_id'], 'ip_address' => 'ip_address',
+                'user' => \App\Support\TableSort::related(User::class, 'name', 'audit_logs.user_id'),
+            ]))
             ->paginate(20)
             ->withQueryString()
             ->through(fn ($log) => [

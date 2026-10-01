@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\TableSort;
 use App\Models\Role;
 use App\Models\Teacher;
 use App\Models\User;
@@ -22,6 +23,7 @@ class TeacherController extends Controller
     {
         $teachers = Teacher::with('user:id,username,email,is_active')
             ->orderBy('last_name')
+            ->tap(fn ($query) => TableSort::apply($query, ['name' => ['first_name', 'last_name'], 'employee_no' => 'employee_no', 'username' => TableSort::related(\App\Models\User::class, 'username', 'teachers.user_id'), 'email' => TableSort::related(\App\Models\User::class, 'email', 'teachers.user_id'), 'status' => TableSort::related(\App\Models\User::class, 'is_active', 'teachers.user_id')]))
             ->paginate(20)
             ->withQueryString();
 

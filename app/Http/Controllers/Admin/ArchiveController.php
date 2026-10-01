@@ -114,6 +114,7 @@ class ArchiveController extends Controller
             'students' => Student::onlyTrashed()
                 ->with('section:id,name')
                 ->orderByDesc('deleted_at')
+                ->tap(fn ($q) => \App\Support\TableSort::archive($q))
                 ->paginate(20)
                 ->withQueryString()
                 ->through(fn (Student $s) => [
@@ -126,6 +127,7 @@ class ArchiveController extends Controller
             'teachers' => Teacher::onlyTrashed()
                 ->with(['user' => fn ($q) => $q->withTrashed()->select('id', 'username', 'email')])
                 ->orderByDesc('deleted_at')
+                ->tap(fn ($q) => \App\Support\TableSort::archive($q))
                 ->paginate(20)
                 ->withQueryString()
                 ->through(fn (Teacher $t) => [
@@ -138,6 +140,7 @@ class ArchiveController extends Controller
             'guardians' => Guardian::onlyTrashed()
                 ->with(['user' => fn ($q) => $q->withTrashed()->select('id', 'username', 'email')])
                 ->orderByDesc('deleted_at')
+                ->tap(fn ($q) => \App\Support\TableSort::archive($q))
                 ->paginate(20)
                 ->withQueryString()
                 ->through(fn (Guardian $g) => [
@@ -149,6 +152,7 @@ class ArchiveController extends Controller
                 ]),
             'sections' => Section::onlyTrashed()
                 ->orderByDesc('deleted_at')
+                ->tap(fn ($q) => \App\Support\TableSort::archive($q))
                 ->paginate(20)
                 ->withQueryString()
                 ->through(fn (Section $s) => [
@@ -160,6 +164,7 @@ class ArchiveController extends Controller
                 ]),
             'cameras' => Camera::onlyTrashed()
                 ->orderByDesc('deleted_at')
+                ->tap(fn ($q) => \App\Support\TableSort::archive($q))
                 ->paginate(20)
                 ->withQueryString()
                 ->through(fn (Camera $c) => [
@@ -172,6 +177,7 @@ class ArchiveController extends Controller
             'schedules' => Schedule::onlyTrashed()
                 ->with(['section' => fn ($q) => $q->withTrashed()->select('id', 'name', 'grade_level')])
                 ->orderByDesc('deleted_at')
+                ->tap(fn ($q) => \App\Support\TableSort::archive($q))
                 ->paginate(20)
                 ->withQueryString()
                 ->through(fn (Schedule $s) => [
@@ -186,6 +192,7 @@ class ArchiveController extends Controller
                 ]),
             'no-class-days' => NoClassDay::onlyTrashed()
                 ->orderByDesc('deleted_at')
+                ->tap(fn ($q) => \App\Support\TableSort::archive($q))
                 ->paginate(20)
                 ->withQueryString()
                 ->through(fn (NoClassDay $d) => [

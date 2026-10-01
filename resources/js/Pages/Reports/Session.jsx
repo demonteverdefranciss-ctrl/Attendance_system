@@ -1,3 +1,4 @@
+import SortableHeading from '@/Components/SortableHeading';
 import { Head, Link, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TeacherLayout from '@/Layouts/TeacherLayout';
@@ -13,7 +14,9 @@ const STATUS_COLORS = {
 };
 
 export default function ReportsSession({ session, summary, methodBreakdown, records }) {
-    const { auth } = usePage().props;
+    const page = usePage();
+    const { auth } = page.props;
+    const sortParams = new URLSearchParams(page.url.split('?')[1] || '');
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
     const { rows: recordRows, paginator: recordsPaginator } = usePageRows(records);
 
@@ -29,7 +32,9 @@ export default function ReportsSession({ session, summary, methodBreakdown, reco
         }],
     };
 
-    const exportParams = { session_id: session.id, from: session.session_date, to: session.session_date };
+    const exportParams = { session_id: session.id, from: session.session_date, to: session.session_date,
+        records_sort: sortParams.get('records_sort') || undefined,
+        records_direction: sortParams.get('records_direction') || undefined };
 
     return (
         <Layout
@@ -105,13 +110,8 @@ export default function ReportsSession({ session, summary, methodBreakdown, reco
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            {['Student', 'Status', 'Time In', 'Time Out', 'Method'].map((h) => (
-                                <th
-                                    key={h}
-                                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-                                >
-                                    {h}
-                                </th>
+                            {[["student","Student"],["status","Status"],["time_in","Time In"],["time_out","Time Out"],["method","Method"]].map(([key, label]) => (
+                                key ? <SortableHeading key={key} column={key} prefix="records_" pageName="records_page">{label}</SortableHeading> : <th key="actions" />
                             ))}
                         </tr>
                     </thead>
