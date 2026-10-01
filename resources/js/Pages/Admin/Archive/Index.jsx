@@ -1,3 +1,4 @@
+import SortableHeading from '@/Components/SortableHeading';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import Pagination, { usePageRows } from '@/Components/Pagination';
@@ -48,12 +49,7 @@ export default function ArchiveIndex({ category, categories = [], rows }) {
                     <thead className="bg-gray-50">
                         <tr>
                             {['Record', 'Details', 'Archived', 'Actions'].map((h) => (
-                                <th
-                                    key={h}
-                                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-                                >
-                                    {h}
-                                </th>
+{"Record":"title","Archived":"deleted_at"}[h] ? <SortableHeading key={h} column={{"Record":"title","Archived":"deleted_at"}[h]}>{h}</SortableHeading> : <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
                             ))}
                         </tr>
                     </thead>

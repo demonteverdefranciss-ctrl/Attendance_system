@@ -1,6 +1,10 @@
 import { Link } from '@inertiajs/react';
+import useTableSort from '@/Components/useTableSort';
+import LocalSortHeading from '@/Components/LocalSortHeading';
 
 export default function AtRiskStudentsTable({ students = [], threshold = 80 }) {
+    const keys = { Student: 'name', Section: 'section', Attended: 'attended', Total: 'total', Rate: 'rate' };
+    const sorting = useTableSort(students, Object.fromEntries(Object.values(keys).map((key) => [key, (s) => s[key]])));
     return (
         <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
             <div className="border-b border-gray-100 px-5 py-3">
@@ -12,12 +16,7 @@ export default function AtRiskStudentsTable({ students = [], threshold = 80 }) {
                 <thead className="bg-gray-50">
                     <tr>
                         {['Student', 'Section', 'Attended', 'Total', 'Rate', ''].map((h) => (
-                            <th
-                                key={h || 'action'}
-                                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-                            >
-                                {h}
-                            </th>
+                            h ? <LocalSortHeading key={h} column={keys[h]} sorting={sorting}>{h}</LocalSortHeading> : <th key="action" />
                         ))}
                     </tr>
                 </thead>
@@ -29,7 +28,7 @@ export default function AtRiskStudentsTable({ students = [], threshold = 80 }) {
                             </td>
                         </tr>
                     )}
-                    {students.map((s) => (
+                    {sorting.rows.map((s) => (
                         <tr key={s.student_id} className="hover:bg-gray-50">
                             <td className="px-4 py-2 text-sm text-gray-800">{s.name}</td>
                             <td className="px-4 py-2 text-sm text-gray-600">{s.section}</td>

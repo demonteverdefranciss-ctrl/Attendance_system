@@ -218,6 +218,7 @@ class AnalyticsService
             ->when($sectionId && ! $sessionId, fn ($q) => $q->whereHas('session', fn ($s) => $s->where('section_id', $sectionId)))
             ->with(['student:id,first_name,last_name', 'session:id,section_id,session_date', 'session.section:id,name'])
             ->orderByDesc('id')
+            ->tap(fn ($q) => \App\Support\TableSort::attendance($q, 'records_'))
             ->limit(1000)
             ->get()
             ->map(fn ($r) => $this->recordRow($r));
@@ -234,6 +235,7 @@ class AnalyticsService
             ->when($sectionId && ! $sessionId, fn ($q) => $q->whereHas('session', fn ($s) => $s->where('section_id', $sectionId)))
             ->with(['student:id,first_name,last_name', 'session:id,section_id,session_date', 'session.section:id,name'])
             ->orderByDesc('id')
+            ->tap(fn ($q) => \App\Support\TableSort::attendance($q, 'records_'))
             ->paginate(20, ['*'], 'records_page')
             ->withQueryString()
             ->through(fn ($r) => $this->recordRow($r));
@@ -314,6 +316,11 @@ class AnalyticsService
             $query->whereDate('session_date', '>=', $from)->whereDate('session_date', '<=', $to);
         }
 
+        \App\Support\TableSort::apply($query, [
+            'date' => 'session_date', 'status' => 'status',
+            'section' => \App\Support\TableSort::related(\App\Models\Section::class, 'name', 'attendance_sessions.section_id'),
+            'present' => 'present_count', 'absent' => 'absent_count', 'total' => 'total_count',
+        ], 'sessions_');
         return $query->paginate(20, ['*'], 'sessions_page')->withQueryString()->through(fn ($s) => $this->sessionRow($s));
     }
 

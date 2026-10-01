@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\TableSort;
 use App\Models\Guardian;
 use App\Models\Role;
 use App\Models\User;
@@ -23,6 +24,7 @@ class GuardianController extends Controller
         $guardians = Guardian::with('user:id,username,email,is_active')
             ->withCount('students')
             ->orderBy('last_name')
+            ->tap(fn ($query) => TableSort::apply($query, ['name' => ['first_name', 'last_name'], 'phone' => 'phone', 'notify_pref' => 'notify_pref', 'students_count' => 'students_count', 'username' => TableSort::related(\App\Models\User::class, 'username', 'guardians.user_id')]))
             ->paginate(20)
             ->withQueryString();
 

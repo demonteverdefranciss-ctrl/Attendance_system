@@ -101,7 +101,7 @@ class ReportController extends Controller
 
         return Inertia::render('Reports/Preview', [
             'format' => $format,
-            'filters' => ['from' => $from, 'to' => $to, 'section_id' => $sectionId, 'session_id' => $sessionId],
+            'filters' => ['from' => $from, 'to' => $to, 'section_id' => $sectionId, 'session_id' => $sessionId, ...$request->only('records_sort', 'records_direction')],
             'records' => $this->analytics->records($scopeIds, $from, $to, $sectionId, $sessionId),
         ]);
     }

@@ -359,6 +359,11 @@ class DashboardController extends Controller
                     ->orWhereHas('student', fn ($s) => $s->whereIn('section_id', $sectionIds));
             })
             ->latest('id')
+            ->tap(fn ($q) => \App\Support\TableSort::apply($q, [
+                'lrn' => 'lrn', 'relationship' => 'relationship', 'created_at' => 'created_at',
+                'guardian' => [\App\Support\TableSort::related(Guardian::class, 'first_name', 'child_enrollment_requests.guardian_id'), \App\Support\TableSort::related(Guardian::class, 'last_name', 'child_enrollment_requests.guardian_id')],
+                'student' => [\Illuminate\Support\Facades\DB::raw('COALESCE((SELECT first_name FROM students WHERE students.id = child_enrollment_requests.student_id AND students.deleted_at IS NULL), child_enrollment_requests.first_name)'), \Illuminate\Support\Facades\DB::raw('COALESCE((SELECT last_name FROM students WHERE students.id = child_enrollment_requests.student_id AND students.deleted_at IS NULL), child_enrollment_requests.last_name)')],
+            ]))
             ->paginate(20)
             ->withQueryString()
             ->through(fn ($r) => [
@@ -668,6 +673,7 @@ class DashboardController extends Controller
             ->whereIn('student_id', $studentId ? [$studentId] : $studentIds)
             ->tap(fn ($query) => \App\Support\AttendancePeriod::apply($query, $period))
             ->latest('id')
+            ->tap(fn ($query) => \App\Support\TableSort::attendance($query))
             ->paginate(20)
             ->withQueryString()
             ->through(fn ($r) => [

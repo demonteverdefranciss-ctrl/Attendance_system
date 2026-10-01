@@ -1,3 +1,4 @@
+import SortableHeading from '@/Components/SortableHeading';
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
@@ -49,9 +50,7 @@ export default function EnrollmentRequestsIndex({ requests, sections = [] }) {
                     <thead className="bg-gray-50">
                         <tr>
                             {['Student', 'LRN', 'Details', 'Guardian', 'Relationship', 'Requested', 'Section'].map((h) => (
-                                <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                    {h}
-                                </th>
+{"Student":"student","LRN":"lrn","Guardian":"guardian","Relationship":"relationship","Requested":"created_at"}[h] ? <SortableHeading key={h} column={{"Student":"student","LRN":"lrn","Guardian":"guardian","Relationship":"relationship","Requested":"created_at"}[h]}>{h}</SortableHeading> : <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
                             ))}
                             <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                         </tr>

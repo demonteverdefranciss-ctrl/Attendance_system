@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import useTableSort from '@/Components/useTableSort';
+import LocalSortHeading from '@/Components/LocalSortHeading';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import CameraPreview from '@/Components/CameraPreview';
 import RecognitionStatus, { fetchRecognitionStatus, setRecognitionEngine, startRecognition } from '@/Components/RecognitionStatus';
@@ -29,6 +31,12 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
     });
 
     const { data, setData, post, processing } = useForm({ records: initial });
+    const sorting = useTableSort(students, {
+        student: (s) => `${s.last_name}, ${s.first_name}`,
+        status: (s) => data.records[s.id],
+        time_in: (s) => records[s.id]?.time_in,
+        time_out: (s) => records[s.id]?.time_out,
+    });
 
     // Live updates: while the session is open, re-fetch records so face
     // recognitions from the camera appear without a manual refresh.
@@ -267,15 +275,15 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Student</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Time In</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Time Out</th>
+                                <LocalSortHeading column="student" sorting={sorting}>Student</LocalSortHeading>
+                                <LocalSortHeading column="status" sorting={sorting}>Status</LocalSortHeading>
+                                <LocalSortHeading column="time_in" sorting={sorting}>Time In</LocalSortHeading>
+                                <LocalSortHeading column="time_out" sorting={sorting}>Time Out</LocalSortHeading>
                                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {students.map((s) => (
+                            {sorting.rows.map((s) => (
                                 <tr key={s.id}>
                                     <td className="px-4 py-3 text-sm text-gray-700">{s.last_name}, {s.first_name}</td>
                                     <td className="px-4 py-3">

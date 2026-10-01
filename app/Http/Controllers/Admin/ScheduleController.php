@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\TableSort;
 use App\Models\Schedule;
 use App\Models\Section;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +19,7 @@ class ScheduleController extends Controller
         $schedules = Schedule::with('section:id,name')
             ->orderBy('section_id')
             ->orderBy('day_of_week')
+            ->tap(fn ($query) => TableSort::apply($query, ['section' => TableSort::related(\App\Models\Section::class, 'name', 'schedules.section_id'), 'day' => 'day_of_week', 'time' => ['start_time', 'end_time'], 'late_after' => 'late_after', 'type' => 'type', 'is_active' => 'is_active']))
             ->paginate(20)
             ->withQueryString();
 

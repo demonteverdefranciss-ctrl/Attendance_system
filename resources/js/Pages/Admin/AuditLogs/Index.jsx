@@ -1,3 +1,4 @@
+import SortableHeading from '@/Components/SortableHeading';
 import { useEffect, useMemo, useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -259,9 +260,7 @@ export default function AuditLogsIndex({ logs, actions, users, filters }) {
                     <thead className="bg-gray-50">
                         <tr>
                             {['When', 'User', 'Action', 'Entity', 'IP', 'Before', 'After'].map((h) => (
-                                <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                    {h}
-                                </th>
+{"When":"created_at","User":"user","Action":"action","Entity":"entity","IP":"ip_address"}[h] ? <SortableHeading key={h} column={{"When":"created_at","User":"user","Action":"action","Entity":"entity","IP":"ip_address"}[h]}>{h}</SortableHeading> : <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500">{h}</th>
                             ))}
                         </tr>
                     </thead>

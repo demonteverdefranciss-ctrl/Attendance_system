@@ -1,3 +1,4 @@
+import SortableHeading from '@/Components/SortableHeading';
 import { useState } from 'react';
 import AttendancePeriodFilter, { periodDates, selectedPeriod } from '@/Components/AttendancePeriodFilter';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -24,7 +25,9 @@ export default function ReportsIndex({
     records,
     sessions = [],
 }) {
-    const { auth } = usePage().props;
+    const page = usePage();
+    const { auth } = page.props;
+    const sortParams = new URLSearchParams(page.url.split('?')[1] || '');
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
     const { rows: sessionRows, paginator: sessionsPaginator } = usePageRows(sessions);
     const { rows: recordRows, paginator: recordsPaginator } = usePageRows(records);
@@ -65,6 +68,8 @@ export default function ReportsIndex({
     const exportUrl = (fmt) =>
         route('reports.preview', {
             format: fmt,
+            records_sort: sortParams.get('records_sort') || undefined,
+            records_direction: sortParams.get('records_direction') || undefined,
             from: form.from,
             to: form.to,
             section_id: form.section_id || undefined,
@@ -153,12 +158,7 @@ export default function ReportsIndex({
                         <thead className="bg-gray-50">
                             <tr>
                                 {['Date', 'Section', 'Status', 'Present/Late', 'Absent', 'Total', ''].map((h) => (
-                                    <th
-                                        key={h || 'action'}
-                                        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-                                    >
-                                        {h}
-                                    </th>
+                                    h ? <SortableHeading key={h} column={{ Date: 'date', Section: 'section', Status: 'status', 'Present/Late': 'present', Absent: 'absent', Total: 'total' }[h]} prefix="sessions_" pageName="sessions_page">{h}</SortableHeading> : <th key="action" />
                                 ))}
                             </tr>
                         </thead>
@@ -238,13 +238,8 @@ export default function ReportsIndex({
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            {['Date', 'Section', 'Student', 'Status', 'Time In', 'Time Out', 'Method'].map((h) => (
-                                <th
-                                    key={h}
-                                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500"
-                                >
-                                    {h}
-                                </th>
+                            {[["date","Date"],["section","Section"],["student","Student"],["status","Status"],["time_in","Time In"],["time_out","Time Out"],["method","Method"]].map(([key, label]) => (
+                                key ? <SortableHeading key={key} column={key} prefix="records_" pageName="records_page">{label}</SortableHeading> : <th key="actions" />
                             ))}
                         </tr>
                     </thead>

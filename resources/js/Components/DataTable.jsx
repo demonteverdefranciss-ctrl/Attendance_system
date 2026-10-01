@@ -1,5 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import Pagination, { usePageRows } from '@/Components/Pagination';
+import SortableHeading from '@/Components/SortableHeading';
 
 /**
  * Generic admin table.
@@ -19,14 +20,14 @@ export default function DataTable({ columns, rows, editRoute, destroyRoute, empt
 
     return (
         <div>
-            <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+            <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
                             {columns.map((c) => (
-                                <th key={c.key} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                <SortableHeading key={c.key} column={c.key}>
                                     {c.label}
-                                </th>
+                                </SortableHeading>
                             ))}
                             <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
                                 Actions

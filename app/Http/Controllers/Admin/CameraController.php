@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\TableSort;
 use App\Models\Camera;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class CameraController extends Controller
         $cameras = Camera::with(['sections:id,camera_id,name,grade_level'])
             ->withCount('sections')
             ->orderBy('name')
+            ->tap(fn ($query) => TableSort::apply($query, ['name' => 'name', 'location' => 'location', 'sections' => 'sections_count', 'status' => 'is_active', 'id' => 'id']))
             ->paginate(20)
             ->withQueryString();
 
