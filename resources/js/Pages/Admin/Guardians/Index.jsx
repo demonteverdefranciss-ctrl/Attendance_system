@@ -7,7 +7,6 @@ export default function GuardiansIndex({ guardians }) {
         { key: 'name', label: 'Name', render: (g) => `${g.first_name} ${g.last_name}` },
         { key: 'username', label: 'Username', render: (g) => g.user?.username },
         { key: 'phone', label: 'Phone', render: (g) => g.phone || '—' },
-        { key: 'notify_pref', label: 'Notify', render: (g) => g.notify_pref },
         { key: 'students_count', label: 'Children', render: (g) => g.students_count },
     ];
 

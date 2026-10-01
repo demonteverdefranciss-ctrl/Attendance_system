@@ -54,7 +54,7 @@ class GuardianController extends Controller
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'phone' => $data['phone'] ?? null,
-                'notify_pref' => $data['notify_pref'],
+                'notify_pref' => 'push',
             ]);
         });
 
@@ -77,7 +77,6 @@ class GuardianController extends Controller
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'phone' => $data['phone'] ?? null,
-                'notify_pref' => $data['notify_pref'],
             ]);
 
             $guardian->user->update(array_filter([
@@ -123,7 +122,6 @@ class GuardianController extends Controller
             'first_name' => InputRules::personName(),
             'last_name' => InputRules::personName(),
             'phone' => InputRules::phone(),
-            'notify_pref' => ['required', Rule::in(['push', 'email', 'sms', 'none'])],
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($userId)],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'password' => [$guardian ? 'nullable' : 'required', 'string', Password::defaults()],

@@ -1,7 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TextField from '@/Components/TextField';
-import SelectField from '@/Components/SelectField';
 import { personName, phoneChars } from '@/lib/inputFilters';
 
 export default function GuardianForm({ guardian }) {
@@ -10,7 +9,6 @@ export default function GuardianForm({ guardian }) {
         first_name: guardian?.first_name ?? '',
         last_name: guardian?.last_name ?? '',
         phone: guardian?.phone ?? '',
-        notify_pref: guardian?.notify_pref ?? 'push',
         username: guardian?.user?.username ?? '',
         email: guardian?.user?.email ?? '',
         password: '',
@@ -51,12 +49,6 @@ export default function GuardianForm({ guardian }) {
                         hint="Numbers only (and optional +)."
                         inputMode="tel"
                     />
-                    <SelectField label="Notification Preference" value={data.notify_pref} onChange={(e) => setData('notify_pref', e.target.value)} error={errors.notify_pref}>
-                        <option value="push">Push (app)</option>
-                        <option value="email">Email</option>
-                        <option value="sms">SMS</option>
-                        <option value="none">None</option>
-                    </SelectField>
                 </div>
 
                 <hr className="border-gray-100" />
