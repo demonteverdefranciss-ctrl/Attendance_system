@@ -1,10 +1,12 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import ParentLayout from '@/Layouts/ParentLayout';
-import { formatDateTime } from '@/Pages/Parent/shared';
+import { notificationRecordTime } from '@/lib/notificationTime';
 
 export default function NotificationsIndex({ notifications = [], notifyPref = 'push' }) {
     const [preference, setPreference] = useState(notifyPref);
+    const [markingAll, setMarkingAll] = useState(false);
+    const unreadCount = notifications.filter((notification) => !notification.read_at).length;
 
     const markRead = (id) => {
         router.post(route('parent.notifications.read', id), {}, { preserveScroll: true });
@@ -16,6 +18,14 @@ export default function NotificationsIndex({ notifications = [], notifyPref = 'p
             { notify_pref: preference },
             { preserveScroll: true },
         );
+    };
+
+    const markAllRead = () => {
+        setMarkingAll(true);
+        router.post(route('parent.notifications.read-all'), {}, {
+            preserveScroll: true,
+            onFinish: () => setMarkingAll(false),
+        });
     };
 
     return (
@@ -45,9 +55,19 @@ export default function NotificationsIndex({ notifications = [], notifyPref = 'p
             </div>
 
             <div className="mt-6 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-                <div className="border-b border-gray-100 px-4 py-3">
-                    <h2 className="text-base font-semibold text-gray-900">Notifications</h2>
-                    <p className="text-xs text-gray-500">Latest attendance updates for your children</p>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+                    <div>
+                        <h2 className="text-base font-semibold text-gray-900">Notifications</h2>
+                        <p className="text-xs text-gray-500">Latest attendance updates for your children</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={markAllRead}
+                        disabled={unreadCount === 0 || markingAll}
+                        className="rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {markingAll ? 'Marking...' : 'Mark all as read'}
+                    </button>
                 </div>
                 <div className="divide-y divide-gray-100">
                     {notifications.length === 0 && (
@@ -58,9 +78,9 @@ export default function NotificationsIndex({ notifications = [], notifyPref = 'p
                             key={n.id}
                             className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between"
                         >
-                            <div>
+                            <div className={!n.read_at ? 'font-semibold' : ''}>
                                 <div className="flex items-center gap-2">
-                                    <h3 className="text-sm font-semibold text-gray-900">
+                                    <h3 className={`text-sm text-gray-900 ${n.read_at ? 'font-semibold' : 'font-bold'}`}>
                                         {n.title || 'Attendance Update'}
                                     </h3>
                                     {n.read_at ? (
@@ -73,11 +93,11 @@ export default function NotificationsIndex({ notifications = [], notifyPref = 'p
                                         </span>
                                     )}
                                 </div>
-                                <p className="mt-1 text-sm text-gray-700">
+                                <p className={`mt-1 text-sm text-gray-700 ${!n.read_at ? 'font-semibold' : ''}`}>
                                     {n.body || 'A new attendance event was recorded.'}
                                 </p>
                                 <p className="mt-1 text-xs text-gray-500">
-                                    Sent: {formatDateTime(n.sent_at)} Â· Type: {n.type}
+                                    {notificationRecordTime(n.created_at || n.sent_at)} · Type: {n.type}
                                 </p>
                             </div>
                             {!n.read_at && (

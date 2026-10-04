@@ -2,6 +2,14 @@ import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import FlashMessages from '@/Components/FlashMessages';
 import SidebarIcon from '@/Components/SidebarIcon';
+import { notificationRecordTime } from '@/lib/notificationTime';
+
+const THEMES = [
+    { value: 'default', label: 'Default' },
+    { value: 'dark', label: 'Dark mode' },
+    { value: 'facebook', label: 'Facebook blue' },
+    { value: 'youtube', label: 'YouTube red' },
+];
 
 function BrandMark({ logoUrl, compact = false }) {
     return (
@@ -27,6 +35,16 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
     const { auth, teacherAlerts = [], assetBase } = usePage().props;
     const logoUrl = `${assetBase || ''}/branding/bigaa-logo.png`;
     const [open, setOpen] = useState(false);
+    const [theme, setTheme] = useState(() => {
+        if (typeof window === 'undefined') return 'default';
+        return THEMES.some((item) => item.value === window.localStorage.getItem('attendance-theme'))
+            ? window.localStorage.getItem('attendance-theme')
+            : 'default';
+    });
+
+    useEffect(() => {
+        window.localStorage.setItem('attendance-theme', theme);
+    }, [theme]);
 
     useEffect(() => {
         const desktop = window.matchMedia('(min-width: 1024px)');
@@ -84,10 +102,10 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
     );
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className={`theme-${theme} min-h-screen bg-gray-100`}>
             <div className="flex">
                 {/* Desktop sidebar */}
-                <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0 bg-blue-200 border-r border-gray-200">
+                <aside className="theme-sidebar hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0 bg-blue-200 border-r border-gray-200">
                     <div className="flex h-16 items-center px-4">
                         <BrandMark logoUrl={logoUrl} />
                     </div>
@@ -103,7 +121,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                             aria-label="Close menu"
                             onClick={() => setOpen(false)}
                         />
-                        <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-blue-200 shadow-xl">
+                        <aside className="theme-sidebar relative flex h-full w-72 max-w-[85vw] flex-col bg-blue-200 shadow-xl">
                             <div className="flex min-h-20 shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-3">
                                 <BrandMark logoUrl={logoUrl} />
                                 <button
@@ -142,6 +160,17 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                             </div>
                         </div>
                         <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-4">
+                            <label className="hidden items-center gap-2 text-xs text-gray-500 sm:flex">
+                                <span>Theme</span>
+                                <select
+                                    value={theme}
+                                    onChange={(event) => setTheme(event.target.value)}
+                                    className="rounded-lg border-gray-300 bg-white py-1.5 text-xs text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    aria-label="Colour theme"
+                                >
+                                    {THEMES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                                </select>
+                            </label>
                             <div className="min-w-0 text-right">
                                 <div className="max-w-28 truncate text-sm font-medium text-gray-800 sm:max-w-48" title={auth?.user?.name}>{auth?.user?.name}</div>
                                 <div className="text-xs uppercase tracking-wide text-gray-400">{auth?.user?.role}</div>
@@ -169,6 +198,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                                         <div>
                                             <p className="font-semibold">{alert.title}</p>
                                             {alert.body && <p className="mt-0.5 text-blue-800">{alert.body}</p>}
+                                            <p className="mt-1 text-xs text-blue-700">{notificationRecordTime(alert.created_at)}</p>
                                         </div>
                                         <button
                                             type="button"

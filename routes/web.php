@@ -20,6 +20,8 @@ use App\Http\Controllers\CameraStreamController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NoClassDayListController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ScheduleCalendarController;
+use App\Http\Controllers\Teacher\StudentController as TeacherStudentController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
@@ -41,6 +43,7 @@ Route::middleware('auth')->group(function () {
 
     // Role dispatcher: sends each user to their own dashboard.
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('schedule-calendar', [ScheduleCalendarController::class, 'index'])->name('schedules.calendar');
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'admin'])->name('dashboard');
@@ -94,6 +97,10 @@ Route::middleware('auth')->group(function () {
             ->name('biometric-photos.file');
 
         Route::get('attendance', [TeacherAttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('students', [TeacherStudentController::class, 'index'])->name('students.index');
+        Route::get('students/create', [TeacherStudentController::class, 'create'])->name('students.create');
+        Route::post('students', [TeacherStudentController::class, 'store'])->name('students.store');
+        Route::delete('students/{student}', [TeacherStudentController::class, 'destroy'])->name('students.destroy');
         Route::post('attendance/open', [TeacherAttendanceController::class, 'open'])->name('attendance.open');
         // TEMPORARY — remove before final handover
         Route::post('attendance/clear-today', [TeacherAttendanceController::class, 'clearTodayForTesting'])
@@ -129,6 +136,8 @@ Route::middleware('auth')->group(function () {
             ->name('excuse-requests.submit');
         Route::post('notifications/{notification}/read', [DashboardController::class, 'markParentNotificationRead'])
             ->name('notifications.read');
+        Route::post('notifications/read-all', [DashboardController::class, 'markAllParentNotificationsRead'])
+            ->name('notifications.read-all');
         Route::post('notifications/preferences', [DashboardController::class, 'updateParentNotificationPreference'])
             ->name('notifications.preferences');
     });

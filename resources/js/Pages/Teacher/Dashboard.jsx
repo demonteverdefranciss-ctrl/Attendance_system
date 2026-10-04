@@ -3,6 +3,7 @@ import TeacherLayout from '@/Layouts/TeacherLayout';
 import AtRiskStudentsTable from '@/Components/AtRiskStudentsTable';
 import { StatCard } from '@/Layouts/AuthenticatedLayout';
 import { Doughnut, Line, ChartCard, noAspect } from '@/Components/Charts';
+import { notificationRecordTime } from '@/lib/notificationTime';
 
 export default function TeacherDashboard({ stats, summary, trend, atRisk = [], methodBreakdown, range, notifications = [] }) {
     const statusData = {
@@ -96,6 +97,7 @@ export default function TeacherDashboard({ stats, summary, trend, atRisk = [], m
                                     )}
                                 </div>
                                 {n.body && <p className="mt-1 text-sm text-gray-600">{n.body}</p>}
+                                <p className="mt-2 text-xs text-gray-500">{notificationRecordTime(n.created_at)}</p>
                             </div>
                             {!n.read_at && (
                                 <button

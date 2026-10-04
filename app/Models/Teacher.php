@@ -16,7 +16,17 @@ class Teacher extends Model
         'first_name',
         'last_name',
         'phone',
+        'can_add_students',
+        'can_archive_students',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'can_add_students' => 'boolean',
+            'can_archive_students' => 'boolean',
+        ];
+    }
 
     public function user(): BelongsTo
     {

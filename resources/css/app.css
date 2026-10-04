@@ -10,3 +10,35 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Application colour themes. Kept on the shared shell so every dashboard uses them. */
+.theme-dark { color-scheme: dark; background-color: #0b1220 !important; }
+.theme-dark .bg-gray-100 { background-color: #0b1220 !important; }
+.theme-dark .bg-white { background-color: #162235 !important; }
+.theme-dark .bg-gray-50 { background-color: #1e2d42 !important; }
+.theme-dark .border-gray-100, .theme-dark .border-gray-200, .theme-dark .ring-gray-200 { border-color: #334155 !important; }
+.theme-dark .text-gray-900, .theme-dark .text-gray-800, .theme-dark .text-gray-700 { color: #f8fafc !important; }
+.theme-dark .text-gray-600, .theme-dark .text-gray-500, .theme-dark .text-gray-400 { color: #cbd5e1 !important; }
+.theme-dark input, .theme-dark select, .theme-dark textarea { background-color: #0f172a !important; color: #f8fafc !important; border-color: #64748b !important; }
+.theme-dark .hover\:bg-gray-50:hover, .theme-dark .hover\:bg-gray-100:hover { background-color: #26364a !important; }
+.theme-dark .theme-sidebar { background-color: #101b2d !important; border-color: #334155 !important; }
+.theme-dark .theme-sidebar .text-gray-600, .theme-dark .theme-sidebar .text-gray-500, .theme-dark .theme-sidebar .text-gray-400 { color: #cbd5e1 !important; }
+.theme-dark .theme-sidebar .text-blue-600 { color: #60a5fa !important; }
+.theme-dark .theme-sidebar .bg-blue-50 { background-color: #1d4ed8 !important; color: #ffffff !important; }
+.theme-dark .theme-sidebar .hover\:bg-blue-500:hover { background-color: #1e40af !important; color: #ffffff !important; }
+
+.theme-facebook .theme-sidebar { background-color: #1877f2; border-color: #1464cc; }
+.theme-facebook .theme-sidebar .text-gray-600, .theme-facebook .theme-sidebar .text-gray-500 { color: #eaf3ff; }
+.theme-facebook .theme-sidebar .text-blue-600 { color: #fff; }
+.theme-facebook .theme-sidebar .bg-blue-50 { background-color: #fff; color: #1877f2; }
+.theme-facebook .theme-sidebar .hover\:bg-blue-500:hover { background-color: #1464cc; }
+.theme-facebook .bg-blue-600 { background-color: #1877f2; }
+.theme-facebook .text-blue-700, .theme-facebook .text-blue-600 { color: #1877f2; }
+
+.theme-youtube .theme-sidebar { background-color: #ff0000; border-color: #cc0000; }
+.theme-youtube .theme-sidebar .text-gray-600, .theme-youtube .theme-sidebar .text-gray-500 { color: #fff1f1; }
+.theme-youtube .theme-sidebar .text-blue-600 { color: #fff; }
+.theme-youtube .theme-sidebar .bg-blue-50 { background-color: #fff; color: #cc0000; }
+.theme-youtube .theme-sidebar .hover\:bg-blue-500:hover { background-color: #cc0000; }
+.theme-youtube .bg-blue-600 { background-color: #e00000; }
+.theme-youtube .text-blue-700, .theme-youtube .text-blue-600 { color: #d00000; }

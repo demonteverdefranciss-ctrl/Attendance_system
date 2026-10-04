@@ -54,6 +54,8 @@ class TeacherController extends Controller
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'phone' => $data['phone'] ?? null,
+                'can_add_students' => $data['can_add_students'],
+                'can_archive_students' => $data['can_archive_students'],
             ]);
         });
 
@@ -77,6 +79,8 @@ class TeacherController extends Controller
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'phone' => $data['phone'] ?? null,
+                'can_add_students' => $data['can_add_students'],
+                'can_archive_students' => $data['can_archive_students'],
             ]);
 
             $teacher->user->update(array_filter([
@@ -115,6 +119,11 @@ class TeacherController extends Controller
     {
         $userId = $teacher?->user_id;
 
+        $request->merge([
+            'can_add_students' => $request->boolean('can_add_students'),
+            'can_archive_students' => $request->boolean('can_archive_students'),
+        ]);
+
         if ($request->input('password') === '') {
             $request->merge(['password' => null]);
         }
@@ -127,6 +136,8 @@ class TeacherController extends Controller
             'username' => ['required', 'string', 'max:100', Rule::unique('users', 'username')->ignore($userId)],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'password' => [$teacher ? 'nullable' : 'required', 'string', Password::defaults()],
+            'can_add_students' => ['boolean'],
+            'can_archive_students' => ['boolean'],
         ], InputRules::messages());
     }
 }
