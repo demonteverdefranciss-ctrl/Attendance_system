@@ -1,5 +1,6 @@
 import SortableHeading from '@/Components/SortableHeading';
 import { Head, router } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import AttendancePeriodFilter from '@/Components/AttendancePeriodFilter';
 import ParentLayout from '@/Layouts/ParentLayout';
 import Pagination, { usePageRows } from '@/Components/Pagination';
@@ -14,12 +15,56 @@ const STATUS_COLORS = {
 
 export default function AttendanceIndex({ children = [], records = [], filters = {} }) {
     const { rows, paginator } = usePageRows(records);
-    const studentId = filters.student_id ?? 'all';
-    const period = filters.period ?? 'all';
+    const [studentId, setStudentId] = useState(filters.student_id ?? 'all');
+    const [period, setPeriod] = useState(filters.period ?? 'all');
+    const [customFrom, setCustomFrom] = useState('');
+    const [customTo, setCustomTo] = useState('');
+
+    const filteredRows = useMemo(() => {
+        if (period !== 'custom' || (!customFrom && !customTo)) {
+            return rows;
+        }
+
+        return rows.filter((row) => {
+            if (!row.date) return false;
+            const date = new Date(`${row.date}T00:00:00`);
+            const from = customFrom ? new Date(`${customFrom}T00:00:00`) : null;
+            const to = customTo ? new Date(`${customTo}T23:59:59`) : null;
+
+            if (from && date < from) return false;
+            if (to && date > to) return false;
+            return true;
+        });
+    }, [rows, period, customFrom, customTo]);
 
     const selectChild = (id) => {
+        setStudentId(id);
         const params = { period, ...(id === 'all' ? {} : { student_id: id }) };
         router.get(route('parent.attendance.index'), params, { preserveState: true, preserveScroll: true });
+    };
+
+    const changePeriod = (value) => {
+        setPeriod(value);
+        const params = {
+            ...(value === 'custom' ? { from: customFrom, to: customTo } : { period: value }),
+            ...(studentId === 'all' ? {} : { student_id: studentId }),
+        };
+        router.get(route('parent.attendance.index'), params, { preserveState: true, preserveScroll: true });
+    };
+
+    const changeRange = (key, value) => {
+        if (key === 'from') setCustomFrom(value);
+        if (key === 'to') setCustomTo(value);
+
+        if (value) {
+            setPeriod('custom');
+            router.get(route('parent.attendance.index'), {
+                period: 'custom',
+                from: key === 'from' ? value : customFrom,
+                to: key === 'to' ? value : customTo,
+                ...(studentId === 'all' ? {} : { student_id: studentId }),
+            }, { preserveState: true, preserveScroll: true });
+        }
     };
 
     return (
@@ -31,9 +76,13 @@ export default function AttendanceIndex({ children = [], records = [], filters =
                     <h2 className="text-base font-semibold text-gray-900">Attendance records</h2>
                     <p className="text-xs text-gray-500">Time in and time out for each linked child.</p>
                     <div className="mt-4">
-                        <AttendancePeriodFilter value={period} onChange={(value) => router.get(route('parent.attendance.index'), {
-                            period: value, ...(studentId === 'all' ? {} : { student_id: studentId }),
-                        }, { preserveState: true, preserveScroll: true })} />
+                        <AttendancePeriodFilter
+                            value={period}
+                            from={customFrom}
+                            to={customTo}
+                            onRangeChange={changeRange}
+                            onChange={changePeriod}
+                        />
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                         <button
@@ -74,14 +123,14 @@ export default function AttendanceIndex({ children = [], records = [], filters =
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {rows.length === 0 && (
+                            {filteredRows.length === 0 && (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                                         No attendance records for the selected filters.
                                     </td>
                                 </tr>
                             )}
-                            {rows.map((r) => (
+                            {filteredRows.map((r) => (
                                 <tr key={r.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-2 text-sm text-gray-700">{r.date || '—'}</td>
                                     <td className="px-4 py-2 text-sm text-gray-700">{r.student}</td>

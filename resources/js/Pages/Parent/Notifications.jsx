@@ -76,27 +76,30 @@ export default function NotificationsIndex({ notifications = [], notifyPref = 'p
                     {notifications.map((n) => (
                         <div
                             key={n.id}
-                            className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between"
+                            className={`flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between ${
+                                n.read_at ? 'bg-white' : 'bg-blue-50/70 ring-1 ring-inset ring-blue-100'
+                            }`}
                         >
-                            <div className={!n.read_at ? 'font-semibold' : ''}>
+                            <div className={`min-w-0 flex-1 ${!n.read_at ? 'font-semibold' : ''}`}>
                                 <div className="flex items-center gap-2">
-                                    <h3 className={`text-sm text-gray-900 ${n.read_at ? 'font-semibold' : 'font-bold'}`}>
+                                    <span className={`inline-flex h-2.5 w-2.5 rounded-full ${n.read_at ? 'bg-gray-300' : 'bg-blue-600'}`} />
+                                    <h3 className={`text-sm ${n.read_at ? 'font-semibold text-gray-700' : 'font-bold text-gray-900'}`}>
                                         {n.title || 'Attendance Update'}
                                     </h3>
                                     {n.read_at ? (
-                                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">
+                                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
                                             Read
                                         </span>
                                     ) : (
-                                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">
                                             Unread
                                         </span>
                                     )}
                                 </div>
-                                <p className={`mt-1 text-sm text-gray-700 ${!n.read_at ? 'font-semibold' : ''}`}>
+                                <p className={`mt-1 text-sm leading-6 ${n.read_at ? 'text-gray-600' : 'text-gray-800'}`}>
                                     {n.body || 'A new attendance event was recorded.'}
                                 </p>
-                                <p className="mt-1 text-xs text-gray-500">
+                                <p className="mt-2 text-xs text-gray-500">
                                     {notificationRecordTime(n.created_at || n.sent_at)} · Type: {n.type}
                                 </p>
                             </div>
@@ -104,7 +107,7 @@ export default function NotificationsIndex({ notifications = [], notifyPref = 'p
                                 <button
                                     type="button"
                                     onClick={() => markRead(n.id)}
-                                    className="rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
+                                    className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-50"
                                 >
                                     Mark as read
                                 </button>
