@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import ParentLayout from '@/Layouts/ParentLayout';
-import { formatDateTime } from '@/Pages/Parent/shared';
+import { notificationRecordTime } from '@/lib/notificationTime';
 
 const icons = {
     attendance: 'M9 5H5v16h14V5h-4M9 3h6v4H9zM8 12l2 2 5-5M8 18h8',
@@ -103,7 +103,7 @@ export default function ParentDashboard({ stats, unreadCount = 0, recentNotifica
                                         {!n.read_at && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Unread</span>}
                                     </div>
                                     <p className="mt-1 break-words text-sm leading-relaxed text-gray-600">{n.body}</p>
-                                    {n.sent_at && <p className="mt-2 text-xs text-gray-500">{formatDateTime(n.sent_at)}</p>}
+                                    <p className="mt-2 text-xs text-gray-500">{notificationRecordTime(n.created_at || n.sent_at)}</p>
                                 </div>
                             </div>
                         ))}

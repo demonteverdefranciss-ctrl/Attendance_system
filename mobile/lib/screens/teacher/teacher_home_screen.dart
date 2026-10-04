@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/api_client.dart';
 import '../../services/session_service.dart';
+import '../../services/theme_service.dart';
 import '../child_detail_screen.dart';
 import 'teacher_attendance_screen.dart';
 import 'teacher_biometric_screen.dart';
@@ -15,11 +16,27 @@ class TeacherHomeScreen extends StatefulWidget {
     required this.api,
     required this.session,
     required this.onLogout,
+    required this.theme,
+    required this.onThemeChanged,
+    required this.fontScale,
+    required this.highContrast,
+    required this.onFontScaleChanged,
+    required this.onHighContrastChanged,
+    this.contentManagementEnabled = true,
+    this.onContentManagementChanged,
   });
 
   final ApiClient api;
   final SessionService session;
   final VoidCallback onLogout;
+  final ThemePreset theme;
+  final ValueChanged<ThemePreset> onThemeChanged;
+  final double fontScale;
+  final bool highContrast;
+  final ValueChanged<double> onFontScaleChanged;
+  final ValueChanged<bool> onHighContrastChanged;
+  final bool contentManagementEnabled;
+  final ValueChanged<bool>? onContentManagementChanged;
 
   @override
   State<TeacherHomeScreen> createState() => _TeacherHomeScreenState();
@@ -77,6 +94,14 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       drawer: SchoolNavigation(
         api: widget.api,
         teacher: true,
+        theme: widget.theme,
+        onThemeChanged: widget.onThemeChanged,
+        fontScale: widget.fontScale,
+        highContrast: widget.highContrast,
+        onFontScaleChanged: widget.onFontScaleChanged,
+        onHighContrastChanged: widget.onHighContrastChanged,
+        contentManagementEnabled: widget.contentManagementEnabled,
+        onContentManagementChanged: widget.onContentManagementChanged,
         onReturn: () {
           if (mounted) _load();
         },

@@ -1,7 +1,21 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import FlashMessages from '@/Components/FlashMessages';
 import SidebarIcon from '@/Components/SidebarIcon';
+import { notificationRecordTime } from '@/lib/notificationTime';
+
+const THEMES = [
+    { value: 'default', label: 'Default' },
+    { value: 'dark', label: 'Dark mode' },
+    { value: 'facebook', label: 'Facebook blue' },
+    { value: 'youtube', label: 'YouTube red' },
+];
+
+const CONTRASTS = [
+    { value: 'standard', label: 'Standard' },
+    { value: 'high', label: 'High contrast' },
+    { value: 'soft', label: 'Soft contrast' },
+];
 
 function BrandMark({ logoUrl, compact = false }) {
     return (
@@ -27,6 +41,61 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
     const { auth, teacherAlerts = [], assetBase } = usePage().props;
     const logoUrl = `${assetBase || ''}/branding/bigaa-logo.png`;
     const [open, setOpen] = useState(false);
+    const [accessibilityOpen, setAccessibilityOpen] = useState(false);
+    const [theme, setTheme] = useState(() => {
+        if (typeof window === 'undefined') return 'default';
+        return THEMES.some((item) => item.value === window.localStorage.getItem('attendance-theme'))
+            ? window.localStorage.getItem('attendance-theme')
+            : 'default';
+    });
+    const [fontScale, setFontScale] = useState(() => {
+        if (typeof window === 'undefined') return 1;
+        const saved = Number(window.localStorage.getItem('attendance-font-scale')); 
+        return Number.isFinite(saved) && saved >= 0.9 && saved <= 1.4 ? saved : 1;
+    });
+    const [contrast, setContrast] = useState(() => {
+        if (typeof window === 'undefined') return 'standard';
+        return CONTRASTS.some((item) => item.value === window.localStorage.getItem('attendance-contrast'))
+            ? window.localStorage.getItem('attendance-contrast')
+            : 'standard';
+    });
+    const [contentSettings, setContentSettings] = useState(() => ({
+        attendance: true,
+        notifications: true,
+        biometrics: true,
+        enrollments: true,
+    }));
+
+    useEffect(() => {
+        window.localStorage.setItem('attendance-theme', theme);
+    }, [theme]);
+
+    useEffect(() => {
+        window.localStorage.setItem('attendance-font-scale', String(fontScale));
+        document.documentElement.style.setProperty('--app-font-scale', String(fontScale));
+        document.body.style.fontSize = `${fontScale}rem`;
+    }, [fontScale]);
+
+    useEffect(() => {
+        const mode = contrast === 'high' ? 'high-contrast' : contrast === 'soft' ? 'soft-contrast' : 'standard-contrast';
+        document.documentElement.dataset.contrastMode = mode;
+        window.localStorage.setItem('attendance-contrast', contrast);
+    }, [contrast]);
+
+    useEffect(() => {
+        const saved = window.localStorage.getItem('attendance-content-settings');
+        if (saved) {
+            try {
+                setContentSettings({ ...contentSettings, ...JSON.parse(saved) });
+            } catch (error) {
+                console.warn('Unable to load content settings', error);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        window.localStorage.setItem('attendance-content-settings', JSON.stringify(contentSettings));
+    }, [contentSettings]);
 
     useEffect(() => {
         const desktop = window.matchMedia('(min-width: 1024px)');
@@ -84,10 +153,10 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
     );
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className={`theme-${theme} min-h-screen bg-gray-100`}>
             <div className="flex">
                 {/* Desktop sidebar */}
-                <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0 bg-blue-200 border-r border-gray-200">
+                <aside className="theme-sidebar hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0 bg-blue-200 border-r border-gray-200">
                     <div className="flex h-16 items-center px-4">
                         <BrandMark logoUrl={logoUrl} />
                     </div>
@@ -103,7 +172,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                             aria-label="Close menu"
                             onClick={() => setOpen(false)}
                         />
-                        <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-blue-200 shadow-xl">
+                        <aside className="theme-sidebar relative flex h-full w-72 max-w-[85vw] flex-col bg-blue-200 shadow-xl">
                             <div className="flex min-h-20 shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-3">
                                 <BrandMark logoUrl={logoUrl} />
                                 <button
@@ -142,6 +211,24 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                             </div>
                         </div>
                         <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-4">
+                            <button
+                                type="button"
+                                onClick={() => setAccessibilityOpen((state) => !state)}
+                                className="hidden min-h-11 items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 sm:inline-flex"
+                            >
+                                Accessibility
+                            </button>
+                            <label className="hidden items-center gap-2 text-xs text-gray-500 sm:flex">
+                                <span>Theme</span>
+                                <select
+                                    value={theme}
+                                    onChange={(event) => setTheme(event.target.value)}
+                                    className="rounded-lg border-gray-300 bg-white py-1.5 text-xs text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    aria-label="Colour theme"
+                                >
+                                    {THEMES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                                </select>
+                            </label>
                             <div className="min-w-0 text-right">
                                 <div className="max-w-28 truncate text-sm font-medium text-gray-800 sm:max-w-48" title={auth?.user?.name}>{auth?.user?.name}</div>
                                 <div className="text-xs uppercase tracking-wide text-gray-400">{auth?.user?.role}</div>
@@ -156,6 +243,81 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                         </div>
                     </header>
 
+                    {accessibilityOpen && (
+                        <div className="mx-3 mt-3 rounded-2xl border border-blue-200 bg-white p-4 shadow-sm sm:mx-6">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h2 className="text-base font-semibold text-gray-900">Accessibility & Content Management</h2>
+                                    <p className="text-xs text-gray-500">Adjust readability and manage visibility preferences.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setAccessibilityOpen(false)}
+                                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                                >
+                                    Close
+                                </button>
+                            </div>
+
+                            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                    <p className="text-sm font-semibold text-gray-900">Accessibility</p>
+                                    <label className="mt-3 block text-xs font-medium text-gray-600">
+                                        Font size: {fontScale.toFixed(1)}x
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0.9"
+                                        max="1.4"
+                                        step="0.1"
+                                        value={fontScale}
+                                        onChange={(event) => setFontScale(Number(event.target.value))}
+                                        className="mt-2 w-full accent-blue-600"
+                                    />
+                                    <div className="mt-3 space-y-2">
+                                        {CONTRASTS.map((option) => (
+                                            <label key={option.value} className="flex items-center gap-2 text-sm text-gray-700">
+                                                <input
+                                                    type="radio"
+                                                    name="accessibility-contrast"
+                                                    value={option.value}
+                                                    checked={contrast === option.value}
+                                                    onChange={() => setContrast(option.value)}
+                                                />
+                                                {option.label}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                    <p className="text-sm font-semibold text-gray-900">Content Management</p>
+                                    <div className="mt-3 space-y-2 text-sm text-gray-700">
+                                        {[
+                                            ['attendance', 'Attendance modules'],
+                                            ['notifications', 'Notification center'],
+                                            ['biometrics', 'Biometric portal'],
+                                            ['enrollments', 'Enrollment workflows'],
+                                        ].map(([key, label]) => (
+                                            <label key={key} className="flex items-center justify-between gap-3 rounded-lg bg-white px-2.5 py-2">
+                                                <span>{label}</span>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={contentSettings[key]}
+                                                    onChange={() => setContentSettings((current) => ({
+                                                        ...current,
+                                                        [key]: !current[key],
+                                                    }))}
+                                                    className="h-4 w-4 accent-blue-600"
+                                                />
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <main className="min-w-0 p-3 sm:p-6">
                         <FlashMessages />
 
@@ -169,6 +331,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                                         <div>
                                             <p className="font-semibold">{alert.title}</p>
                                             {alert.body && <p className="mt-0.5 text-blue-800">{alert.body}</p>}
+                                            <p className="mt-1 text-xs text-blue-700">{notificationRecordTime(alert.created_at)}</p>
                                         </div>
                                         <button
                                             type="button"

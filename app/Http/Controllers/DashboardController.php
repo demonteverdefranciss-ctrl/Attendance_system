@@ -256,6 +256,20 @@ class DashboardController extends Controller
         return redirect()->route('parent.notifications.index')->with('success', 'Notification marked as read.');
     }
 
+    public function markAllParentNotificationsRead(Request $request): RedirectResponse
+    {
+        $guardian = $request->user()->guardian;
+        if (! $guardian) {
+            abort(403);
+        }
+
+        Notification::where('guardian_id', $guardian->id)
+            ->whereNull('read_at')
+            ->update(['status' => 'read', 'read_at' => now()]);
+
+        return redirect()->route('parent.notifications.index')->with('success', 'All notifications marked as read.');
+    }
+
     public function updateParentNotificationPreference(Request $request): RedirectResponse
     {
         $guardian = $request->user()->guardian;
@@ -580,6 +594,7 @@ class DashboardController extends Controller
                 'title' => $n->title,
                 'body' => $n->body,
                 'status' => $n->status,
+                'created_at' => $n->created_at?->toDateTimeString(),
                 'sent_at' => $n->sent_at?->toDateTimeString(),
                 'read_at' => $n->read_at?->toDateTimeString(),
             ])

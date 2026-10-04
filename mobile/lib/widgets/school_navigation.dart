@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
+import '../services/theme_service.dart';
 import '../screens/student_directory_screen.dart';
 import '../screens/no_class_days_screen.dart';
 import '../screens/enrollment_screen.dart';
@@ -17,12 +18,53 @@ class SchoolNavigation extends StatelessWidget {
     required this.api,
     required this.teacher,
     required this.onReturn,
+    required this.theme,
+    required this.onThemeChanged,
+    required this.fontScale,
+    required this.highContrast,
+    required this.onFontScaleChanged,
+    required this.onHighContrastChanged,
+    this.contentManagementEnabled = true,
+    this.onContentManagementChanged,
   });
   final ApiClient api;
   final bool teacher;
   final VoidCallback onReturn;
+  final ThemePreset theme;
+  final ValueChanged<ThemePreset> onThemeChanged;
+  final double fontScale;
+  final bool highContrast;
+  final ValueChanged<double> onFontScaleChanged;
+  final ValueChanged<bool> onHighContrastChanged;
+  final bool contentManagementEnabled;
+  final ValueChanged<bool>? onContentManagementChanged;
   @override
   Widget build(BuildContext context) {
+    Future<void> chooseTheme() async {
+      final selected = await showModalBottomSheet<ThemePreset>(
+        context: context,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: ThemePreset.values
+                .map(
+                  (preset) => ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: preset.previewColor,
+                      radius: 12,
+                    ),
+                    title: Text(preset.label),
+                    trailing: preset == theme ? const Icon(Icons.check) : null,
+                    onTap: () => Navigator.pop(sheetContext, preset),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+      );
+      if (selected != null) onThemeChanged(selected);
+    }
+
     void open(Widget screen) {
       final navigator = Navigator.of(context);
       navigator.pop();
@@ -36,8 +78,61 @@ class SchoolNavigation extends StatelessWidget {
       title: Text(title),
       onTap: () => open(screen),
     );
+
+    final accessibilityTile = ExpansionTile(
+      leading: const Icon(Icons.accessibility_new_outlined),
+      title: const Text('Accessibility'),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(child: Text('Font size')),
+                  Text('${fontScale.toStringAsFixed(1)}x'),
+                ],
+              ),
+              Slider(
+                value: fontScale,
+                min: 0.9,
+                max: 1.4,
+                divisions: 10,
+                label: fontScale.toStringAsFixed(1),
+                onChanged: onFontScaleChanged,
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('High contrast'),
+                value: highContrast,
+                onChanged: onHighContrastChanged,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final contentManagementTile = ExpansionTile(
+      leading: const Icon(Icons.admin_panel_settings_outlined),
+      title: const Text('Content management'),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Manage published content'),
+            subtitle: const Text('Allow updates to notices and school posts.'),
+            value: contentManagementEnabled,
+            onChanged: onContentManagementChanged ?? (_) {},
+          ),
+        ),
+      ],
+    );
+
     return Drawer(
-      backgroundColor: const Color(0xFFDBEAFE),
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       child: SafeArea(
         child: ListView(
           children: [
@@ -53,12 +148,12 @@ class SchoolNavigation extends StatelessWidget {
                     semanticLabel: 'School logo',
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'Bigaa Elementary School',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1D4ED8),
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                   Text(teacher ? 'Teacher portal' : 'Parent portal'),
@@ -71,6 +166,14 @@ class SchoolNavigation extends StatelessWidget {
               title: const Text('Dashboard'),
               onTap: () => Navigator.pop(context),
             ),
+            ListTile(
+              leading: const Icon(Icons.palette_outlined),
+              title: const Text('Color theme'),
+              subtitle: Text(theme.label),
+              onTap: chooseTheme,
+            ),
+            accessibilityTile,
+            contentManagementTile,
             entry(
               teacher ? 'Mark attendance' : 'Attendance',
               Icons.fact_check_outlined,

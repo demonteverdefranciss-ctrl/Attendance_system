@@ -27,6 +27,7 @@ class NotificationController extends ApiController
                 'title' => $n->title,
                 'body' => $n->body,
                 'status' => $n->status,
+                'created_at' => $n->created_at?->toDateTimeString(),
                 'sent_at' => $n->sent_at?->toDateTimeString(),
                 'read_at' => $n->read_at?->toDateTimeString(),
             ]);

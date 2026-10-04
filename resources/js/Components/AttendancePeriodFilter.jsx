@@ -1,5 +1,5 @@
-export default function AttendancePeriodFilter({ value, onChange, includeAll = true }) {
-    const options = [...(includeAll ? [['all', 'All time']] : []), ['week', '1 week'], ['month', '1 month']];
+export default function AttendancePeriodFilter({ value, onChange, includeAll = true, from, to, onRangeChange }) {
+    const options = [...(includeAll ? [['all', 'All time']] : []), ['week', '1 week'], ['month', '1 month'], ['custom', 'Custom date']];
     return (
         <div className="w-full">
             <div className="flex flex-wrap gap-2" role="group" aria-label="Attendance period">
@@ -10,7 +10,30 @@ export default function AttendancePeriodFilter({ value, onChange, includeAll = t
                     </button>
                 ))}
             </div>
-            <p className="mt-2 text-xs text-gray-500">1 week: last 7 days · 1 month: last 30 days, including today.</p>
+
+            {value === 'custom' && (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-gray-600">
+                        From
+                        <input
+                            type="date"
+                            value={from || ''}
+                            onChange={(event) => onRangeChange?.('from', event.target.value)}
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+                        />
+                    </label>
+                    <label className="flex flex-1 flex-col gap-1 text-xs font-medium text-gray-600">
+                        To
+                        <input
+                            type="date"
+                            value={to || ''}
+                            onChange={(event) => onRangeChange?.('to', event.target.value)}
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+                        />
+                    </label>
+                </div>
+            )}
+            <p className="mt-2 text-xs text-gray-500">1 week: last 7 days · 1 month: last 30 days · custom: choose a date range.</p>
         </div>
     );
 }
