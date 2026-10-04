@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../services/api_client.dart';
 
@@ -144,6 +145,16 @@ class _ParentBiometricScreenState extends State<ParentBiometricScreen> {
                                 ),
                               ),
                             ],
+                          ),
+                          Semantics(
+                            image: true,
+                            label:
+                                'Photo example: use a clear, front-facing head-and-shoulders portrait; avoid distant or full-body photos.',
+                            child: SvgPicture.asset(
+                              'assets/illustrations/face-photo-guide.svg',
+                              fit: BoxFit.contain,
+                              width: double.infinity,
+                            ),
                           ),
                           if (_showGuide) ...[
                             const SizedBox(height: 8),

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="320" viewBox="0 0 720 320" role="img" aria-labelledby="title description">
+  <title id="title">Example of a suitable face photo</title>
+  <desc id="description">A clear, front-facing head-and-shoulders portrait with a plain background is recommended. Avoid distant, blurry, or full-body photos.</desc>
+  <rect width="720" height="320" rx="24" fill="#f8fafc"/>
+  <text x="28" y="42" fill="#0f172a" font-family="Arial, sans-serif" font-size="20" font-weight="700">Choose a clear face photo</text>
+  <rect x="28" y="62" width="320" height="230" rx="18" fill="#ecfdf5" stroke="#86efac" stroke-width="2"/>
+  <rect x="133" y="78" width="110" height="150" rx="52" fill="none" stroke="#16a34a" stroke-width="3" stroke-dasharray="7 6"/>
+  <circle cx="188" cy="135" r="37" fill="#f2c9a5"/>
+  <path d="M151 131c0-27 15-43 38-43 23 0 37 16 37 42-10-8-20-12-37-12-15 0-27 5-38 13Z" fill="#334155"/>
+  <path d="M166 139h1m42 0h1" stroke="#334155" stroke-linecap="round" stroke-width="4"/>
+  <path d="M178 158c7 6 14 6 21 0" fill="none" stroke="#9a5b45" stroke-linecap="round" stroke-width="3"/>
+  <path d="M137 224c8-31 25-46 51-46s43 15 51 46v8H137Z" fill="#3b82f6"/>
+  <circle cx="303" cy="89" r="19" fill="#16a34a"/>
+  <path d="m294 89 6 6 12-13" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="4"/>
+  <text x="188" y="263" fill="#166534" font-family="Arial, sans-serif" font-size="16" font-weight="700" text-anchor="middle">GOOD: front-facing portrait</text>
+  <rect x="372" y="62" width="320" height="230" rx="18" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+  <circle cx="495" cy="145" r="24" fill="#f2c9a5"/>
+  <path d="M473 141c4-17 14-25 26-25 12 0 21 8 23 23-9-5-17-6-25-5-9 0-16 3-24 7Z" fill="#64748b"/>
+  <path d="M480 171h30l15 61h-60Z" fill="#94a3b8"/>
+  <path d="m478 232-7 24m37-24 7 24" stroke="#64748b" stroke-linecap="round" stroke-width="8"/>
+  <path d="m561 120 45 45m0-45-45 45" stroke="#dc2626" stroke-linecap="round" stroke-width="7"/>
+  <text x="532" y="263" fill="#9a3412" font-family="Arial, sans-serif" font-size="16" font-weight="700" text-anchor="middle">AVOID: distant or full-body</text>
+</svg>
