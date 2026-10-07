@@ -14,7 +14,10 @@ export default function TeacherForm({ teacher }) {
         email: teacher?.user?.email ?? '',
         password: '',
         can_add_students: teacher?.can_add_students ?? false,
+        can_edit_students: teacher?.can_edit_students ?? false,
         can_add_parents: teacher?.can_add_parents ?? false,
+        can_edit_parents: teacher?.can_edit_parents ?? false,
+        can_archive_parents: teacher?.can_archive_parents ?? false,
         can_archive_students: teacher?.can_archive_students ?? false,
     });
 
@@ -80,20 +83,38 @@ export default function TeacherForm({ teacher }) {
                 </div>
 
                 <div className="rounded-lg border border-gray-200 p-4">
-                    <p className="mb-3 text-sm font-medium text-gray-700">Student and parent-management permissions</p>
-                    <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm text-gray-700">
-                            <input type="checkbox" checked={data.can_add_students} onChange={(e) => setData('can_add_students', e.target.checked)} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                            Allow this teacher to add students to their assigned sections
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-700">
-                            <input type="checkbox" checked={data.can_add_parents} onChange={(e) => setData('can_add_parents', e.target.checked)} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                            Allow this teacher to create parent accounts for students in their assigned sections
-                        </label>
-                        <label className="flex items-center gap-2 text-sm text-gray-700">
-                            <input type="checkbox" checked={data.can_archive_students} onChange={(e) => setData('can_archive_students', e.target.checked)} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                            Allow this teacher to archive students in their assigned sections
-                        </label>
+                    <p className="mb-4 text-sm font-medium text-gray-700">Management permissions</p>
+                    <div className="grid gap-5 sm:grid-cols-2">
+                        <section className="space-y-3">
+                            <h3 className="text-sm font-semibold text-gray-800">Student</h3>
+                            <label className="flex items-start gap-2 text-sm text-gray-700">
+                                <input type="checkbox" checked={data.can_add_students} onChange={(e) => setData('can_add_students', e.target.checked)} className="mt-0.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                Add students to assigned sections
+                            </label>
+                            <label className="flex items-start gap-2 text-sm text-gray-700">
+                                <input type="checkbox" checked={data.can_edit_students} onChange={(e) => setData('can_edit_students', e.target.checked)} className="mt-0.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                Edit students in assigned sections
+                            </label>
+                            <label className="flex items-start gap-2 text-sm text-gray-700">
+                                <input type="checkbox" checked={data.can_archive_students} onChange={(e) => setData('can_archive_students', e.target.checked)} className="mt-0.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                Archive students in assigned sections
+                            </label>
+                        </section>
+                        <section className="space-y-3 sm:border-l sm:border-gray-200 sm:pl-5">
+                            <h3 className="text-sm font-semibold text-gray-800">Parent</h3>
+                            <label className="flex items-start gap-2 text-sm text-gray-700">
+                                <input type="checkbox" checked={data.can_add_parents} onChange={(e) => setData('can_add_parents', e.target.checked)} className="mt-0.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                Add parent accounts for linked students
+                            </label>
+                            <label className="flex items-start gap-2 text-sm text-gray-700">
+                                <input type="checkbox" checked={data.can_edit_parents} onChange={(e) => setData('can_edit_parents', e.target.checked)} className="mt-0.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                Edit parent accounts for linked students
+                            </label>
+                            <label className="flex items-start gap-2 text-sm text-gray-700">
+                                <input type="checkbox" checked={data.can_archive_parents} onChange={(e) => setData('can_archive_parents', e.target.checked)} className="mt-0.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                Archive parent accounts for linked students
+                            </label>
+                        </section>
                     </div>
                 </div>
 
