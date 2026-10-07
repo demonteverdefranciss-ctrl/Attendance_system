@@ -92,13 +92,13 @@ export default function ExcuseRequestsIndex({ excuseRequests = [], eligibleAbsen
                 {eligibleAbsences.length > 0 && (
                     <form
                         onSubmit={startLetter}
-                        className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200"
+                        className="w-full max-w-md space-y-2 rounded-none bg-white p-4 shadow-sm ring-1 ring-gray-200"
                     >
                         <h2 className="text-sm font-semibold text-gray-900">Explain an absence</h2>
                         <p className="mt-1 text-xs text-gray-500">
                             You can send a letter for any absence or late mark. After 3 consecutive absences, a required warning appears below.
                         </p>
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                             <select
                                 value={selectedAbsence}
                                 onChange={(e) => setSelectedAbsence(e.target.value)}
@@ -112,7 +112,7 @@ export default function ExcuseRequestsIndex({ excuseRequests = [], eligibleAbsen
                             </select>
                             <button
                                 type="submit"
-                                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                className="min-h-11 shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
                             >
                                 Start letter
                             </button>
@@ -120,37 +120,55 @@ export default function ExcuseRequestsIndex({ excuseRequests = [], eligibleAbsen
                     </form>
                 )}
 
-            <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-                <div className="border-b border-gray-100 px-4 py-3">
-                    <h2 className="text-base font-semibold text-gray-900">Explanation Letters</h2>
+            <section aria-labelledby="explanation-letters-title" className="space-y-3">
+                <div>
+                    <h2 id="explanation-letters-title" className="text-base font-semibold text-gray-900">Explanation Letters</h2>
                     <p className="text-xs text-gray-500">
                         Submit a typed letter or PDF, and optionally attach a photo. A teacher can accept it to mark those days excused.
                     </p>
                 </div>
-                <div className="divide-y divide-gray-100">
+                <div className="space-y-3">
                     {excuseRequests.length === 0 && (
-                        <div className="px-4 py-8 text-center text-sm text-gray-400">
+                            <div className="rounded-none bg-white px-4 py-8 text-center text-sm text-gray-400 shadow-sm ring-1 ring-gray-200">
                             No explanation letter requests yet.
                         </div>
                     )}
-                    {excuseRequests.map((r) => (
-                        <div key={r.id} className="px-4 py-4">
-                            <div className="flex items-center justify-between gap-2">
-                                <h3 className="text-sm font-semibold text-gray-900">{r.student}</h3>
-                                <span
-                                    className={`rounded-full px-2 py-0.5 text-xs capitalize ${
-                                        r.status === 'approved'
-                                            ? 'bg-green-100 text-green-700'
-                                            : r.status === 'rejected'
-                                              ? 'bg-red-100 text-red-700'
-                                              : r.status === 'pending'
-                                                ? 'bg-blue-100 text-blue-700'
-                                                : 'bg-amber-100 text-amber-700'
-                                    }`}
-                                >
-                                    {r.status === 'awaiting_letter' ? 'needs letter' : r.status}
-                                </span>
-                            </div>
+                    {excuseRequests.map((r) => {
+                        const absenceDates = Array.isArray(r.streak_summary)
+                            ? r.streak_summary.map((item) => item.date).filter(Boolean)
+                            : [];
+
+                        return (
+                            <details key={r.id} className="group overflow-hidden rounded-none bg-white shadow-sm ring-1 ring-gray-200">
+                                <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 [&::-webkit-details-marker]:hidden">
+                                    <div className="min-w-0">
+                                        <h3 className="truncate text-sm font-semibold text-gray-900">{r.student}</h3>
+                                        <p className="mt-0.5 truncate text-xs text-gray-500">
+                                            {r.is_required ? 'Required explanation' : 'Absence explanation'}
+                                            {r.streak_count ? ` · ${r.streak_count} day${r.streak_count === 1 ? '' : 's'}` : ''}
+                                            {absenceDates.length ? ` · ${absenceDates.join(', ')}` : ''}
+                                        </p>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                        <span
+                                            className={`rounded-full px-2 py-0.5 text-xs capitalize ${
+                                                r.status === 'approved'
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : r.status === 'rejected'
+                                                      ? 'bg-red-100 text-red-700'
+                                                      : r.status === 'pending'
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : 'bg-amber-100 text-amber-700'
+                                            }`}
+                                        >
+                                            {r.status === 'awaiting_letter' ? 'needs letter' : r.status}
+                                        </span>
+                                        <svg className="h-5 w-5 text-gray-500 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                                        </svg>
+                                    </div>
+                                </summary>
+                                <div className="border-t border-gray-100 p-4">
                             {r.is_required ? (
                                 <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 ring-1 ring-red-200">
                                     Warning: 3 consecutive absences — explanation required
@@ -264,10 +282,12 @@ export default function ExcuseRequestsIndex({ excuseRequests = [], eligibleAbsen
                                 </div>
                             )}
                             {r.notes ? <p className="mt-1 text-xs text-gray-600">Teacher note: {r.notes}</p> : null}
-                        </div>
-                    ))}
+                            </div>
+                        </details>
+                        );
+                    })}
                 </div>
-            </div>
+            </section>
             </div>
         </ParentLayout>
     );
