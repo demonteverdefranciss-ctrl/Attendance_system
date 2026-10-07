@@ -2,10 +2,10 @@ import { Head, Link, router } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import Pagination, { usePageRows } from '@/Components/Pagination';
 
-export default function TeacherStudentsIndex({ students, canAddStudents, canArchiveStudents }) {
+export default function TeacherStudentsIndex({ students, canAddStudents, canAddParents, canArchiveStudents }) {
     const { rows, paginator } = usePageRows(students);
     const archive = (student) => confirm(`Move ${student.first_name} ${student.last_name} to the archive?`) && router.delete(route('teacher.students.destroy', student.id), { preserveScroll: true });
-    return <TeacherLayout title="Students" actions={canAddStudents && <Link href={route('teacher.students.create')} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">+ Add Student</Link>}>
+    return <TeacherLayout title="Students" actions={<div className="flex flex-wrap gap-2">{canAddParents && <Link href={route('teacher.parents.create')} className="rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">+ Add Parent</Link>}{canAddStudents && <Link href={route('teacher.students.create')} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">+ Add Student</Link>}</div>}>
         <Head title="Students" />
         {!canAddStudents && !canArchiveStudents && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Your administrator has not granted student-management permissions.</div>}
         <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-200"><table className="min-w-full divide-y divide-gray-200"><thead className="bg-gray-50"><tr>{['Student', 'LRN', 'Section', 'Status', ...(canArchiveStudents ? ['Actions'] : [])].map((heading) => <th key={heading} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{heading}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">

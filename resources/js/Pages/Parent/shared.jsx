@@ -107,20 +107,44 @@ export function ChildBiometricUpload({ child }) {
     };
 
     return (
-        <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                    <h3 className="text-sm font-semibold text-gray-900">{child.name}</h3>
-                    <p className="text-xs text-gray-500">LRN {child.lrn} · {child.section}</p>
+        <details className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+            <summary className="group flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 [&::-webkit-details-marker]:hidden">
+                <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold text-gray-900">{child.name}</h3>
+                    <p className="mt-0.5 truncate text-xs text-gray-500">LRN {child.lrn} · {child.section}</p>
                 </div>
-                {child.consent_biometric ? (
-                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">Consent on file</span>
-                ) : (
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">No consent yet</span>
-                )}
-            </div>
+                <div className="flex shrink-0 items-center gap-2">
+                    {submission && (
+                        <span className={`hidden rounded-full px-2 py-0.5 text-xs sm:inline-flex ${submissionBadge(submission.enrollment_status || submission.status)}`}>
+                            {enrollmentLabel(submission)}
+                        </span>
+                    )}
+                    {child.consent_biometric ? (
+                        <span className="hidden rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 sm:inline-flex">Consent on file</span>
+                    ) : (
+                        <span className="hidden rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800 ring-1 ring-inset ring-amber-200 sm:inline-flex">No consent</span>
+                    )}
+                    <svg className="h-5 w-5 text-gray-500 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                    </svg>
+                </div>
+            </summary>
 
-            {submission && (
+            <div className="border-t border-gray-100 p-4">
+                <div className="mb-3 flex flex-wrap gap-2 sm:hidden">
+                    {submission && (
+                        <span className={`rounded-full px-2 py-0.5 text-xs ${submissionBadge(submission.enrollment_status || submission.status)}`}>
+                            {enrollmentLabel(submission)}
+                        </span>
+                    )}
+                    {child.consent_biometric ? (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">Consent on file</span>
+                    ) : (
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800 ring-1 ring-inset ring-amber-200">No consent yet</span>
+                    )}
+                </div>
+
+                {submission && (
                 <div className="mt-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
                     <span className={`mr-2 rounded-full px-2 py-0.5 capitalize ${submissionBadge(submission.enrollment_status || submission.status)}`}>
                         {enrollmentLabel(submission)}
@@ -131,9 +155,9 @@ export function ChildBiometricUpload({ child }) {
                     Submitted {submission.created_at || '—'}
                     {submission.notes ? <p className="mt-1">Teacher note: {submission.notes}</p> : null}
                 </div>
-            )}
+                )}
 
-            {!canUpload ? (
+                {!canUpload ? (
                 <p className="mt-3 text-xs text-gray-500">
                     {submission?.status === 'approved'
                         ? (submission?.enrollment_status === 'active'
@@ -141,7 +165,7 @@ export function ChildBiometricUpload({ child }) {
                             : 'Photos approved. The school will import them for face enrollment.')
                         : 'The system already accepted these photos. Waiting for a teacher to confirm this is the correct student.'}
                 </p>
-            ) : (
+                ) : (
                 <form onSubmit={submit} className="mt-3 space-y-3">
                     <p className="text-xs text-gray-500">
                         Upload 1–3 photos of your child&apos;s face (JPEG/PNG). Large phone photos are resized
@@ -191,7 +215,8 @@ export function ChildBiometricUpload({ child }) {
                         {uploading ? 'Validating…' : 'Submit photos'}
                     </button>
                 </form>
-            )}
-        </div>
+                )}
+            </div>
+        </details>
     );
 }

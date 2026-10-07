@@ -4,7 +4,6 @@ const nav = [
     { label: 'Dashboard', route: 'parent.dashboard' },
     { label: 'Attendance', route: 'parent.attendance.index' },
     { label: 'Schedule Calendar', route: 'schedules.calendar' },
-    { label: 'No-class days', route: 'parent.no-class-days.index' },
     { label: 'Biometric Photos', route: 'parent.biometrics.index' },
     { label: 'Enrollment', route: 'parent.enrollment.index' },
     { label: 'Explanation Letters', route: 'parent.excuse-requests.index' },

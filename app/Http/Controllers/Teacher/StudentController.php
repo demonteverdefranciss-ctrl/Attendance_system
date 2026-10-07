@@ -30,6 +30,7 @@ class StudentController extends Controller
         return Inertia::render('Teacher/Students/Index', [
             'students' => $students,
             'canAddStudents' => (bool) $teacher->can_add_students,
+            'canAddParents' => (bool) $teacher->can_add_parents,
             'canArchiveStudents' => (bool) $teacher->can_archive_students,
         ]);
     }
