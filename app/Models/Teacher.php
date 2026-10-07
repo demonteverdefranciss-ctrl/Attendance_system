@@ -17,7 +17,10 @@ class Teacher extends Model
         'last_name',
         'phone',
         'can_add_students',
+        'can_edit_students',
         'can_add_parents',
+        'can_edit_parents',
+        'can_archive_parents',
         'can_archive_students',
     ];
 
@@ -25,7 +28,10 @@ class Teacher extends Model
     {
         return [
             'can_add_students' => 'boolean',
+            'can_edit_students' => 'boolean',
             'can_add_parents' => 'boolean',
+            'can_edit_parents' => 'boolean',
+            'can_archive_parents' => 'boolean',
             'can_archive_students' => 'boolean',
         ];
     }

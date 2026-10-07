@@ -6,6 +6,7 @@ const paths = {
     sections: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
     cameras: 'M3 5h12v14H3zM15 10l6-4v12l-6-4',
     schedules: 'M12 8v4l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
+    calendar: 'M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01',
     'no-class-days': 'M8 2v4m8-4v4M3 10h18M3 4h18v17H3zM9 14l6 4m0-4-6 4',
     'audit-logs': 'M9 3h6v4H9zM9 5H5v16h14V5h-4M8 12h8M8 16h8',
     archive: 'M3 3h18v5H3zM5 8v13h14V8M10 12h4',
@@ -19,6 +20,8 @@ const paths = {
 
 export default function SidebarIcon({ destination }) {
     let name = destination === 'reports.index' ? 'reports' : destination.split('.')[1];
+    if (destination === 'schedules.calendar') name = 'calendar';
+    if (name === 'parents') name = 'guardians';
     if (name === 'biometric-photos') name = 'biometrics';
     if (name === 'enrollment-requests') name = 'enrollment';
     return <svg aria-hidden="true" className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={paths[name] || paths.dashboard} /></svg>;

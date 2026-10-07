@@ -99,10 +99,16 @@ Route::middleware('auth')->group(function () {
         Route::get('attendance', [TeacherAttendanceController::class, 'index'])->name('attendance.index');
         Route::get('students', [TeacherStudentController::class, 'index'])->name('students.index');
         Route::get('students/create', [TeacherStudentController::class, 'create'])->name('students.create');
+        Route::get('students/{student}/edit', [TeacherStudentController::class, 'edit'])->name('students.edit');
         Route::post('students', [TeacherStudentController::class, 'store'])->name('students.store');
+        Route::put('students/{student}', [TeacherStudentController::class, 'update'])->name('students.update');
         Route::delete('students/{student}', [TeacherStudentController::class, 'destroy'])->name('students.destroy');
+        Route::get('parents', [TeacherGuardianController::class, 'index'])->name('parents.index');
         Route::get('parents/create', [TeacherGuardianController::class, 'create'])->name('parents.create');
         Route::post('parents', [TeacherGuardianController::class, 'store'])->name('parents.store');
+        Route::get('parents/{guardian}/edit', [TeacherGuardianController::class, 'edit'])->name('parents.edit');
+        Route::put('parents/{guardian}', [TeacherGuardianController::class, 'update'])->name('parents.update');
+        Route::delete('parents/{guardian}', [TeacherGuardianController::class, 'destroy'])->name('parents.destroy');
         Route::post('attendance/open', [TeacherAttendanceController::class, 'open'])->name('attendance.open');
         // TEMPORARY — remove before final handover
         Route::post('attendance/clear-today', [TeacherAttendanceController::class, 'clearTodayForTesting'])

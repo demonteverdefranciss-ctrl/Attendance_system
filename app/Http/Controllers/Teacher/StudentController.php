@@ -30,7 +30,7 @@ class StudentController extends Controller
         return Inertia::render('Teacher/Students/Index', [
             'students' => $students,
             'canAddStudents' => (bool) $teacher->can_add_students,
-            'canAddParents' => (bool) $teacher->can_add_parents,
+            'canEditStudents' => (bool) $teacher->can_edit_students,
             'canArchiveStudents' => (bool) $teacher->can_archive_students,
         ]);
     }
@@ -63,6 +63,37 @@ class StudentController extends Controller
         Student::create($data + ['consent_biometric' => false, 'is_active' => true]);
 
         return redirect()->route('teacher.students.index')->with('success', 'Student added successfully. A parent or administrator can record biometric consent later.');
+    }
+
+    public function edit(Request $request, Student $student): Response
+    {
+        $teacher = $this->teacher($request);
+        abort_unless($teacher->can_edit_students && $teacher->sections()->whereKey($student->section_id)->exists(), 403);
+
+        return Inertia::render('Teacher/Students/Form', [
+            'student' => $student,
+            'sections' => $teacher->sections()->orderBy('grade_level')->orderBy('name')->get(['id', 'name', 'grade_level']),
+        ]);
+    }
+
+    public function update(Request $request, Student $student): RedirectResponse
+    {
+        $teacher = $this->teacher($request);
+        abort_unless($teacher->can_edit_students && $teacher->sections()->whereKey($student->section_id)->exists(), 403);
+
+        $data = $request->validate([
+            'first_name' => InputRules::personName(),
+            'last_name' => InputRules::personName(),
+            'lrn' => InputRules::lrn(false, Rule::unique('students', 'lrn')->ignore($student->id)),
+            'gender' => ['nullable', Rule::in(['male', 'female'])],
+            'birthdate' => ['nullable', 'date', 'before:today'],
+            'section_id' => ['required', Rule::exists('sections', 'id')],
+        ], InputRules::messages());
+
+        abort_unless($teacher->sections()->whereKey($data['section_id'])->exists(), 403);
+        $student->update($data);
+
+        return redirect()->route('teacher.students.index')->with('success', 'Student updated successfully.');
     }
 
     public function destroy(Request $request, Student $student): RedirectResponse
