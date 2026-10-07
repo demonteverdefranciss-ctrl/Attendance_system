@@ -17,6 +17,20 @@ const CONTRASTS = [
     { value: 'soft', label: 'Soft contrast' },
 ];
 
+const CONTENT_VISIBILITY_ROUTES = {
+    attendance: new Set(['teacher.attendance.index', 'parent.attendance.index']),
+    notifications: new Set(['parent.notifications.index']),
+    biometrics: new Set(['teacher.biometric-photos.index', 'parent.biometrics.index']),
+    enrollments: new Set(['teacher.enrollment-requests.index', 'parent.enrollment.index']),
+};
+
+const CONTENT_MANAGEMENT_OPTIONS = [
+    { key: 'attendance', label: 'Attendance modules' },
+    { key: 'notifications', label: 'Notification center' },
+    { key: 'biometrics', label: 'Biometric portal' },
+    { key: 'enrollments', label: 'Enrollment workflows' },
+];
+
 function BrandMark({ logoUrl, compact = false }) {
     return (
         <div className="flex min-w-0 select-none items-center gap-2 pointer-events-none">
@@ -128,9 +142,18 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
         };
     }, [open]);
 
+    const visibleNav = nav.filter((item) =>
+        Object.entries(CONTENT_VISIBILITY_ROUTES).every(([key, routes]) =>
+            !routes.has(item.route) || contentSettings[key],
+        ),
+    );
+    const availableContentOptions = CONTENT_MANAGEMENT_OPTIONS.filter(({ key }) =>
+        nav.some((item) => CONTENT_VISIBILITY_ROUTES[key].has(item.route)),
+    );
+
     const NavLinks = ({ onNavigate }) => (
         <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-2">
-            {nav.map((item) => {
+            {visibleNav.map((item) => {
                 const active =
                     route().current(item.route) ||
                     (item.route.endsWith('.index') && route().current(item.route.replace(/\.index$/, '.*'))) ||
@@ -295,15 +318,11 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                                     </div>
                                 </div>
 
-                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                                    <p className="text-sm font-semibold text-gray-900">Content Management</p>
-                                    <div className="mt-3 space-y-2 text-sm text-gray-700">
-                                        {[
-                                            ['attendance', 'Attendance modules'],
-                                            ['notifications', 'Notification center'],
-                                            ['biometrics', 'Biometric portal'],
-                                            ['enrollments', 'Enrollment workflows'],
-                                        ].map(([key, label]) => (
+                                {availableContentOptions.length > 0 && (
+                                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                        <p className="text-sm font-semibold text-gray-900">Content Management</p>
+                                        <div className="mt-3 space-y-2 text-sm text-gray-700">
+                                            {availableContentOptions.map(({ key, label }) => (
                                             <label key={key} className="flex items-center justify-between gap-3 rounded-lg bg-white px-2.5 py-2">
                                                 <span>{label}</span>
                                                 <input
@@ -316,9 +335,10 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                                                     className="h-4 w-4 accent-blue-600"
                                                 />
                                             </label>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     )}
