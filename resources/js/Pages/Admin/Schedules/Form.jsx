@@ -65,9 +65,9 @@ export default function ScheduleForm({ schedule, sections }) {
                 </label>
                 <p className="text-sm text-gray-500">
                     Sessions never auto-open on Saturday or Sunday, or on holidays from Google Calendar.
-                    Mark extra days off on the{' '}
+                    Manage extra days off from{' '}
                     <Link href={route('admin.no-class-days.index')} className="text-blue-600 hover:underline">
-                        No-class days
+                        the closure settings
                     </Link>{' '}
                     calendar. Teachers can still open a session by hand any day.
                 </p>

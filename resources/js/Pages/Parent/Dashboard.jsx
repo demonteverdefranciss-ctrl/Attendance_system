@@ -18,7 +18,6 @@ const tones = { blue: 'bg-blue-50 text-blue-700', violet: 'bg-violet-50 text-vio
 const focus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-4';
 const tasks = [
     { title: 'Attendance records', description: 'Check attendance, arrival, and departure times.', destination: 'parent.attendance.index', icon: 'attendance', tone: 'blue' },
-    { title: 'No-class days', description: 'Plan ahead for school holidays and suspensions.', destination: 'parent.no-class-days.index', icon: 'calendar', tone: 'teal' },
     { title: 'Explanation letters', description: 'Reply to attendance concerns from the teacher.', destination: 'parent.excuse-requests.index', icon: 'letter', tone: 'amber' },
     { title: 'Notifications', description: 'Read school alerts and manage your preferences.', destination: 'parent.notifications.index', icon: 'bell', tone: 'violet' },
     { title: 'Enroll a child', description: 'Submit a child’s details or track your request.', destination: 'parent.enrollment.index', icon: 'children', tone: 'teal' },
@@ -40,9 +39,9 @@ function QuickLink({ item, pendingLetters }) {
 export default function ParentDashboard({ stats, unreadCount = 0, recentNotifications = [], pendingLetters = 0, pendingEnrollment = 0 }) {
     const summaries = [
         { label: 'My children', value: stats?.children ?? 0, item: tasks[0], hint: 'View attendance', icon: 'children' },
-        { label: 'Unread notifications', value: unreadCount, item: tasks[3], hint: 'Read school updates' },
-        { label: 'Letters needing reply', value: pendingLetters, item: tasks[2], hint: 'View explanation letters' },
-        { label: 'Pending enrollments', value: pendingEnrollment, item: tasks[4], hint: 'Check enrollment status' },
+        { label: 'Unread notifications', value: unreadCount, item: tasks[2], hint: 'Read school updates' },
+        { label: 'Letters needing reply', value: pendingLetters, item: tasks[1], hint: 'View explanation letters' },
+        { label: 'Pending enrollments', value: pendingEnrollment, item: tasks[3], hint: 'Check enrollment status' },
     ];
     return (
         <ParentLayout title="Parent Dashboard">

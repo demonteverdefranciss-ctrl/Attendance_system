@@ -17,6 +17,7 @@ class Teacher extends Model
         'last_name',
         'phone',
         'can_add_students',
+        'can_add_parents',
         'can_archive_students',
     ];
 
@@ -24,6 +25,7 @@ class Teacher extends Model
     {
         return [
             'can_add_students' => 'boolean',
+            'can_add_parents' => 'boolean',
             'can_archive_students' => 'boolean',
         ];
     }

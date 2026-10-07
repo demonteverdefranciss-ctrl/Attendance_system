@@ -55,6 +55,7 @@ class TeacherController extends Controller
                 'last_name' => $data['last_name'],
                 'phone' => $data['phone'] ?? null,
                 'can_add_students' => $data['can_add_students'],
+                'can_add_parents' => $data['can_add_parents'],
                 'can_archive_students' => $data['can_archive_students'],
             ]);
         });
@@ -80,6 +81,7 @@ class TeacherController extends Controller
                 'last_name' => $data['last_name'],
                 'phone' => $data['phone'] ?? null,
                 'can_add_students' => $data['can_add_students'],
+                'can_add_parents' => $data['can_add_parents'],
                 'can_archive_students' => $data['can_archive_students'],
             ]);
 
@@ -121,6 +123,7 @@ class TeacherController extends Controller
 
         $request->merge([
             'can_add_students' => $request->boolean('can_add_students'),
+            'can_add_parents' => $request->boolean('can_add_parents'),
             'can_archive_students' => $request->boolean('can_archive_students'),
         ]);
 
@@ -137,6 +140,7 @@ class TeacherController extends Controller
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'password' => [$teacher ? 'nullable' : 'required', 'string', Password::defaults()],
             'can_add_students' => ['boolean'],
+            'can_add_parents' => ['boolean'],
             'can_archive_students' => ['boolean'],
         ], InputRules::messages());
     }

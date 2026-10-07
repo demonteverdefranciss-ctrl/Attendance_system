@@ -2,7 +2,7 @@ export default function TextField({ label, type = 'text', value, onChange, error
     return (
         <div>
             {label && (
-                <label className="block text-sm font-medium text-gray-700">{label}</label>
+                <label htmlFor={props.id} className="block text-sm font-medium text-gray-700">{label}</label>
             )}
             <input
                 type={type}

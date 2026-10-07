@@ -73,7 +73,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
     useEffect(() => {
         window.localStorage.setItem('attendance-font-scale', String(fontScale));
         document.documentElement.style.setProperty('--app-font-scale', String(fontScale));
-        document.body.style.fontSize = `${fontScale}rem`;
+        document.documentElement.style.fontSize = `${fontScale * 100}%`;
     }, [fontScale]);
 
     useEffect(() => {
@@ -214,21 +214,16 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                             <button
                                 type="button"
                                 onClick={() => setAccessibilityOpen((state) => !state)}
-                                className="hidden min-h-11 items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 sm:inline-flex"
+                                className="inline-flex min-h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 sm:w-auto sm:px-3"
+                                aria-expanded={accessibilityOpen}
                             >
-                                Accessibility
+                                <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="9" />
+                                    <circle cx="12" cy="8" r="1" />
+                                    <path strokeLinecap="round" d="M12 11v6m-4-4h8" />
+                                </svg>
+                                <span className="hidden sm:inline">Accessibility</span>
                             </button>
-                            <label className="hidden items-center gap-2 text-xs text-gray-500 sm:flex">
-                                <span>Theme</span>
-                                <select
-                                    value={theme}
-                                    onChange={(event) => setTheme(event.target.value)}
-                                    className="rounded-lg border-gray-300 bg-white py-1.5 text-xs text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                    aria-label="Colour theme"
-                                >
-                                    {THEMES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                                </select>
-                            </label>
                             <div className="min-w-0 text-right">
                                 <div className="max-w-28 truncate text-sm font-medium text-gray-800 sm:max-w-48" title={auth?.user?.name}>{auth?.user?.name}</div>
                                 <div className="text-xs uppercase tracking-wide text-gray-400">{auth?.user?.role}</div>
@@ -261,7 +256,7 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
 
                             <div className="mt-4 grid gap-4 lg:grid-cols-2">
                                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                                    <p className="text-sm font-semibold text-gray-900">Accessibility</p>
+                                    <p className="text-sm font-semibold text-gray-900">Display & Accessibility</p>
                                     <label className="mt-3 block text-xs font-medium text-gray-600">
                                         Font size: {fontScale.toFixed(1)}x
                                     </label>
@@ -274,6 +269,16 @@ export default function AppSidebarLayout({ nav = [], title, actions, children })
                                         onChange={(event) => setFontScale(Number(event.target.value))}
                                         className="mt-2 w-full accent-blue-600"
                                     />
+                                    <label className="mt-3 block text-xs font-medium text-gray-600">
+                                        Colour theme
+                                        <select
+                                            value={theme}
+                                            onChange={(event) => setTheme(event.target.value)}
+                                            className="mt-1 block min-h-11 w-full rounded-lg border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                        >
+                                            {THEMES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                                        </select>
+                                    </label>
                                     <div className="mt-3 space-y-2">
                                         {CONTRASTS.map((option) => (
                                             <label key={option.value} className="flex items-center gap-2 text-sm text-gray-700">
