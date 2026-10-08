@@ -107,12 +107,19 @@ export default function Login({ status }) {
                                 </button>
                             </form>
 
-                            <p className="mt-5 text-center text-sm text-gray-600">
-                                New parent?{' '}
-                                <Link href={route('register.parent')} className="font-semibold text-blue-700 hover:underline">
-                                    Register here
-                                </Link>
-                            </p>
+                            <div className="mt-5 grid grid-cols-2 items-start gap-4 text-sm">
+                                <p className="text-left text-gray-600">
+                                    New parent?{' '}
+                                    <Link href={route('register.parent')} className="font-semibold text-blue-700 hover:underline">
+                                        Register here
+                                    </Link>
+                                </p>
+                                <p className="text-right">
+                                    <Link href={route('password.request')} className="font-semibold text-blue-700 hover:underline">
+                                        Forgot password?
+                                    </Link>
+                                </p>
+                            </div>
                         </div>
                     </div>
 
