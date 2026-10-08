@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Api\ApiController;
 use App\Models\User;
+use App\Services\PasswordResetCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +31,40 @@ class AuthController extends ApiController
         $token = $user->createToken('api')->plainTextToken;
 
         return $this->ok(['token' => $token, 'user' => $this->payload($user)]);
+    }
+
+    public function sendPasswordResetCode(Request $request, PasswordResetCodeService $passwordReset): JsonResponse
+    {
+        $data = $request->validate([
+            'identifier' => ['required', 'string', 'max:255'],
+        ]);
+
+        $result = $passwordReset->sendCode($data['identifier']);
+        $message = match ($result) {
+            'sent' => 'We found your account and sent a reset code to its registered email address.',
+            'no_email' => 'We found your account, but no email address is registered. Please contact the school administrator.',
+            default => 'No account matches that username or email. Check your entry and try again.',
+        };
+
+        return $this->ok([
+            'status' => $result,
+            'message' => $message,
+        ]);
+    }
+
+    public function resetPassword(Request $request, PasswordResetCodeService $passwordReset): JsonResponse
+    {
+        $data = $request->validate([
+            'identifier' => ['required', 'string', 'max:255'],
+            'code' => ['required', 'digits:6'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        if (! $passwordReset->resetPassword($data['identifier'], $data['code'], $data['password'])) {
+            return $this->fail('The code is invalid or expired. Request a new code and try again.', 'INVALID_RESET_CODE', 422);
+        }
+
+        return $this->ok(['message' => 'Your password has been changed. You can now sign in.']);
     }
 
     public function me(Request $request): JsonResponse

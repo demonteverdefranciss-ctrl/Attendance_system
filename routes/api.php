@@ -15,6 +15,8 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/register/parent', [\App\Http\Controllers\Auth\ParentRegistrationController::class, 'registerMobile'])
         ->middleware('throttle:5,1');
     Route::post('auth/login', [AuthController::class, 'login']);
+    Route::post('auth/forgot-password', [AuthController::class, 'sendPasswordResetCode'])->middleware('throttle:5,1');
+    Route::post('auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 
     // Device-to-server (recognition node): X-Camera-Id + X-Device-Key
     Route::middleware('device')->group(function () {

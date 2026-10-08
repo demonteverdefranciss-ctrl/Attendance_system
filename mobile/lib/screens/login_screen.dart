@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
 import '../services/session_service.dart';
+import 'forgot_password_screen.dart';
 import 'register_parent_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -212,6 +213,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                   validator: (v) => (v == null || v.isEmpty)
                                       ? 'Password required'
                                       : null,
+                                ),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: _loading
+                                        ? null
+                                        : () => Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) =>
+                                                  ForgotPasswordScreen(
+                                                    api: widget.api,
+                                                  ),
+                                            ),
+                                          ),
+                                    child: const Text('Forgot password?'),
+                                  ),
                                 ),
                                 if (_error != null) ...[
                                   const SizedBox(height: 12),

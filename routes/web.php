@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\ArchiveController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ParentRegistrationController;
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Parent\BiometricPhotoController as ParentBiometricPhotoController;
 use App\Http\Controllers\Teacher\AttendanceController as TeacherAttendanceController;
 use App\Http\Controllers\Teacher\BiometricPhotoController as TeacherBiometricPhotoController;
@@ -30,6 +31,13 @@ Route::get('/', fn () => redirect()->route('dashboard'));
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::get('forgot-password', [PasswordResetController::class, 'create'])->name('password.request');
+    Route::post('forgot-password', [PasswordResetController::class, 'sendCode'])
+        ->middleware('throttle:5,1')
+        ->name('password.email');
+    Route::post('reset-password', [PasswordResetController::class, 'reset'])
+        ->middleware('throttle:5,1')
+        ->name('password.update');
 
     Route::get('register/parent', [ParentRegistrationController::class, 'create'])->name('register.parent');
     Route::post('register/parent', [ParentRegistrationController::class, 'store'])
