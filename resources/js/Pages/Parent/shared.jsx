@@ -172,13 +172,6 @@ export function ChildBiometricUpload({ child }) {
                         automatically. Full-body pictures, objects, and photos with no face are rejected. A teacher
                         confirms identity after the system accepts the face.
                     </p>
-                    <img
-                        src={`${assetBase || ''}/illustrations/biometric_photo_sample.png`}
-                        alt="Biometric photo sample: front view, left angle, and right angle examples with clear face visibility and good lighting."
-                        className="h-auto w-full rounded-xl border border-gray-200 bg-slate-50"
-                        width="720"
-                        height="320"
-                    />
                     <FilePickButton
                         kind="photo"
                         accept="image/jpeg,image/png"
