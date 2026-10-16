@@ -1,5 +1,11 @@
 export default function AttendancePeriodFilter({ value, onChange, includeAll = true, from, to, onRangeChange }) {
-    const options = [...(includeAll ? [['all', 'All time']] : []), ['week', '1 week'], ['month', '1 month'], ['custom', 'Custom date']];
+    const options = [
+        ...(includeAll ? [['all', 'All time']] : []),
+        ['week', 'Last 7 days'],
+        ['this_week', 'This week'],
+        ['month', '1 month'],
+        ['custom', 'Custom date'],
+    ];
     return (
         <div className="w-full">
             <div className="flex flex-wrap gap-2" role="group" aria-label="Attendance period">
@@ -33,19 +39,26 @@ export default function AttendancePeriodFilter({ value, onChange, includeAll = t
                     </label>
                 </div>
             )}
-            <p className="mt-2 text-xs text-gray-500">1 week: last 7 days · 1 month: last 30 days · custom: choose a date range.</p>
+            <p className="mt-2 text-xs text-gray-500">
+                Last 7 days: rolling range · This week: Monday to today · 1 month: last 30 days.
+            </p>
         </div>
     );
 }
 
 export function periodDates(period, today) {
     const start = new Date(`${today}T12:00:00Z`);
-    start.setUTCDate(start.getUTCDate() - (period === 'week' ? 6 : 29));
+    if (period === 'this_week') {
+        const daysSinceMonday = (start.getUTCDay() + 6) % 7;
+        start.setUTCDate(start.getUTCDate() - daysSinceMonday);
+    } else {
+        start.setUTCDate(start.getUTCDate() - (period === 'week' ? 6 : 29));
+    }
     return { from: start.toISOString().slice(0, 10), to: today };
 }
 
 export function selectedPeriod(form, today) {
-    return ['week', 'month'].find((period) => {
+    return ['week', 'this_week', 'month'].find((period) => {
         const range = periodDates(period, today);
         return form.from === range.from && form.to === range.to;
     });

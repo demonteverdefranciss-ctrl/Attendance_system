@@ -24,7 +24,7 @@ class AttendancePeriodTest extends TestCase
         $student = Student::create(['section_id' => $section->id, 'first_name' => 'Test', 'last_name' => 'Child']);
         $other = Student::create(['section_id' => $section->id, 'first_name' => 'Other', 'last_name' => 'Child']);
         $guardian->students()->attach($student);
-        foreach ([0, 6, 7, 29, 30, -1] as $days) {
+        foreach ([0, 1, 6, 7, 29, 30, -1] as $days) {
             $session = AttendanceSession::create(['section_id' => $section->id, 'session_date' => today()->subDays($days), 'opened_at' => now(), 'status' => 'closed']);
             foreach ([$student, $other] as $child) {
                 AttendanceRecord::create(['session_id' => $session->id, 'student_id' => $child->id, 'status' => 'present', 'method' => 'manual']);
@@ -34,10 +34,10 @@ class AttendancePeriodTest extends TestCase
         $analytics = app(\App\Services\AnalyticsService::class);
         $from = today()->subDays(6)->toDateString();
         $to = today()->toDateString();
-        $this->assertSame(2, $analytics->paginatedRecentSessions([$section->id], null, $from, $to)->total());
-        $this->assertSame(4, $analytics->paginatedRecords([$section->id], $from, $to)->total());
+        $this->assertSame(3, $analytics->paginatedRecentSessions([$section->id], null, $from, $to)->total());
+        $this->assertSame(6, $analytics->paginatedRecords([$section->id], $from, $to)->total());
         $this->assertSame(0, $analytics->paginatedRecentSessions([0], null, $from, $to)->total());
-        foreach (['week' => 2, 'month' => 4, 'all' => 6] as $period => $count) {
+        foreach (['week' => 3, 'this_week' => 2, 'month' => 5, 'all' => 7] as $period => $count) {
             $this->get(route('parent.attendance.index', ['period' => $period, 'student_id' => $student->id]))
                 ->assertOk()->assertInertia(fn (Assert $page) => $page
                     ->component('Parent/Attendance')->where('filters.period', $period)

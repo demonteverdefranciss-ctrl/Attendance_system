@@ -146,7 +146,28 @@ export default function NoClassDaysIndex({
                         >
                             ← Prev
                         </Link>
-                        <h2 className="text-lg font-semibold text-gray-900">{monthLabel}</h2>
+                        <div className="flex flex-col items-center gap-1">
+                            <h2 className="text-lg font-semibold text-gray-900">{monthLabel}</h2>
+                            <label className="sr-only" htmlFor="no-class-calendar-month">Select calendar month</label>
+                            <input
+                                id="no-class-calendar-month"
+                                type="month"
+                                value={`${year}-${pad(month)}`}
+                                min="2020-01"
+                                max="2100-12"
+                                onChange={(event) => {
+                                    const [selectedYear, selectedMonth] = event.target.value.split('-').map(Number);
+                                    if (selectedYear && selectedMonth) {
+                                        router.get(
+                                            monthHref(selectedYear, selectedMonth),
+                                            {},
+                                            { preserveScroll: true },
+                                        );
+                                    }
+                                }}
+                                className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700"
+                            />
+                        </div>
                         <Link
                             href={monthHref(next.year, next.month)}
                             className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
