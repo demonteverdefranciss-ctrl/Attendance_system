@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../services/api_client.dart';
 
@@ -149,11 +148,14 @@ class _ParentBiometricScreenState extends State<ParentBiometricScreen> {
                           Semantics(
                             image: true,
                             label:
-                                'Photo example: use a clear, front-facing head-and-shoulders portrait; avoid distant or full-body photos.',
-                            child: SvgPicture.asset(
-                              'assets/illustrations/face-photo-guide.svg',
-                              fit: BoxFit.contain,
-                              width: double.infinity,
+                                'Biometric photo sample: front view, left angle, and right angle examples with clear face visibility and good lighting.',
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.asset(
+                                'assets/illustrations/biometric_photo_sample.png',
+                                fit: BoxFit.contain,
+                                width: double.infinity,
+                              ),
                             ),
                           ),
                           if (_showGuide) ...[

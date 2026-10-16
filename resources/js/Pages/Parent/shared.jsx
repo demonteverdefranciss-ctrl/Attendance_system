@@ -173,8 +173,8 @@ export function ChildBiometricUpload({ child }) {
                         confirms identity after the system accepts the face.
                     </p>
                     <img
-                        src={`${assetBase || ''}/illustrations/face-photo-guide.svg`}
-                        alt="Photo guide: choose a clear, front-facing head-and-shoulders portrait; avoid distant or full-body photos."
+                        src={`${assetBase || ''}/illustrations/biometric_photo_sample.png`}
+                        alt="Biometric photo sample: front view, left angle, and right angle examples with clear face visibility and good lighting."
                         className="h-auto w-full rounded-xl border border-gray-200 bg-slate-50"
                         width="720"
                         height="320"
