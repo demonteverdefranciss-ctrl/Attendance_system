@@ -24,6 +24,7 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
     const [closing, setClosing] = useState(false);
     const [closeSlow, setCloseSlow] = useState(false);
     const [liveNotice, setLiveNotice] = useState('');
+    const [timeOutPending, setTimeOutPending] = useState({});
     const prevTimeIns = useRef({});
     const initial = {};
     students.forEach((s) => {
@@ -181,7 +182,35 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
     };
 
     const recordTimeOutNow = (studentId) => {
-        router.post(route('teacher.attendance.time-out', [session.id, studentId]), {}, { preserveScroll: true });
+        const status = data.records[studentId];
+        if (!['present', 'late'].includes(status) || timeOutPending[studentId]) return;
+
+        setTimeOutPending((previous) => ({ ...previous, [studentId]: true }));
+        const clearPending = () => {
+            setTimeOutPending((previous) => ({ ...previous, [studentId]: false }));
+        };
+        const submitTimeOut = () => {
+            router.post(route('teacher.attendance.time-out', [session.id, studentId]), {}, {
+                preserveScroll: true,
+                onFinish: clearPending,
+            });
+        };
+
+        if (records[studentId]?.status === status) {
+            submitTimeOut();
+            return;
+        }
+
+        router.post(
+            route('teacher.attendance.store', session.id),
+            { records: { [studentId]: status } },
+            {
+                preserveScroll: true,
+                onSuccess: submitTimeOut,
+                onError: clearPending,
+                onCancel: clearPending,
+            },
+        );
     };
 
     const displayTime = (value) => {
@@ -309,19 +338,22 @@ export default function Mark({ session, students, records, cameraStreamUrl, reco
                                     <td className="px-4 py-3 text-sm text-gray-700">{displayTime(records[s.id]?.time_in)}</td>
                                     <td className="px-4 py-3 text-sm text-gray-700">{displayTime(records[s.id]?.time_out)}</td>
                                     <td className="px-4 py-3">
-                                        {!closed && ['present', 'late'].includes(records[s.id]?.status) && !records[s.id]?.time_out ? (
+                                        {!closed && ['present', 'late'].includes(data.records[s.id]) && !records[s.id]?.time_out ? (
                                             <button
                                                 type="button"
                                                 onClick={() => recordTimeOutNow(s.id)}
-                                                className="rounded-lg bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900 ring-1 ring-inset ring-amber-200 hover:bg-amber-100"
+                                                disabled={timeOutPending[s.id]}
+                                                className="rounded-lg bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900 ring-1 ring-inset ring-amber-200 hover:bg-amber-100 disabled:cursor-wait disabled:opacity-50"
                                             >
-                                                Record time-out now
+                                                {timeOutPending[s.id]
+                                                    ? 'Recording…'
+                                                    : records[s.id]?.status === data.records[s.id]
+                                                      ? 'Record time-out now'
+                                                      : 'Save & time-out now'}
                                             </button>
                                         ) : (
                                             <span className="text-xs text-gray-400">
-                                                {!closed && ['present', 'late'].includes(data.records[s.id]) && !records[s.id]?.status
-                                                    ? 'Save first'
-                                                    : '—'}
+                                                {records[s.id]?.time_out ? 'Recorded' : '—'}
                                             </span>
                                         )}
                                     </td>

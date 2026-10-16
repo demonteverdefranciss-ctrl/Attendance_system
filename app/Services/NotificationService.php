@@ -26,10 +26,6 @@ class NotificationService
         $student->loadMissing('guardians');
 
         foreach ($student->guardians as $guardian) {
-            if ($guardian->notify_pref !== 'push') {
-                continue;
-            }
-
             [$title, $body] = $this->attendanceMessage($type, $student->full_name);
 
             if ($wasOffline && $record->time_in) {
@@ -38,25 +34,41 @@ class NotificationService
                     .'. This update was delayed while the attendance device could not synchronize.';
             }
 
-            $notification = Notification::create([
-                'guardian_id' => $guardian->id,
-                'student_id' => $student->id,
-                'channel' => 'push',
-                'type' => $type,
-                'title' => $title,
-                'body' => $body,
-                'payload' => [
-                    'attendance_record_id' => $record->id,
-                    'was_offline' => $wasOffline,
-                    'status' => $record->status,
-                    'time_in' => $record->time_in?->toDateTimeString(),
-                    'time_out' => $record->time_out?->toDateTimeString(),
-                    'session_id' => $record->session_id,
-                ],
-                'status' => 'pending',
-            ]);
+            $this->createAttendanceNotification(
+                $guardian,
+                $student,
+                $record,
+                $type,
+                $title,
+                $body,
+                $wasOffline,
+            );
+        }
+    }
 
-            SendPushNotificationJob::dispatch($notification->id)->afterCommit();
+    /**
+     * Notify guardians when a teacher records a student's manual time-out.
+     */
+    public function queueManualTimeOutEvent(Student $student, AttendanceRecord $record): void
+    {
+        if (! $record->time_out) {
+            return;
+        }
+
+        $student->loadMissing('guardians');
+        $title = 'Early Time-out Recorded';
+        $body = "{$student->full_name} was signed out early at "
+            .$record->time_out->format('M j, Y g:i A').'.';
+
+        foreach ($student->guardians as $guardian) {
+            $this->createAttendanceNotification(
+                $guardian,
+                $student,
+                $record,
+                'early_time_out',
+                $title,
+                $body,
+            );
         }
     }
 
@@ -206,6 +218,40 @@ class NotificationService
             'excused' => 'excused',
             default => null,
         };
+    }
+
+    private function createAttendanceNotification(
+        Guardian $guardian,
+        Student $student,
+        AttendanceRecord $record,
+        string $type,
+        string $title,
+        string $body,
+        bool $wasOffline = false,
+    ): void {
+        $wantsPush = $guardian->notify_pref === 'push';
+        $notification = Notification::create([
+            'guardian_id' => $guardian->id,
+            'student_id' => $student->id,
+            'channel' => 'push',
+            'type' => $type,
+            'title' => $title,
+            'body' => $body,
+            'payload' => [
+                'attendance_record_id' => $record->id,
+                'was_offline' => $wasOffline,
+                'status' => $record->status,
+                'time_in' => $record->time_in?->toDateTimeString(),
+                'time_out' => $record->time_out?->toDateTimeString(),
+                'session_id' => $record->session_id,
+            ],
+            'status' => $wantsPush ? 'pending' : 'sent',
+            'sent_at' => $wantsPush ? null : now(),
+        ]);
+
+        if ($wantsPush) {
+            SendPushNotificationJob::dispatch($notification->id)->afterCommit();
+        }
     }
 
     /**
