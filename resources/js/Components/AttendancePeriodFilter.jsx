@@ -2,6 +2,7 @@ export default function AttendancePeriodFilter({ value, onChange, includeAll = t
     const options = [
         ...(includeAll ? [['all', 'All time']] : []),
         ['week', 'Last 7 days'],
+        ['last_week', 'Last week'],
         ['this_week', 'This week'],
         ['month', '1 month'],
         ['custom', 'Custom date'],
@@ -40,7 +41,7 @@ export default function AttendancePeriodFilter({ value, onChange, includeAll = t
                 </div>
             )}
             <p className="mt-2 text-xs text-gray-500">
-                Last 7 days: rolling range · This week: Monday to today · 1 month: last 30 days.
+                Last 7 days: rolling range · Last week: previous Monday–Sunday · This week: Monday to today.
             </p>
         </div>
     );
@@ -48,6 +49,13 @@ export default function AttendancePeriodFilter({ value, onChange, includeAll = t
 
 export function periodDates(period, today) {
     const start = new Date(`${today}T12:00:00Z`);
+    if (period === 'last_week') {
+        const daysSinceMonday = (start.getUTCDay() + 6) % 7;
+        start.setUTCDate(start.getUTCDate() - daysSinceMonday - 7);
+        const end = new Date(start);
+        end.setUTCDate(end.getUTCDate() + 6);
+        return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
+    }
     if (period === 'this_week') {
         const daysSinceMonday = (start.getUTCDay() + 6) % 7;
         start.setUTCDate(start.getUTCDate() - daysSinceMonday);
@@ -58,7 +66,7 @@ export function periodDates(period, today) {
 }
 
 export function selectedPeriod(form, today) {
-    return ['week', 'this_week', 'month'].find((period) => {
+    return ['week', 'last_week', 'this_week', 'month'].find((period) => {
         const range = periodDates(period, today);
         return form.from === range.from && form.to === range.to;
     });

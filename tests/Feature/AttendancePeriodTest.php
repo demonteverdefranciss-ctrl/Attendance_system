@@ -24,7 +24,7 @@ class AttendancePeriodTest extends TestCase
         $student = Student::create(['section_id' => $section->id, 'first_name' => 'Test', 'last_name' => 'Child']);
         $other = Student::create(['section_id' => $section->id, 'first_name' => 'Other', 'last_name' => 'Child']);
         $guardian->students()->attach($student);
-        foreach ([0, 1, 6, 7, 29, 30, -1] as $days) {
+        foreach ([0, 1, 6, 7, 7, 8, 29, 30, -1] as $days) {
             $session = AttendanceSession::create(['section_id' => $section->id, 'session_date' => today()->subDays($days), 'opened_at' => now(), 'status' => 'closed']);
             foreach ([$student, $other] as $child) {
                 AttendanceRecord::create(['session_id' => $session->id, 'student_id' => $child->id, 'status' => 'present', 'method' => 'manual']);
@@ -37,7 +37,7 @@ class AttendancePeriodTest extends TestCase
         $this->assertSame(3, $analytics->paginatedRecentSessions([$section->id], null, $from, $to)->total());
         $this->assertSame(6, $analytics->paginatedRecords([$section->id], $from, $to)->total());
         $this->assertSame(0, $analytics->paginatedRecentSessions([0], null, $from, $to)->total());
-        foreach (['week' => 3, 'this_week' => 2, 'month' => 5, 'all' => 7] as $period => $count) {
+        foreach (['week' => 3, 'last_week' => 4, 'this_week' => 2, 'month' => 7, 'all' => 9] as $period => $count) {
             $this->get(route('parent.attendance.index', ['period' => $period, 'student_id' => $student->id]))
                 ->assertOk()->assertInertia(fn (Assert $page) => $page
                     ->component('Parent/Attendance')->where('filters.period', $period)
@@ -51,5 +51,36 @@ class AttendancePeriodTest extends TestCase
         $this->getJson("/api/v1/students/{$other->id}/attendance?period=week")->assertForbidden();
         $this->getJson("/api/v1/analytics/student/{$other->id}?period=month")->assertForbidden();
         $this->getJson("/api/v1/students/{$student->id}/attendance?period=invalid")->assertUnprocessable();
+
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $admin = User::factory()->create([
+            'role_id' => $adminRole->id,
+            'username' => 'period-report-admin',
+        ]);
+        $this->actingAs($admin);
+        $reportRanges = [
+            'week' => [today()->copy()->subDays(6), today()->copy(), 3],
+            'last_week' => [
+                today()->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->subWeek(),
+                today()->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->subDay(),
+                4,
+            ],
+            'this_week' => [
+                today()->copy()->startOfWeek(\Carbon\Carbon::MONDAY),
+                today()->copy(),
+                2,
+            ],
+        ];
+        foreach ($reportRanges as [$rangeStart, $rangeEnd, $sessionCount]) {
+            $this->get(route('reports.index', [
+                'from' => $rangeStart->toDateString(),
+                'to' => $rangeEnd->toDateString(),
+            ]))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->component('Reports/Index')
+                    ->where('sessions.total', $sessionCount)
+                    ->where('records.total', $sessionCount * 2));
+        }
     }
 }
