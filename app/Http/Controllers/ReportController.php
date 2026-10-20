@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceSession;
+use App\Models\AttendanceExcuseRequest;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Services\AnalyticsService;
+use App\Services\ExcuseRequestService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response as ResponseFactory;
@@ -21,10 +23,13 @@ class ReportController extends Controller
 
     public function index(Request $request)
     {
-        [$scopeIds, $sections, $from, $to, $sectionId, $sessionId] = $this->context($request);
+        [$scopeIds, $sections, $from, $to, $sectionId, $sessionId, $reportType] = $this->context($request);
 
         $effective = $sectionId ? [$sectionId] : $scopeIds;
-        $sessions = $this->analytics->paginatedRecentSessions($scopeIds, $sectionId, $from, $to);
+        $status = in_array($reportType, ['present', 'late', 'absent'], true) ? $reportType : null;
+        $sessions = $reportType === 'all'
+            ? $this->analytics->paginatedRecentSessions($scopeIds, $sectionId, $from, $to)
+            : [];
 
         return Inertia::render('Reports/Index', [
             'sections' => $sections,
@@ -33,15 +38,20 @@ class ReportController extends Controller
                 'to' => $to,
                 'section_id' => $sectionId,
                 'session_id' => $sessionId,
+                'report_type' => $reportType,
                 'today' => now()->toDateString(),
             ],
+            'reportType' => $reportType,
             'sessions' => $sessions,
             'summary' => $this->analytics->summary($effective, $from, $to, $sessionId),
             'methodBreakdown' => $this->analytics->methodBreakdown($effective, $from, $to, $sessionId),
-            'atRisk' => $sessionId
+            'atRisk' => $sessionId || $reportType !== 'all'
                 ? []
                 : $this->analytics->atRiskStudents($effective, $from, $to),
-            'records' => $this->analytics->paginatedRecords($scopeIds, $from, $to, $sectionId, $sessionId),
+            'records' => $this->analytics->paginatedRecords($scopeIds, $from, $to, $sectionId, $sessionId, $status),
+            'warnings' => $reportType === 'warnings'
+                ? $this->warningRows($scopeIds, $sectionId, $from, $to)
+                : [],
         ]);
     }
 
@@ -97,29 +107,48 @@ class ReportController extends Controller
     public function preview(Request $request): Response
     {
         $format = $request->validate(['format' => 'required|in:csv,pdf'])['format'];
-        [$scopeIds, , $from, $to, $sectionId, $sessionId] = $this->context($request);
+        [$scopeIds, , $from, $to, $sectionId, $sessionId, $reportType] = $this->context($request);
+        $status = in_array($reportType, ['present', 'late', 'absent'], true) ? $reportType : null;
 
         return Inertia::render('Reports/Preview', [
             'format' => $format,
-            'filters' => ['from' => $from, 'to' => $to, 'section_id' => $sectionId, 'session_id' => $sessionId, ...$request->only('records_sort', 'records_direction')],
-            'records' => $this->analytics->records($scopeIds, $from, $to, $sectionId, $sessionId),
+            'reportType' => $reportType,
+            'filters' => ['from' => $from, 'to' => $to, 'section_id' => $sectionId, 'session_id' => $sessionId, 'report_type' => $reportType, ...$request->only('records_sort', 'records_direction')],
+            'records' => $reportType === 'warnings'
+                ? []
+                : $this->analytics->records($scopeIds, $from, $to, $sectionId, $sessionId, $status),
+            'warnings' => $reportType === 'warnings'
+                ? $this->warningRows($scopeIds, $sectionId, $from, $to)
+                : [],
         ]);
     }
 
     public function csv(Request $request)
     {
-        [$scopeIds, , $from, $to, $sectionId, $sessionId] = $this->context($request);
-        $rows = $this->analytics->records($scopeIds, $from, $to, $sectionId, $sessionId);
+        [$scopeIds, , $from, $to, $sectionId, $sessionId, $reportType] = $this->context($request);
+        $status = in_array($reportType, ['present', 'late', 'absent'], true) ? $reportType : null;
+        $rows = $reportType === 'warnings'
+            ? $this->warningRows($scopeIds, $sectionId, $from, $to)
+            : $this->analytics->records($scopeIds, $from, $to, $sectionId, $sessionId, $status);
 
         $filename = $sessionId
             ? "attendance_session_{$sessionId}.csv"
-            : "attendance_{$from}_to_{$to}.csv";
+            : ($reportType === 'all'
+                ? "attendance_{$from}_to_{$to}.csv"
+                : "{$reportType}_report_{$from}_to_{$to}.csv");
 
-        return ResponseFactory::streamDownload(function () use ($rows) {
+        return ResponseFactory::streamDownload(function () use ($rows, $reportType) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Date', 'Section', 'Student', 'Status', 'Time In', 'Time Out', 'Method']);
-            foreach ($rows as $r) {
-                fputcsv($out, [$r['date'], $r['section'], $r['student'], $r['status'], $r['time_in'], $r['time_out'], $r['method']]);
+            if ($reportType === 'warnings') {
+                fputcsv($out, ['Warning Date', 'Section', 'Student', 'Consecutive Absences', 'Absence Dates', 'Letter Status']);
+                foreach ($rows as $r) {
+                    fputcsv($out, [$r['date'], $r['section'], $r['student'], $r['streak_count'], $r['absence_dates'], $r['status']]);
+                }
+            } else {
+                fputcsv($out, ['Date', 'Section', 'Student', 'Status', 'Time In', 'Time Out', 'Method']);
+                foreach ($rows as $r) {
+                    fputcsv($out, [$r['date'], $r['section'], $r['student'], $r['status'], $r['time_in'], $r['time_out'], $r['method']]);
+                }
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv']);
@@ -127,17 +156,25 @@ class ReportController extends Controller
 
     public function pdf(Request $request)
     {
-        [$scopeIds, , $from, $to, $sectionId, $sessionId] = $this->context($request);
+        [$scopeIds, , $from, $to, $sectionId, $sessionId, $reportType] = $this->context($request);
         $effective = $sectionId ? [$sectionId] : $scopeIds;
 
-        $records = $this->analytics->records($scopeIds, $from, $to, $sectionId, $sessionId);
+        $status = in_array($reportType, ['late', 'absent'], true) ? $reportType : null;
+        $records = $reportType === 'warnings'
+            ? []
+            : $this->analytics->records($scopeIds, $from, $to, $sectionId, $sessionId, $status);
+        $warnings = $reportType === 'warnings'
+            ? $this->warningRows($scopeIds, $sectionId, $from, $to)
+            : [];
         $summary = $this->analytics->summary($effective, $from, $to, $sessionId);
 
         $filename = $sessionId
             ? "attendance_session_{$sessionId}.pdf"
-            : "attendance_{$from}_to_{$to}.pdf";
+            : ($reportType === 'all'
+                ? "attendance_{$from}_to_{$to}.pdf"
+                : "{$reportType}_report_{$from}_to_{$to}.pdf");
 
-        $pdf = Pdf::loadView('reports.attendance', compact('records', 'summary', 'from', 'to'));
+        $pdf = Pdf::loadView('reports.attendance', compact('records', 'warnings', 'summary', 'from', 'to', 'reportType'));
 
         return $request->boolean('inline') ? $pdf->stream($filename) : $pdf->download($filename);
     }
@@ -145,7 +182,7 @@ class ReportController extends Controller
     /**
      * Resolve scope (role-based), section options, and validated filters.
      *
-     * @return array{0:array<int,int>|null,1:mixed,2:string,3:string,4:int|null,5:int|null}
+     * @return array{0:array<int,int>|null,1:mixed,2:string,3:string,4:int|null,5:int|null,6:string}
      */
     private function context(Request $request): array
     {
@@ -179,7 +216,59 @@ class ReportController extends Controller
             $this->authorizeSession($request, $session);
         }
 
-        return [$scopeIds, $sections, $from, $to, $sectionId, $sessionId];
+        $reportType = $request->validate([
+            'report_type' => 'sometimes|in:all,present,late,absent,warnings',
+        ])['report_type'] ?? 'all';
+
+        return [$scopeIds, $sections, $from, $to, $sectionId, $sessionId, $reportType];
+    }
+
+    /**
+     * Formal warning incidents are the existing required-letter requests
+     * created after the configured consecutive-absence threshold is reached.
+     *
+     * @param  array<int, int>|null  $sectionIds
+     * @return array<int, array<string, mixed>>
+     */
+    private function warningRows(?array $sectionIds, ?int $sectionId, string $from, string $to): array
+    {
+        return AttendanceExcuseRequest::query()
+            ->with(['student:id,section_id,first_name,last_name', 'student.section:id,name,grade_level'])
+            ->where('streak_count', '>=', ExcuseRequestService::STREAK_THRESHOLD)
+            ->whereHas('student', function ($query) use ($sectionIds, $sectionId) {
+                if ($sectionId) {
+                    $query->where('section_id', $sectionId);
+                } elseif ($sectionIds !== null) {
+                    $query->whereIn('section_id', $sectionIds);
+                }
+            })
+            ->orderByDesc('id')
+            ->get()
+            ->map(function (AttendanceExcuseRequest $warning) {
+                $summary = collect($warning->streak_summary ?? [])
+                    ->filter(fn ($row) => filled($row['date'] ?? null))
+                    ->sortBy('date')
+                    ->values();
+                $latestDate = $summary->last()['date'] ?? null;
+
+                return [
+                    'id' => $warning->id,
+                    'date' => $latestDate,
+                    'section' => $warning->student?->section
+                        ? "{$warning->student->section->grade_level} - {$warning->student->section->name}"
+                        : '—',
+                    'student_id' => $warning->student_id,
+                    'student' => $warning->student
+                        ? "{$warning->student->last_name}, {$warning->student->first_name}"
+                        : '—',
+                    'streak_count' => (int) $warning->streak_count,
+                    'absence_dates' => $summary->pluck('date')->implode(', '),
+                    'status' => str($warning->status)->replace('_', ' ')->title()->toString(),
+                ];
+            })
+            ->filter(fn ($row) => $row['date'] !== null && $row['date'] >= $from && $row['date'] <= $to)
+            ->values()
+            ->all();
     }
 
     /**

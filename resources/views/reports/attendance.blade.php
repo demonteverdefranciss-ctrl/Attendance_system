@@ -15,9 +15,32 @@
     </style>
 </head>
 <body>
-    <h1>Attendance Report</h1>
+    <h1>{{ $reportType === 'warnings' ? 'Formal Absence Warning Report' : ucfirst($reportType).' Attendance Report' }}</h1>
     <div class="meta">Bigaa Elementary School &middot; {{ $from }} to {{ $to }}</div>
 
+    @if ($reportType === 'warnings')
+        <div class="summary"><span><strong>Formal warnings:</strong> {{ count($warnings) }}</span></div>
+        <table>
+            <thead>
+                <tr><th>Warning Date</th><th>Section</th><th>Student</th><th style="text-align:center;">Consecutive Absences</th><th>Absence Dates</th><th>Letter Status</th></tr>
+            </thead>
+            <tbody>
+                @forelse ($warnings as $warning)
+                    <tr>
+                        <td>{{ $warning['date'] }}</td>
+                        <td>{{ $warning['section'] }}</td>
+                        <td>{{ $warning['student'] }}</td>
+                        <td style="text-align:center;">{{ $warning['streak_count'] }}</td>
+                        <td>{{ $warning['absence_dates'] }}</td>
+                        <td class="status">{{ $warning['status'] }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="6" style="text-align:center;color:#888;">No formal absence warnings for this period.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    @else
+    @if ($reportType === 'all')
     <div class="summary">
         <span><strong>Rate:</strong> {{ $summary['rate'] }}%</span>
         <span><strong>Present:</strong> {{ $summary['present'] }}</span>
@@ -26,6 +49,9 @@
         <span><strong>Excused:</strong> {{ $summary['excused'] }}</span>
         <span><strong>Total:</strong> {{ $summary['total'] }}</span>
     </div>
+    @else
+        <div class="summary"><span><strong>Matching {{ $reportType }} records:</strong> {{ count($records) }}</span></div>
+    @endif
 
     <table>
         <thead>
@@ -49,5 +75,6 @@
             @endforelse
         </tbody>
     </table>
+    @endif
 </body>
 </html>
