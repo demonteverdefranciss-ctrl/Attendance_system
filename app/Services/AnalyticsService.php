@@ -212,10 +212,11 @@ class AnalyticsService
      *
      * @param  array<int, int>|null  $sectionIds
      */
-    public function records(?array $sectionIds, string $from, string $to, ?int $sectionId = null, ?int $sessionId = null): Collection
+    public function records(?array $sectionIds, string $from, string $to, ?int $sectionId = null, ?int $sessionId = null, ?string $status = null): Collection
     {
         return $this->baseQuery($sectionIds, $from, $to, $sessionId)
             ->when($sectionId && ! $sessionId, fn ($q) => $q->whereHas('session', fn ($s) => $s->where('section_id', $sectionId)))
+            ->when($status, fn ($q) => $q->where('status', $status))
             ->with(['student:id,first_name,last_name', 'session:id,section_id,session_date', 'session.section:id,name'])
             ->orderByDesc('id')
             ->tap(fn ($q) => \App\Support\TableSort::attendance($q, 'records_'))
@@ -229,10 +230,11 @@ class AnalyticsService
      *
      * @param  array<int, int>|null  $sectionIds
      */
-    public function paginatedRecords(?array $sectionIds, string $from, string $to, ?int $sectionId = null, ?int $sessionId = null): LengthAwarePaginator
+    public function paginatedRecords(?array $sectionIds, string $from, string $to, ?int $sectionId = null, ?int $sessionId = null, ?string $status = null): LengthAwarePaginator
     {
         return $this->baseQuery($sectionIds, $from, $to, $sessionId)
             ->when($sectionId && ! $sessionId, fn ($q) => $q->whereHas('session', fn ($s) => $s->where('section_id', $sectionId)))
+            ->when($status, fn ($q) => $q->where('status', $status))
             ->with(['student:id,first_name,last_name', 'session:id,section_id,session_date', 'session.section:id,name'])
             ->orderByDesc('id')
             ->tap(fn ($q) => \App\Support\TableSort::attendance($q, 'records_'))

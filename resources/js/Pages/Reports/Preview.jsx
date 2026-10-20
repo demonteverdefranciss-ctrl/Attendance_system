@@ -3,7 +3,7 @@ import SortableHeading from '@/Components/SortableHeading';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 
-export default function ReportPreview({ format, filters, records }) {
+export default function ReportPreview({ format, filters, records, warnings = [], reportType = 'all' }) {
     const { auth } = usePage().props;
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
     const back = filters.session_id
@@ -16,8 +16,8 @@ export default function ReportPreview({ format, filters, records }) {
             <Head title="Report preview" />
             <div className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
                 <div>
-                    <h2 className="font-semibold text-gray-900">Attendance report · {format.toUpperCase()}</h2>
-                    <p className="mt-1 text-sm text-gray-600">{filters.from} to {filters.to} · {records.length} records</p>
+                    <h2 className="font-semibold capitalize text-gray-900">{reportType === 'warnings' ? 'Absence warning report' : `${reportType} attendance report`} · {format.toUpperCase()}</h2>
+                    <p className="mt-1 text-sm text-gray-600">{filters.from} to {filters.to} · {reportType === 'warnings' ? warnings.length : records.length} records</p>
                     <p className="mt-1 text-xs text-gray-500">Review the report before downloading. Exports include up to 1,000 records.</p>
                 </div>
                 <div className="flex flex-wrap gap-3">
@@ -32,13 +32,23 @@ export default function ReportPreview({ format, filters, records }) {
                 </div>
             ) : (
                 <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-                    <table className="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead className="bg-gray-50"><tr>{columns.map(([key, label]) => <SortableHeading key={key} column={key} prefix="records_">{label}</SortableHeading>)}</tr></thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {records.map((record, index) => <tr key={record.id ?? index}>{columns.map(([key]) => <td key={key} className="whitespace-nowrap px-4 py-3 text-gray-700">{record[key] ?? '—'}</td>)}</tr>)}
-                            {records.length === 0 && <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-gray-500">No records for these filters.</td></tr>}
-                        </tbody>
-                    </table>
+                    {reportType === 'warnings' ? (
+                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead className="bg-gray-50"><tr>{['Warning date', 'Section', 'Student', 'Consecutive Absences', 'Absence dates', 'Letter status'].map((label, index) => <th key={label} className={`px-4 py-3 ${index === 3 ? 'text-center' : 'text-left'}`}>{label}</th>)}</tr></thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {warnings.map((warning) => <tr key={warning.id}><td className="whitespace-nowrap px-4 py-3">{warning.date}</td><td className="whitespace-nowrap px-4 py-3">{warning.section}</td><td className="whitespace-nowrap px-4 py-3">{warning.student}</td><td className="px-4 py-3 text-center">{warning.streak_count}</td><td className="whitespace-nowrap px-4 py-3">{warning.absence_dates}</td><td className="px-4 py-3 capitalize">{warning.status}</td></tr>)}
+                                {warnings.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No formal absence warnings in this period.</td></tr>}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead className="bg-gray-50"><tr>{columns.map(([key, label]) => <SortableHeading key={key} column={key} prefix="records_">{label}</SortableHeading>)}</tr></thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {records.map((record, index) => <tr key={record.id ?? index}>{columns.map(([key]) => <td key={key} className="whitespace-nowrap px-4 py-3 text-gray-700">{record[key] ?? '—'}</td>)}</tr>)}
+                                {records.length === 0 && <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-gray-500">No records for these filters.</td></tr>}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             )}
         </Layout>

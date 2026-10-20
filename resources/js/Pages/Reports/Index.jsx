@@ -5,6 +5,8 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import AtRiskStudentsTable from '@/Components/AtRiskStudentsTable';
+import LocalSortHeading from '@/Components/LocalSortHeading';
+import useTableSort from '@/Components/useTableSort';
 import { StatCard } from '@/Components/AppSidebarLayout';
 import { Doughnut, ChartCard, noAspect } from '@/Components/Charts';
 import Pagination, { usePageRows } from '@/Components/Pagination';
@@ -22,6 +24,8 @@ export default function ReportsIndex({
     summary,
     methodBreakdown,
     atRisk = [],
+    warnings = [],
+    reportType = 'all',
     records,
     sessions = [],
 }) {
@@ -31,6 +35,14 @@ export default function ReportsIndex({
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : TeacherLayout;
     const { rows: sessionRows, paginator: sessionsPaginator } = usePageRows(sessions);
     const { rows: recordRows, paginator: recordsPaginator } = usePageRows(records);
+    const warningSorting = useTableSort(warnings, {
+        date: (warning) => warning.date,
+        section: (warning) => warning.section,
+        student: (warning) => warning.student,
+        streak_count: (warning) => warning.streak_count,
+        absence_dates: (warning) => warning.absence_dates,
+        status: (warning) => warning.status,
+    });
     const today = filters.today ?? new Date().toISOString().slice(0, 10);
 
     const [form, setForm] = useState({
@@ -38,6 +50,7 @@ export default function ReportsIndex({
         to: filters.to,
         section_id: filters.section_id ?? '',
         session_id: filters.session_id ?? '',
+        report_type: filters.report_type ?? 'all',
     });
 
     const setDate = (key, value) => {
@@ -61,6 +74,7 @@ export default function ReportsIndex({
             to: form.to,
             section_id: form.section_id || undefined,
             session_id: form.session_id || undefined,
+            report_type: form.report_type,
         };
         router.get(route('reports.index'), payload, { preserveState: true, preserveScroll: true });
     };
@@ -74,6 +88,7 @@ export default function ReportsIndex({
             to: form.to,
             section_id: form.section_id || undefined,
             session_id: form.session_id || undefined,
+            report_type: form.report_type,
         });
 
     const methodData = {
@@ -133,6 +148,20 @@ export default function ReportsIndex({
                         ))}
                     </select>
                 </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-600">Report type</label>
+                    <select
+                        value={form.report_type}
+                        onChange={(e) => setForm({ ...form, report_type: e.target.value, session_id: '' })}
+                        className="mt-1 min-h-11 w-full min-w-0 max-w-full rounded-lg border-gray-300 text-base shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:w-auto sm:text-sm"
+                    >
+                        <option value="all">All attendance</option>
+                        <option value="present">Present marks</option>
+                        <option value="late">Late marks</option>
+                        <option value="absent">Absences</option>
+                        <option value="warnings">Consecutive Absences</option>
+                    </select>
+                </div>
                 <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
                     Apply
                 </button>
@@ -146,7 +175,7 @@ export default function ReportsIndex({
                 </div>
             </form>
 
-            <div className="mb-6 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+            {reportType === 'all' && <div className="mb-6 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
                 <div className="border-b border-gray-100 px-4 py-3">
                     <h2 className="text-base font-semibold text-gray-900">Sessions</h2>
                     <p className="text-xs text-gray-500">
@@ -197,44 +226,93 @@ export default function ReportsIndex({
                 <div className="px-4 pb-4">
                     <Pagination paginator={sessionsPaginator} />
                 </div>
-            </div>
+            </div>}
 
-            <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {reportType === 'all' && <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                 <StatCard label="Rate" value={`${summary.rate}%`} />
                 <StatCard label="Present" value={summary.present} />
                 <StatCard label="Late" value={summary.late} />
                 <StatCard label="Absent" value={summary.absent} />
                 <StatCard label="Excused" value={summary.excused} />
                 <StatCard label="Total" value={summary.total} />
-            </div>
+            </div>}
 
-            <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <ChartCard title="Face vs manual marking">
-                    <Doughnut data={methodData} options={noAspect} />
-                </ChartCard>
-                <div className="rounded-xl bg-white p-5 text-sm text-gray-600 shadow-sm ring-1 ring-gray-200">
-                    <h3 className="mb-2 text-sm font-semibold text-gray-700">Method totals</h3>
-                    <ul className="space-y-1">
-                        <li>
-                            Face recognition: <strong>{methodBreakdown?.face ?? 0}</strong>
-                        </li>
-                        <li>
-                            Manual: <strong>{methodBreakdown?.manual ?? 0}</strong>
-                        </li>
-                        <li>
-                            Other / unknown: <strong>{methodBreakdown?.other ?? 0}</strong>
-                        </li>
-                    </ul>
+            {reportType === 'all' && (
+                <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <ChartCard title="Face vs manual marking">
+                        <Doughnut data={methodData} options={noAspect} />
+                    </ChartCard>
+                    <div className="rounded-xl bg-white p-5 text-sm text-gray-600 shadow-sm ring-1 ring-gray-200">
+                        <h3 className="mb-2 text-sm font-semibold text-gray-700">Method totals</h3>
+                        <ul className="space-y-1">
+                            <li>
+                                Face recognition: <strong>{methodBreakdown?.face ?? 0}</strong>
+                            </li>
+                            <li>
+                                Manual: <strong>{methodBreakdown?.manual ?? 0}</strong>
+                            </li>
+                            <li>
+                                Other / unknown: <strong>{methodBreakdown?.other ?? 0}</strong>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {!filters.session_id && (
+            {reportType === 'all' && !filters.session_id && (
                 <div className="mb-6">
                     <AtRiskStudentsTable students={atRisk} />
                 </div>
             )}
 
+            {reportType === 'warnings' ? (
+                <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+                    <div className="border-b border-gray-100 px-4 py-3">
+                        <h2 className="text-base font-semibold text-gray-900">Formal absence warnings</h2>
+                        <p className="text-xs text-gray-500">Students with at least 3 consecutive absent attendance sessions in this period.</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    {[
+                                        ['date', 'Warning date'],
+                                        ['section', 'Section'],
+                                        ['student', 'Student'],
+                                        ['streak_count', 'Consecutive Absences'],
+                                        ['absence_dates', 'Absence dates'],
+                                        ['status', 'Letter status'],
+                                    ].map(([key, heading]) => (
+                                        <LocalSortHeading key={key} column={key} sorting={warningSorting}>
+                                            {heading}
+                                        </LocalSortHeading>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {warningSorting.rows.map((warning) => (
+                                    <tr key={warning.id} className="hover:bg-gray-50">
+                                        <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-700">{warning.date}</td>
+                                        <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-700">{warning.section}</td>
+                                        <td className="whitespace-nowrap px-4 py-2 text-sm">
+                                            <Link href={route('reports.student', warning.student_id)} className="text-blue-600 hover:underline">{warning.student}</Link>
+                                        </td>
+                                        <td className="px-4 py-2 text-center text-sm font-medium text-red-600">{warning.streak_count}</td>
+                                        <td className="whitespace-nowrap px-4 py-2 text-sm text-gray-700">{warning.absence_dates}</td>
+                                        <td className="px-4 py-2 text-sm capitalize text-gray-700">{warning.status}</td>
+                                    </tr>
+                                ))}
+                                {warnings.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">No formal absence warnings in this period.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : (
             <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+                {reportType !== 'all' && <div className="border-b border-gray-100 px-4 py-3">
+                    <h2 className="text-base font-semibold capitalize text-gray-900">{reportType} attendance report</h2>
+                    <p className="text-xs text-gray-500">{records.total} matching records in this period.</p>
+                </div>}
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
@@ -280,7 +358,8 @@ export default function ReportsIndex({
                     </tbody>
                 </table>
             </div>
-            <Pagination paginator={recordsPaginator} />
+            )}
+            {reportType !== 'warnings' && <Pagination paginator={recordsPaginator} />}
         </Layout>
     );
 }
