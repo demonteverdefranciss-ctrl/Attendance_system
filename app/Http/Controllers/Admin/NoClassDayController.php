@@ -9,6 +9,7 @@ use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -123,6 +124,70 @@ class NoClassDayController extends Controller
             $shouldNotify
                 ? 'No-class day saved. Parents and teachers were notified.'
                 : 'No-class day updated.'
+        );
+    }
+
+    public function storeRange(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'from' => ['required', 'date', 'after_or_equal:today'],
+            'to' => ['required', 'date', 'after_or_equal:from'],
+            'name' => ['nullable', 'string', 'max:150'],
+        ]);
+
+        $from = Carbon::parse($data['from'])->startOfDay();
+        $to = Carbon::parse($data['to'])->startOfDay();
+        if ($from->diffInDays($to) > 365) {
+            return back()->withErrors(['to' => 'Choose a range no longer than 366 days.'])->withInput();
+        }
+
+        $name = trim((string) ($data['name'] ?? ''));
+        $created = DB::transaction(function () use ($from, $to, $name) {
+            $days = [];
+            for ($date = $from->copy(); $date->lte($to); $date->addDay()) {
+                if ($date->isWeekend()) {
+                    continue;
+                }
+
+                $existing = NoClassDay::withTrashed()
+                    ->whereDate('date', $date->toDateString())
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing && ! $existing->trashed()) {
+                    continue;
+                }
+
+                if ($existing) {
+                    $existing->restore();
+                    $existing->update([
+                        'name' => $name ?: $existing->name,
+                        'source' => NoClassDay::SOURCE_MANUAL,
+                    ]);
+                    $days[] = $existing->fresh();
+                    continue;
+                }
+
+                $days[] = NoClassDay::create([
+                    'date' => $date->toDateString(),
+                    'name' => $name ?: null,
+                    'source' => NoClassDay::SOURCE_MANUAL,
+                ]);
+            }
+
+            return $days;
+        });
+
+        if ($created !== []) {
+            $this->notifications->queueNoClassDayRangeNotice($created, $name ?: null);
+        }
+
+        $count = count($created);
+        return back()->with(
+            $count > 0 ? 'success' : 'error',
+            $count > 0
+                ? "Marked {$count} weekday(s) as no-class and sent a summary notification."
+                : 'There were no new weekdays to mark. The selected range may contain only weekends or already-marked dates.'
         );
     }
 

@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import ParentLayout from '@/Layouts/ParentLayout';
@@ -30,7 +30,28 @@ export default function ScheduleCalendar({ schedules, year, month, monthLabel, s
         <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
                 <Link href={route('schedules.calendar', previous)} className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100">← Prev</Link>
-                <h2 className="text-lg font-semibold text-gray-900">{monthLabel}</h2>
+                <div className="flex flex-col items-center gap-1">
+                    <h2 className="text-lg font-semibold text-gray-900">{monthLabel}</h2>
+                    <label className="sr-only" htmlFor="schedule-calendar-month">Select calendar month</label>
+                    <input
+                        id="schedule-calendar-month"
+                        type="month"
+                        value={`${year}-${pad(month)}`}
+                        min="2000-01"
+                        max="2100-12"
+                        onChange={(event) => {
+                            const [selectedYear, selectedMonth] = event.target.value.split('-').map(Number);
+                            if (selectedYear && selectedMonth) {
+                                router.get(
+                                    route('schedules.calendar', { year: selectedYear, month: selectedMonth }),
+                                    {},
+                                    { preserveScroll: true },
+                                );
+                            }
+                        }}
+                        className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700"
+                    />
+                </div>
                 <Link href={route('schedules.calendar', next)} className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100">Next →</Link>
             </div>
             <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">{WEEKDAYS.map((label) => <div key={label} className="py-2">{label}</div>)}</div>

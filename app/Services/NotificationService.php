@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\TeacherNotification;
+use Carbon\Carbon;
 
 class NotificationService
 {
@@ -26,10 +27,6 @@ class NotificationService
         $student->loadMissing('guardians');
 
         foreach ($student->guardians as $guardian) {
-            if ($guardian->notify_pref !== 'push') {
-                continue;
-            }
-
             [$title, $body] = $this->attendanceMessage($type, $student->full_name);
 
             if ($wasOffline && $record->time_in) {
@@ -38,25 +35,41 @@ class NotificationService
                     .'. This update was delayed while the attendance device could not synchronize.';
             }
 
-            $notification = Notification::create([
-                'guardian_id' => $guardian->id,
-                'student_id' => $student->id,
-                'channel' => 'push',
-                'type' => $type,
-                'title' => $title,
-                'body' => $body,
-                'payload' => [
-                    'attendance_record_id' => $record->id,
-                    'was_offline' => $wasOffline,
-                    'status' => $record->status,
-                    'time_in' => $record->time_in?->toDateTimeString(),
-                    'time_out' => $record->time_out?->toDateTimeString(),
-                    'session_id' => $record->session_id,
-                ],
-                'status' => 'pending',
-            ]);
+            $this->createAttendanceNotification(
+                $guardian,
+                $student,
+                $record,
+                $type,
+                $title,
+                $body,
+                $wasOffline,
+            );
+        }
+    }
 
-            SendPushNotificationJob::dispatch($notification->id)->afterCommit();
+    /**
+     * Notify guardians when a teacher records a student's manual time-out.
+     */
+    public function queueManualTimeOutEvent(Student $student, AttendanceRecord $record): void
+    {
+        if (! $record->time_out) {
+            return;
+        }
+
+        $student->loadMissing('guardians');
+        $title = 'Early Time-out Recorded';
+        $body = "{$student->full_name} was signed out early at "
+            .$record->time_out->format('M j, Y g:i A').'.';
+
+        foreach ($student->guardians as $guardian) {
+            $this->createAttendanceNotification(
+                $guardian,
+                $student,
+                $record,
+                'early_time_out',
+                $title,
+                $body,
+            );
         }
     }
 
@@ -197,6 +210,80 @@ class NotificationService
             });
     }
 
+    /**
+     * Send one summary notification when multiple no-class weekdays are added.
+     *
+     * @param  array<int, NoClassDay>  $days
+     */
+    public function queueNoClassDayRangeNotice(array $days, ?string $name = null): void
+    {
+        if ($days === []) {
+            return;
+        }
+
+        $dates = collect($days)
+            ->map(fn (NoClassDay $day) => $day->date?->toDateString())
+            ->filter()
+            ->values()
+            ->all();
+        if ($dates === []) {
+            return;
+        }
+
+        $from = Carbon::parse($dates[0])->format('F j, Y');
+        $to = Carbon::parse($dates[count($dates) - 1])->format('F j, Y');
+        $title = 'No-class days announced';
+        $body = 'No-class days have been added for '.$from
+            .($from === $to ? '' : ' through '.$to)
+            .' ('.count($dates).' weekdays)'
+            .($name ? " — {$name}" : '')
+            .'. Attendance will not auto-open on those dates.';
+        $payload = [
+            'dates' => $dates,
+            'name' => $name,
+            'source' => NoClassDay::SOURCE_MANUAL,
+        ];
+
+        Guardian::query()
+            ->orderBy('id')
+            ->select(['id', 'notify_pref'])
+            ->chunkById(100, function ($guardians) use ($title, $body, $payload) {
+                foreach ($guardians as $guardian) {
+                    $wantsPush = $guardian->notify_pref === 'push';
+                    $notification = Notification::create([
+                        'guardian_id' => $guardian->id,
+                        'student_id' => null,
+                        'channel' => 'push',
+                        'type' => 'no_class_day_range',
+                        'title' => $title,
+                        'body' => $body,
+                        'payload' => $payload,
+                        'status' => $wantsPush ? 'pending' : 'sent',
+                        'sent_at' => $wantsPush ? null : now(),
+                    ]);
+
+                    if ($wantsPush) {
+                        SendPushNotificationJob::dispatch($notification->id)->afterCommit();
+                    }
+                }
+            });
+
+        Teacher::query()
+            ->orderBy('id')
+            ->select(['id'])
+            ->chunkById(100, function ($teachers) use ($title, $body, $payload) {
+                foreach ($teachers as $teacher) {
+                    TeacherNotification::create([
+                        'teacher_id' => $teacher->id,
+                        'type' => 'no_class_day_range',
+                        'title' => $title,
+                        'body' => $body,
+                        'payload' => $payload,
+                    ]);
+                }
+            });
+    }
+
     private function eventTypeForStatus(string $status): ?string
     {
         return match ($status) {
@@ -206,6 +293,40 @@ class NotificationService
             'excused' => 'excused',
             default => null,
         };
+    }
+
+    private function createAttendanceNotification(
+        Guardian $guardian,
+        Student $student,
+        AttendanceRecord $record,
+        string $type,
+        string $title,
+        string $body,
+        bool $wasOffline = false,
+    ): void {
+        $wantsPush = $guardian->notify_pref === 'push';
+        $notification = Notification::create([
+            'guardian_id' => $guardian->id,
+            'student_id' => $student->id,
+            'channel' => 'push',
+            'type' => $type,
+            'title' => $title,
+            'body' => $body,
+            'payload' => [
+                'attendance_record_id' => $record->id,
+                'was_offline' => $wasOffline,
+                'status' => $record->status,
+                'time_in' => $record->time_in?->toDateTimeString(),
+                'time_out' => $record->time_out?->toDateTimeString(),
+                'session_id' => $record->session_id,
+            ],
+            'status' => $wantsPush ? 'pending' : 'sent',
+            'sent_at' => $wantsPush ? null : now(),
+        ]);
+
+        if ($wantsPush) {
+            SendPushNotificationJob::dispatch($notification->id)->afterCommit();
+        }
     }
 
     /**

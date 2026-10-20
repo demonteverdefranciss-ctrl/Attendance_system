@@ -276,6 +276,13 @@ class AttendanceService
 
         $record->save();
 
+        if (empty($opts['skip_notification']) && ! empty($opts['marked_by'])) {
+            $student = Student::find($studentId);
+            if ($student) {
+                $this->notifications->queueManualTimeOutEvent($student, $record);
+            }
+        }
+
         if (empty($opts['skip_audit'])) {
             $this->audit->log(
                 action: 'attendance_time_out_recorded',

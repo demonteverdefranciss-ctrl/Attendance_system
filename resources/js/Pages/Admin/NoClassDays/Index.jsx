@@ -35,6 +35,18 @@ export default function NoClassDaysIndex({
         date: today,
         name: '',
     });
+    const {
+        data: rangeData,
+        setData: setRangeData,
+        post: postRange,
+        processing: rangeProcessing,
+        errors: rangeErrors,
+        reset: resetRange,
+    } = useForm({
+        from: today,
+        to: today,
+        name: '',
+    });
 
     const cells = useMemo(() => {
         const list = [];
@@ -94,6 +106,14 @@ export default function NoClassDaysIndex({
         });
     };
 
+    const submitRangeForm = (e) => {
+        e.preventDefault();
+        postRange(route('admin.no-class-days.range'), {
+            preserveScroll: true,
+            onSuccess: () => resetRange(),
+        });
+    };
+
     const syncGoogle = () => {
         setSyncing(true);
         router.post(
@@ -146,7 +166,28 @@ export default function NoClassDaysIndex({
                         >
                             ← Prev
                         </Link>
-                        <h2 className="text-lg font-semibold text-gray-900">{monthLabel}</h2>
+                        <div className="flex flex-col items-center gap-1">
+                            <h2 className="text-lg font-semibold text-gray-900">{monthLabel}</h2>
+                            <label className="sr-only" htmlFor="no-class-calendar-month">Select calendar month</label>
+                            <input
+                                id="no-class-calendar-month"
+                                type="month"
+                                value={`${year}-${pad(month)}`}
+                                min="2020-01"
+                                max="2100-12"
+                                onChange={(event) => {
+                                    const [selectedYear, selectedMonth] = event.target.value.split('-').map(Number);
+                                    if (selectedYear && selectedMonth) {
+                                        router.get(
+                                            monthHref(selectedYear, selectedMonth),
+                                            {},
+                                            { preserveScroll: true },
+                                        );
+                                    }
+                                }}
+                                className="rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-700"
+                            />
+                        </div>
                         <Link
                             href={monthHref(next.year, next.month)}
                             className="rounded-lg bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 ring-1 ring-inset ring-sky-200 hover:bg-sky-100"
@@ -268,6 +309,64 @@ export default function NoClassDaysIndex({
                             className="mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                         >
                             Mark no class
+                        </button>
+                    </form>
+
+                    <form onSubmit={submitRangeForm} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+                        <h3 className="font-semibold text-gray-900">Add a date range</h3>
+                        <p className="mt-1 text-xs text-gray-500">
+                            Weekdays in the range will be marked as no-class. Weekends and dates already marked are skipped.
+                        </p>
+                        <label className="mt-3 block text-sm text-gray-700">
+                            From
+                            <input
+                                type="date"
+                                value={rangeData.from}
+                                min={today}
+                                onChange={(e) => {
+                                    const from = e.target.value;
+                                    setRangeData({
+                                        ...rangeData,
+                                        from,
+                                        ...(rangeData.to < from ? { to: from } : {}),
+                                    });
+                                }}
+                                className="mt-1 w-full rounded-lg border-gray-300 text-sm"
+                                required
+                            />
+                            {rangeErrors.from && <p className="mt-1 text-xs text-red-600">{rangeErrors.from}</p>}
+                        </label>
+                        <label className="mt-3 block text-sm text-gray-700">
+                            To
+                            <input
+                                type="date"
+                                value={rangeData.to}
+                                min={rangeData.from || today}
+                                onChange={(e) => setRangeData('to', e.target.value)}
+                                className="mt-1 w-full rounded-lg border-gray-300 text-sm"
+                                required
+                            />
+                            {rangeErrors.to && <p className="mt-1 text-xs text-red-600">{rangeErrors.to}</p>}
+                        </label>
+                        <label className="mt-3 block text-sm text-gray-700">
+                            Name (optional)
+                            <input
+                                type="text"
+                                value={rangeData.name}
+                                onChange={(e) => setRangeData('name', e.target.value)}
+                                placeholder="School break or event"
+                                className="mt-1 w-full rounded-lg border-gray-300 text-sm"
+                                maxLength={150}
+                            />
+                            {rangeErrors.name && <p className="mt-1 text-xs text-red-600">{rangeErrors.name}</p>}
+                        </label>
+                        {rangeErrors.range && <p className="mt-1 text-xs text-red-600">{rangeErrors.range}</p>}
+                        <button
+                            type="submit"
+                            disabled={rangeProcessing}
+                            className="mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {rangeProcessing ? 'Marking weekdays…' : 'Mark weekday range'}
                         </button>
                     </form>
 
