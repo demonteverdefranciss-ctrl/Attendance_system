@@ -38,12 +38,12 @@ class ReportTypeTest extends TestCase
             'grade_level' => 'Grade 1',
             'school_year' => '2026',
         ]);
-        $student = Student::create([
-            'section_id' => $section->id,
-            'first_name' => 'Report',
-            'last_name' => 'Student',
-        ]);
         foreach (['late', 'absent', 'present'] as $status) {
+            $student = Student::create([
+                'section_id' => $section->id,
+                'first_name' => ucfirst($status),
+                'last_name' => 'Student',
+            ]);
             $session = AttendanceSession::create([
                 'section_id' => $section->id,
                 'session_date' => today(),
@@ -85,7 +85,12 @@ class ReportTypeTest extends TestCase
         $this->assertStringNotContainsString('present', $response->streamedContent());
 
         foreach (['present', 'late', 'absent'] as $reportType) {
-            $this->assertPdfDownload($reportType);
+            $includedStudent = 'Student, '.ucfirst($reportType);
+            $excludedStudents = array_values(array_diff(
+                ['Student, Present', 'Student, Late', 'Student, Absent'],
+                [$includedStudent],
+            ));
+            $this->assertPdfDownload($reportType, $includedStudent, $excludedStudents);
         }
     }
 
@@ -199,11 +204,31 @@ class ReportTypeTest extends TestCase
             ->assertSessionHasErrors('report_type');
     }
 
-    private function assertPdfDownload(string $reportType): void
+    private function assertPdfDownload(string $reportType, ?string $expectedText = null, array $excludedText = []): void
     {
         $response = $this->get(route('reports.pdf', ['report_type' => $reportType]));
 
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
-        $this->assertStringStartsWith('%PDF-', $response->getContent());
+        $pdf = $response->getContent();
+        $this->assertStringStartsWith('%PDF-', $pdf);
+
+        if ($expectedText !== null) {
+            $pdfText = $this->extractPdfText($pdf);
+            $this->assertStringContainsString($expectedText, $pdfText);
+            foreach ($excludedText as $text) {
+                $this->assertStringNotContainsString($text, $pdfText);
+            }
+        }
+    }
+
+    private function extractPdfText(string $pdf): string
+    {
+        preg_match_all('/stream\\r?\\n(.*?)\\r?\\nendstream/s', $pdf, $matches);
+
+        $text = collect($matches[1])
+            ->map(fn (string $stream) => @gzuncompress($stream) ?: $stream)
+            ->implode("\n");
+
+        return str_replace("\0", '', $text);
     }
 }

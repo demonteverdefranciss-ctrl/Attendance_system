@@ -159,7 +159,7 @@ class ReportController extends Controller
         [$scopeIds, , $from, $to, $sectionId, $sessionId, $reportType] = $this->context($request);
         $effective = $sectionId ? [$sectionId] : $scopeIds;
 
-        $status = in_array($reportType, ['late', 'absent'], true) ? $reportType : null;
+        $status = in_array($reportType, ['present', 'late', 'absent'], true) ? $reportType : null;
         $records = $reportType === 'warnings'
             ? []
             : $this->analytics->records($scopeIds, $from, $to, $sectionId, $sessionId, $status);
